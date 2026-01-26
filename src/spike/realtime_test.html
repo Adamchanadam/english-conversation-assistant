@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voice Proxy Negotiator - Spike Test</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Noto Sans TC', 'Microsoft JhengHei', sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #1a1a2e;
+            color: #eee;
+        }
+        h1 {
+            color: #00d4ff;
+        }
+        .status {
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 8px;
+            background: #16213e;
+        }
+        .status.connected {
+            border-left: 4px solid #00ff88;
+        }
+        .status.disconnected {
+            border-left: 4px solid #ff4444;
+        }
+        .status.connecting {
+            border-left: 4px solid #ffaa00;
+        }
+        button {
+            padding: 12px 24px;
+            margin: 5px;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .btn-primary {
+            background: #00d4ff;
+            color: #000;
+        }
+        .btn-primary:hover:not(:disabled) {
+            background: #00a8cc;
+        }
+        .btn-danger {
+            background: #ff4444;
+            color: #fff;
+        }
+        .btn-danger:hover:not(:disabled) {
+            background: #cc3333;
+        }
+        .btn-warning {
+            background: #ffaa00;
+            color: #000;
+        }
+        .btn-warning:hover:not(:disabled) {
+            background: #cc8800;
+        }
+        #log {
+            background: #0f0f23;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 15px;
+            height: 300px;
+            overflow-y: auto;
+            font-family: 'Consolas', monospace;
+            font-size: 13px;
+            white-space: pre-wrap;
+        }
+        .log-info { color: #00d4ff; }
+        .log-success { color: #00ff88; }
+        .log-error { color: #ff4444; }
+        .log-warn { color: #ffaa00; }
+        .log-event { color: #aa88ff; }
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin: 15px 0;
+        }
+        .audio-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        .audio-indicator.active {
+            background: #00ff88;
+            animation: pulse 0.5s ease-in-out infinite;
+        }
+        .audio-indicator.inactive {
+            background: #444;
+        }
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.2); opacity: 0.7; }
+        }
+        .token-info {
+            font-size: 12px;
+            color: #888;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>M0 Spike: WebRTC Realtime 測試</h1>
+
+    <div id="connectionStatus" class="status disconnected">
+        <strong>連線狀態：</strong><span id="statusText">未連線</span>
+        <div class="token-info" id="tokenInfo"></div>
+    </div>
+
+    <div class="status">
+        <span class="audio-indicator" id="micIndicator"></span>
+        <strong>麥克風：</strong><span id="micStatus">未啟用</span>
+        <br>
+        <span class="audio-indicator" id="speakerIndicator"></span>
+        <strong>播放：</strong><span id="speakerStatus">未播放</span>
+    </div>
+
+    <div class="controls">
+        <button id="btnConnect" class="btn-primary" onclick="connect()">連線</button>
+        <button id="btnDisconnect" class="btn-danger" onclick="disconnect()" disabled>斷線</button>
+        <button id="btnInterrupt" class="btn-warning" onclick="interrupt()" disabled>打斷 (T0.2)</button>
+        <button onclick="clearLog()">清除日誌</button>
+    </div>
+
+    <h3>事件日誌</h3>
+    <div id="log"></div>
+
+    <script>
+        // ============================================
+        // Spike: Minimal WebRTC Realtime Test
+        // Task: T0.1, T0.2, T0.3, T0.4
+        // Reference: SKILL openai-realtime-mini-voice
+        // ============================================
+
+        // State
+        let peerConnection = null;
+        let dataChannel = null;
+        let localStream = null;
+        let tokenExpiresAt = null;
+        let currentAssistantItemId = null;
+        let audioPlaybackMs = 0;
+        let isAssistantSpeaking = false;
+
+        // DOM elements
+        const logEl = document.getElementById('log');
+        const statusEl = document.getElementById('connectionStatus');
+        const statusText = document.getElementById('statusText');
+        const tokenInfo = document.getElementById('tokenInfo');
+        const micIndicator = document.getElementById('micIndicator');
+        const speakerIndicator = document.getElementById('speakerIndicator');
+        const micStatus = document.getElementById('micStatus');
+        const speakerStatus = document.getElementById('speakerStatus');
+        const btnConnect = document.getElementById('btnConnect');
+        const btnDisconnect = document.getElementById('btnDisconnect');
+        const btnInterrupt = document.getElementById('btnInterrupt');
+
+        // Logging
+        function log(msg, type = 'info') {
+            const time = new Date().toLocaleTimeString('zh-TW');
+            const line = document.createElement('div');
+            line.className = `log-${type}`;
+            line.textContent = `[${time}] ${msg}`;
+            logEl.appendChild(line);
+            logEl.scrollTop = logEl.scrollHeight;
+            console.log(`[${type}] ${msg}`);
+        }
+
+        function clearLog() {
+            logEl.innerHTML = '';
+        }
+
+        // Audio level monitor for debugging
+        let audioContext = null;
+        let analyser = null;
+        function startAudioMonitor(stream) {
+            audioContext = new AudioContext();
+            analyser = audioContext.createAnalyser();
+            const source = audioContext.createMediaStreamSource(stream);
+            source.connect(analyser);
+            analyser.fftSize = 256;
+
+            const dataArray = new Uint8Array(analyser.frequencyBinCount);
+            let lastLogTime = 0;
+
+            function checkLevel() {
+                if (!analyser) return;
+                analyser.getByteFrequencyData(dataArray);
+                const avg = dataArray.reduce((a, b) => a + b) / dataArray.length;
+
+                // Log every 2 seconds if there's significant audio
+                const now = Date.now();
+                if (avg > 10 && now - lastLogTime > 2000) {
+                    log(`麥克風音量: ${Math.round(avg)}`, 'info');
+                    lastLogTime = now;
+                }
+                requestAnimationFrame(checkLevel);
+            }
+            checkLevel();
+            log('音量監測已啟動', 'info');
+        }
+
+        function updateStatus(status, text) {
+            statusEl.className = `status ${status}`;
+            statusText.textContent = text;
+        }
+
+        function updateMicStatus(active) {
+            micIndicator.className = `audio-indicator ${active ? 'active' : 'inactive'}`;
+            micStatus.textContent = active ? '正在收音' : '靜音';
+        }
+
+        function updateSpeakerStatus(active) {
+            speakerIndicator.className = `audio-indicator ${active ? 'active' : 'inactive'}`;
+            speakerStatus.textContent = active ? '正在播放' : '靜音';
+            isAssistantSpeaking = active;
+        }
+
+        // ============================================
+        // WebRTC Connection (T0.1)
+        // ============================================
+
+        async function connect() {
+            try {
+                log('正在取得 ephemeral token...', 'info');
+                updateStatus('connecting', '連線中...');
+                btnConnect.disabled = true;
+
+                // Step 1: Get ephemeral token from backend
+                const tokenResponse = await fetch('/api/token', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ voice: 'marin' })
+                });
+
+                if (!tokenResponse.ok) {
+                    const err = await tokenResponse.json();
+                    throw new Error(err.detail || 'Failed to get token');
+                }
+
+                const tokenData = await tokenResponse.json();
+                tokenExpiresAt = tokenData.expires_at;
+                const expiresIn = Math.round((tokenExpiresAt * 1000 - Date.now()) / 1000);
+                log(`Token 取得成功 (TTL: ${expiresIn}s)`, 'success');
+                tokenInfo.textContent = `Token expires: ${new Date(tokenExpiresAt * 1000).toLocaleTimeString()}`;
+
+                // Step 2: Get microphone access
+                log('請求麥克風權限...', 'info');
+                localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                log('麥克風權限已取得', 'success');
+                updateMicStatus(true);
+
+                // Start audio level monitor for debugging
+                startAudioMonitor(localStream);
+
+                // Step 3: Create WebRTC connection
+                log('建立 WebRTC 連線...', 'info');
+
+                // ICE servers configuration (SKILL: WebRTC Configuration)
+                const rtcConfig = {
+                    iceServers: [
+                        { urls: 'stun:stun.l.google.com:19302' },
+                        { urls: 'stun:stun1.l.google.com:19302' }
+                    ]
+                };
+
+                peerConnection = new RTCPeerConnection(rtcConfig);
+
+                // Add audio track with debugging
+                const audioTrack = localStream.getAudioTracks()[0];
+                log(`麥克風軌道: enabled=${audioTrack.enabled}, muted=${audioTrack.muted}, readyState=${audioTrack.readyState}`, 'info');
+
+                // Ensure track is enabled
+                audioTrack.enabled = true;
+
+                const sender = peerConnection.addTrack(audioTrack, localStream);
+                log(`音訊發送器已添加: ${sender.track?.kind}`, 'info');
+
+                // Handle remote audio
+                peerConnection.ontrack = (event) => {
+                    log('收到遠端音訊軌', 'success');
+                    const audio = new Audio();
+                    audio.srcObject = event.streams[0];
+                    audio.play().catch(e => log(`音訊播放錯誤: ${e.message}`, 'error'));
+
+                    // Track playback for truncate (T0.3)
+                    audio.ontimeupdate = () => {
+                        audioPlaybackMs = Math.round(audio.currentTime * 1000);
+                    };
+                };
+
+                // Create data channel for Realtime events
+                dataChannel = peerConnection.createDataChannel('oai-events');
+                setupDataChannel();
+
+                // ICE connection state
+                peerConnection.oniceconnectionstatechange = () => {
+                    log(`ICE 狀態: ${peerConnection.iceConnectionState}`, 'event');
+                    if (peerConnection.iceConnectionState === 'connected') {
+                        updateStatus('connected', '已連線');
+                        btnDisconnect.disabled = false;
+                        btnInterrupt.disabled = false;
+                    } else if (peerConnection.iceConnectionState === 'failed') {
+                        log('ICE 連線失敗', 'error');
+                        disconnect();
+                    }
+                };
+
+                // Create offer (implicitly via setLocalDescription)
+                // Don't wait for ICE gathering - send offer immediately
+                await peerConnection.setLocalDescription();
+                log(`SDP offer 已創建`, 'info');
+
+                // Step 4: Send offer to OpenAI Realtime (GA API endpoint)
+                // Reference: https://platform.openai.com/docs/guides/realtime-webrtc
+                log('發送 SDP offer 到 OpenAI...', 'info');
+                const sdpResponse = await fetch(
+                    'https://api.openai.com/v1/realtime/calls',
+                    {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${tokenData.client_secret}`,
+                            'Content-Type': 'application/sdp'
+                        },
+                        body: peerConnection.localDescription.sdp
+                    }
+                );
+
+                if (!sdpResponse.ok) {
+                    throw new Error(`SDP exchange failed: ${sdpResponse.status}`);
+                }
+
+                const answerSdp = await sdpResponse.text();
+                await peerConnection.setRemoteDescription({
+                    type: 'answer',
+                    sdp: answerSdp
+                });
+
+                log('WebRTC 連線建立完成', 'success');
+
+            } catch (error) {
+                log(`連線失敗: ${error.message}`, 'error');
+                updateStatus('disconnected', '連線失敗');
+                btnConnect.disabled = false;
+                disconnect();
+            }
+        }
+
+        function setupDataChannel() {
+            dataChannel.onopen = () => {
+                log('Data channel 已開啟', 'success');
+                // Send session.update immediately (SKILL requirement)
+                sendSessionUpdate();
+            };
+
+            dataChannel.onclose = () => {
+                log('Data channel 已關閉', 'warn');
+            };
+
+            dataChannel.onerror = (error) => {
+                log(`Data channel 錯誤: ${error}`, 'error');
+            };
+
+            dataChannel.onmessage = (event) => {
+                handleRealtimeEvent(JSON.parse(event.data));
+            };
+        }
+
+        // ============================================
+        // Session Configuration (SKILL requirement)
+        // ============================================
+
+        function sendSessionUpdate() {
+            // Updated format for GA API (2025)
+            // Reference: https://platform.openai.com/docs/guides/realtime-conversations
+            const sessionConfig = {
+                type: 'session.update',
+                session: {
+                    type: 'realtime',  // Required parameter
+                    instructions: [
+                        'You are an English voice agent for negotiation practice.',
+                        'Speak in short, natural sentences.',
+                        'Never invent facts. If you do not know, say you do not know.',
+                        'Keep responses concise unless asked for detail.',
+                        'This is a test session - respond naturally to any input.'
+                    ].join('\n'),
+                    output_modalities: ['audio'],  // Only 'audio' or 'text', not both
+                    audio: {
+                        input: {
+                            format: { type: 'audio/pcm', rate: 24000 },
+                            turn_detection: {
+                                type: 'semantic_vad',  // T0.4
+                                eagerness: 'auto',
+                                create_response: true,
+                                interrupt_response: true  // T0.2
+                            }
+                        },
+                        output: {
+                            format: { type: 'audio/pcm', rate: 24000 },
+                            voice: 'marin'
+                        }
+                    }
+                }
+            };
+
+            sendEvent(sessionConfig);
+            log('已發送 session.update (semantic_vad, interrupt enabled)', 'info');
+        }
+
+        function sendEvent(event) {
+            if (dataChannel && dataChannel.readyState === 'open') {
+                dataChannel.send(JSON.stringify(event));
+                log(`→ ${event.type}`, 'info');
+            } else {
+                log('無法發送事件: data channel 未開啟', 'error');
+            }
+        }
+
+        // ============================================
+        // Realtime Event Handling
+        // ============================================
+
+        function handleRealtimeEvent(event) {
+            const type = event.type;
+
+            switch (type) {
+                case 'session.created':
+                    log('← session.created', 'event');
+                    break;
+
+                case 'session.updated':
+                    log('← session.updated', 'event');
+                    break;
+
+                case 'input_audio_buffer.speech_started':
+                    log('← speech_started (用戶開始說話)', 'event');
+                    updateMicStatus(true);
+                    // T0.2: If assistant is speaking, this means user is interrupting
+                    if (isAssistantSpeaking) {
+                        log('檢測到打斷！', 'warn');
+                    }
+                    break;
+
+                case 'input_audio_buffer.speech_stopped':
+                    log('← speech_stopped (用戶停止說話)', 'event');
+                    break;
+
+                case 'response.created':
+                    log('← response.created', 'event');
+                    break;
+
+                case 'response.output_item.added':
+                    if (event.item && event.item.id) {
+                        currentAssistantItemId = event.item.id;
+                        log(`← output_item.added (id: ${event.item.id})`, 'event');
+                    }
+                    break;
+
+                case 'response.audio.delta':
+                    // Audio chunk received - assistant is speaking
+                    updateSpeakerStatus(true);
+                    break;
+
+                case 'response.audio.done':
+                    log('← response.audio.done', 'event');
+                    updateSpeakerStatus(false);
+                    break;
+
+                case 'response.done':
+                    log('← response.done', 'event');
+                    updateSpeakerStatus(false);
+                    break;
+
+                case 'conversation.item.created':
+                    if (event.item) {
+                        const role = event.item.role || 'unknown';
+                        log(`← conversation.item.created (role: ${role})`, 'event');
+                    }
+                    break;
+
+                case 'conversation.item.truncated':
+                    log('← conversation.item.truncated (T0.3)', 'success');
+                    break;
+
+                case 'error':
+                    log(`← error: ${JSON.stringify(event.error)}`, 'error');
+                    break;
+
+                default:
+                    // Log other events at debug level
+                    if (type.includes('delta')) {
+                        // Skip verbose delta logs
+                    } else {
+                        log(`← ${type}`, 'event');
+                    }
+            }
+        }
+
+        // ============================================
+        // Interruption Handling (T0.2, T0.3)
+        // ============================================
+
+        function interrupt() {
+            if (!dataChannel || dataChannel.readyState !== 'open') {
+                log('無法打斷: 未連線', 'error');
+                return;
+            }
+
+            log('執行打斷序列...', 'warn');
+
+            // Step 1: Cancel ongoing response (T0.2)
+            sendEvent({ type: 'response.cancel' });
+
+            // Step 2: Clear audio buffer (T0.2)
+            sendEvent({ type: 'output_audio_buffer.clear' });
+
+            // Step 3: Truncate to sync context (T0.3)
+            if (currentAssistantItemId) {
+                sendEvent({
+                    type: 'conversation.item.truncate',
+                    item_id: currentAssistantItemId,
+                    content_index: 0,
+                    audio_end_ms: audioPlaybackMs
+                });
+                log(`Truncate 已發送 (audio_end_ms: ${audioPlaybackMs})`, 'info');
+            }
+
+            updateSpeakerStatus(false);
+            log('打斷完成', 'success');
+        }
+
+        // ============================================
+        // Disconnect
+        // ============================================
+
+        function disconnect() {
+            // Cleanup audio monitor
+            if (analyser) {
+                analyser = null;
+            }
+            if (audioContext) {
+                audioContext.close();
+                audioContext = null;
+            }
+
+            if (dataChannel) {
+                dataChannel.close();
+                dataChannel = null;
+            }
+
+            if (peerConnection) {
+                peerConnection.close();
+                peerConnection = null;
+            }
+
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+                localStream = null;
+            }
+
+            currentAssistantItemId = null;
+            audioPlaybackMs = 0;
+
+            updateStatus('disconnected', '已斷線');
+            updateMicStatus(false);
+            updateSpeakerStatus(false);
+            tokenInfo.textContent = '';
+
+            btnConnect.disabled = false;
+            btnDisconnect.disabled = true;
+            btnInterrupt.disabled = true;
+
+            log('已斷線', 'info');
+        }
+
+        // Initial state
+        updateMicStatus(false);
+        updateSpeakerStatus(false);
+        log('Spike 測試頁面已載入', 'info');
+        log('模型: gpt-realtime-mini-2025-12-15', 'info');
+        log('點擊「連線」開始測試', 'info');
+    </script>
+</body>
+</html>

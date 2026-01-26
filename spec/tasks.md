@@ -6,12 +6,19 @@ description: 端到端落地任務清單（milestones、實作步驟、測試與
 
 # Voice Proxy Negotiator — Tasks
 
-## Milestone 0 — Spike（可行性最小驗證）
+## Milestone 0 — Spike（可行性最小驗證） ✅ COMPLETED
 
 🔎 先驗證「可打斷 + 可續接 + 低延遲」三件事，通過後才進入完整產品化。
 
+**完成日期**：2026-01-26
+**驗收結果**：
+- WebRTC 連線：1 秒內建立 ✅
+- 雙向音訊：正常 ✅
+- semantic_vad：speech_started/stopped 正常 ✅
+- 打斷功能：AI 立即停止說話 ✅
+
 ### 前置任務（Pre-tasks）
-**T0.0** 模型 ID 確認與環境設定
+**T0.0** ✅ 模型 ID 確認與環境設定
 - 執行 `curl https://api.openai.com/v1/models` 確認可用模型 ID
 - 驗證 `gpt-realtime-mini` 和 `gpt-5-mini` 的可用性
 - 創建 `.env.example` 並配置 `OPENAI_API_KEY`
@@ -21,7 +28,7 @@ description: 端到端落地任務清單（milestones、實作步驟、測試與
   - 已確認並記錄文字控制器模型 ID（`gpt-5-mini`）
   - `.env.example` 已創建
 
-**T0.1** 建立最小 WebRTC Realtime 連線並可收/播音訊
+**T0.1** ✅ 建立最小 WebRTC Realtime 連線並可收/播音訊
 - 實作 `src/spike/backend_token.py`（FastAPI，生成 ephemeral token）
   - 調用 `POST https://api.openai.com/v1/realtime/client_secrets`
   - 使用模型：`gpt-realtime-mini-2025-12-15`
@@ -35,19 +42,19 @@ description: 端到端落地任務清單（milestones、實作步驟、測試與
   - 瀏覽器打開 `realtime_test.html`，可聽到 Realtime 回應
   - 驗證 token 在 10 分鐘後過期
 
-**T0.2** 實作 interruptions：`response.cancel` + `output_audio_buffer.clear` ([OpenAI Platform][5])
+**T0.2** ✅ 實作 interruptions：`response.cancel` + `output_audio_buffer.clear` ([OpenAI Platform][5])
 - 在 `realtime_test.html` 中實作打斷邏輯
 - 觀察對方打斷行為（手動測試）
 - **驗收**：
   - 對方開口時代理能停止輸出
 
-**T0.3** 加入 `conversation.item.truncate`，確保上下文不殘留「未被聽到」的 assistant 內容 ([OpenAI Platform][5])
+**T0.3** ✅ 加入 `conversation.item.truncate`，確保上下文不殘留「未被聽到」的 assistant 內容 ([OpenAI Platform][5])
 - 追蹤客戶端播放進度（`audio_end_ms`）
 - 實作 truncate 邏輯
 - **驗收**：
   - 打斷後上下文正確同步
 
-**T0.4** 設定 `semantic_vad` + `interrupt_response`，測試 10 次打斷成功率 ([OpenAI Platform][2])
+**T0.4** ✅ 設定 `semantic_vad` + `interrupt_response`，測試 10 次打斷成功率 ([OpenAI Platform][2])
 - 在 `session.update` 中配置 VAD 參數
 - 手動測試 10 次打斷場景
 - **驗收**：

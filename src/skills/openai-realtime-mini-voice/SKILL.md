@@ -24,16 +24,28 @@ Authorization: Bearer {OPENAI_API_KEY}
 Content-Type: application/json
 
 {
-  "model": "gpt-realtime-mini-2025-12-15",
-  "voice": "marin"
+  "expires_after": {
+    "anchor": "created_at",
+    "seconds": 600
+  },
+  "session": {
+    "type": "realtime",
+    "model": "gpt-realtime-mini-2025-12-15",
+    "audio": {
+      "output": {
+        "voice": "marin"
+      }
+    }
+  }
 }
 ```
 
 **Response**:
 ```json
 {
-  "client_secret": "ek_1234...",
-  "expires_at": 1234567890
+  "value": "ek_1234...",
+  "expires_at": 1234567890,
+  "session": { ... }
 }
 ```
 
@@ -96,6 +108,39 @@ const rtcConfig = {
 2. WebRTC establishes peer connection with OpenAI Realtime server
 3. If direct connection fails, fallback to TURN relay (v2)
 
+#### WebRTC SDP Exchange (GA API)
+
+**Endpoint**: `POST https://api.openai.com/v1/realtime/calls`
+
+```javascript
+// 1. Create peer connection and add audio track
+const pc = new RTCPeerConnection(rtcConfig);
+const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+pc.addTrack(stream.getAudioTracks()[0], stream);
+
+// 2. Create data channel for events
+const dc = pc.createDataChannel('oai-events');
+
+// 3. Create offer (implicit) and send to OpenAI
+await pc.setLocalDescription();
+const response = await fetch('https://api.openai.com/v1/realtime/calls', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${ephemeralToken}`,
+    'Content-Type': 'application/sdp'
+  },
+  body: pc.localDescription.sdp
+});
+
+// 4. Set remote answer
+await pc.setRemoteDescription({ type: 'answer', sdp: await response.text() });
+```
+
+**Important Notes**:
+- Do NOT wait for ICE gathering to complete before sending offer
+- Use `setLocalDescription()` without arguments (implicit offer creation)
+- Data channel name must be `'oai-events'`
+
 **Error Handling**:
 - `ICE connection failed`: Retry 3 times with 2-second intervals
 - If all retries fail: Display "Network connection issue, check firewall settings"
@@ -112,30 +157,42 @@ Send `session.update` early (immediately after connection) to lock:
 - Audio formats and voice
 - Whether server auto-creates responses on speech stop (`create_response`)
 
-### Example: session.update (conversation mode with interruptions)
+### Example: session.update (GA API format, conversation mode with interruptions)
+
+**IMPORTANT**: GA API format differs from Beta. Use nested `audio.input` and `audio.output` structure.
+
 ```json
 {
   "type": "session.update",
   "session": {
-    "instructions": [
-      "You are an English voice agent. Speak in short, natural sentences.",
-      "Never invent facts. If you do not know, say you do not know and offer to note it for later.",
-      "Keep responses concise unless explicitly asked for detail.",
-      "Stay aligned with the pinned task goal and current negotiation context provided by the app."
-    ].join("\n"),
-    "output_modalities": ["audio", "text"],
-    "input_audio_format": "audio/pcm",
-    "output_audio_format": "audio/pcm",
-    "voice": "marin",
-    "turn_detection": {
-      "type": "semantic_vad",
-      "eagerness": "auto",
-      "create_response": true,
-      "interrupt_response": true
+    "type": "realtime",
+    "instructions": "You are an English voice agent. Speak in short, natural sentences.\nNever invent facts. If you do not know, say you do not know.\nKeep responses concise unless explicitly asked for detail.",
+    "output_modalities": ["audio"],
+    "audio": {
+      "input": {
+        "format": { "type": "audio/pcm", "rate": 24000 },
+        "turn_detection": {
+          "type": "semantic_vad",
+          "eagerness": "auto",
+          "create_response": true,
+          "interrupt_response": true
+        }
+      },
+      "output": {
+        "format": { "type": "audio/pcm", "rate": 24000 },
+        "voice": "marin"
+      }
     }
   }
 }
 ```
+
+**GA API Key Differences** (vs Beta):
+- `session.type`: Required, must be `"realtime"`
+- `output_modalities`: Only `["audio"]` OR `["text"]`, not both
+- Audio format: Nested in `audio.input.format` and `audio.output.format`
+- Voice: Nested in `audio.output.voice`
+- Turn detection: Nested in `audio.input.turn_detection`
 
 **Audio Format Details**:
 - `audio/pcm`: 16-bit PCM, 24kHz sample rate (default for WebRTC)

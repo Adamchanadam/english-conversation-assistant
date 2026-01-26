@@ -396,16 +396,28 @@ Authorization: Bearer {OPENAI_API_KEY}
 Content-Type: application/json
 
 {
-  "model": "gpt-realtime-mini-2025-12-15",
-  "voice": "marin"
+  "expires_after": {
+    "anchor": "created_at",
+    "seconds": 600
+  },
+  "session": {
+    "type": "realtime",
+    "model": "gpt-realtime-mini-2025-12-15",
+    "audio": {
+      "output": {
+        "voice": "marin"
+      }
+    }
+  }
 }
 ```
 
 **OpenAI 響應**：
 ```json
 {
-  "client_secret": "ek_1234...",
-  "expires_at": 1234567890
+  "value": "ek_1234...",
+  "expires_at": 1234567890,
+  "session": { ... }
 }
 ```
 
