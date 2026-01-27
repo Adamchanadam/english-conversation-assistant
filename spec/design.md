@@ -258,6 +258,59 @@ voice-proxy-negotiator/
 - **正常對話流**：Realtime 依 `instructions` 和最近上下文自主回應（低延遲）
 - **用戶介入時**：Controller 注入策略指令（例如：「Next, politely decline and suggest alternative」），Realtime 依此調整語氣與內容
 
+### 自然對話過渡（Natural Conversation Flow）
+
+🔎 用戶按按鈕時的「上下文」與 AI 執行指令時的「上下文」可能不同（因為中間有對話發生），需確保過渡自然流暢。
+
+**問題分析**：
+1. **時機斷層**：用戶按按鈕是回應「對方剛說的話」，但 AI 執行指令時可能已過了幾輪對話
+2. **機械式執行**：直接執行指令缺乏對「對方上一句」的自然回應
+3. **缺乏過渡**：真人對話會用幾句話慢慢轉調，不會一句立即轉立場
+
+**設計原則**：
+1. **捕捉按鈕上下文**：記錄按按鈕當下「對方在說什麼」作為指令背景
+2. **先回應後轉調**：AI 應先簡短回應對方剛說的內容，再逐漸帶入指令意圖
+3. **漸進式過渡**：重大立場轉變應分 2-3 句逐漸表達，不要一句突變
+
+**實作規範**：
+
+#### 按鈕上下文捕捉
+當用戶按下按鈕時，前端應記錄：
+```javascript
+{
+  directive: "AGREE",
+  capturedContext: {
+    lastCounterpartUtterance: "So we can offer you 5% off if you commit today",
+    timestamp: 1234567890,
+    currentState: "LISTENING"
+  }
+}
+```
+
+#### Session Instructions 過渡指引
+在 `session.update` 的 instructions 中加入：
+```
+### Conversation Flow
+- When given a directive, DON'T abruptly change topic
+- First, briefly acknowledge what the other person just said
+- Then gradually transition toward the directive over 2-3 sentences
+- Example: If told to "disagree" after they offer 5%:
+  - DON'T: "No, I disagree with that."
+  - DO: "I appreciate the offer of 5%... however, given my situation, I was really hoping we could do better. Would 10% be possible?"
+```
+
+#### 指令注入格式
+改進指令注入，提供上下文而非直接命令：
+```javascript
+// 舊格式（機械式）
+"[System: The user wants you to: AGREE]"
+
+// 新格式（上下文引導式）
+"[Guidance: The counterpart just said: '${lastUtterance}'.
+Your human principal wants you to: ${directive}.
+Remember: acknowledge their point first, then gradually express your position over 2-3 sentences.]"
+```
+
 ### 按鈕映射表存儲（v1 規範）
 
 🔎 按鈕映射表（繁中顯示文字 ↔ 英文 Directive ID）存儲在**前端 sessionStorage**（臨時），對話結束後清除。
@@ -301,7 +354,7 @@ sessionStorage.setItem('button_mapping', JSON.stringify({
 
 ## 6. 停止條件（Stop Conditions）
 
-🔎 停止由 App 層仲裁：用戶按「達標/停止」或觸發 Magic Word 即進入 STOPPING；另外可由 `gpt-5-mini` 判定「已達標」。
+🔎 停止由 App 層仲裁：用戶按「達標/停止」即進入 STOPPING；另外可由 `gpt-5-mini` 判定「已達標」。
 
 ### 停止條件優先級（v1 規範）
 
@@ -309,11 +362,23 @@ sessionStorage.setItem('button_mapping', JSON.stringify({
    - 用戶按「立即停止」按鈕
    - 動作：`response.cancel` + `output_audio_buffer.clear`，立即切斷，無 goodbye ([OpenAI Platform][5])
 
-2. **Soft stop（次優先級）**：
-   - 用戶按「達標」按鈕 **OR**
-   - 用戶說出 Magic Word（由 App 檢測 transcript）**OR**
-   - `gpt-5-mini` 判定 `decision: "stop"`（達標）
-   - 動作：注入 goodbye 策略指令，播放後結束
+2. **Natural End（自然結束）**：
+   - 適用於：SAY_GOODBYE、GOAL_MET
+   - 動作：**不**立即取消/清除當前回應，而是注入「自然過渡」方向性指引
+   - AI 會根據上下文：
+     1. 先回應對方剛說的話（不能忽略）
+     2. 自然帶出結束話題
+     3. 用自己的話說 goodbye（不是照稿讀）
+   - 等待 AI 自然說完後才斷線
+
+   **SAY_GOODBYE vs GOAL_MET 的差別**：
+   - SAY_GOODBYE：中性語氣結束（可能未達標）
+   - GOAL_MET：正面/慶祝語氣結束（達標成功）
+
+   **設計原則**：
+   - 所有 prompt/instruction 都是**方向性指引**，不是逐字稿
+   - AI 必須根據當前話題、上下文動態生成回應
+   - 每次回應都應有變化，生動、人性化、有彈性
 
 ### 衝突解決（v1 規範）
 
@@ -325,23 +390,6 @@ sessionStorage.setItem('button_mapping', JSON.stringify({
 - **Controller 判定「達標」但用戶未按按鈕**：
   - **不自動停止**（避免誤判）
   - UI 彈出提示：「系統判定可能已達標，是否結束？」（需用戶確認）
-
-### Magic Word 檢測（v1 規範）
-
-🔎 Magic Word 由用戶在設定頁定義（例如「紅色警報」），用於緊急觸發 Soft stop。
-
-**檢測邏輯**：
-- **檢測時機**：每次收到 Realtime 的 `conversation.item.created`（role=user）事件
-- **檢測方式**：對 transcript 進行**不區分大小寫**的子字串匹配
-- **匹配規則**：
-  - 英文：`transcript.toLowerCase().includes(magicWord.toLowerCase())`
-  - 支援多個 Magic Word（用逗號分隔），任一匹配即觸發
-- **觸發動作**：進入 Soft stop（同「是時候說再見」按鈕）
-
-**範例**：
-- Magic Word：`"red alert, emergency stop"`
-- 用戶說：`"I think we need a Red Alert here"`
-- 結果：匹配成功，觸發 Soft stop
 
 ## 7. Context Window Progress Bar（估算策略）
 
@@ -466,7 +514,193 @@ Content-Type: application/json
 - **更新 session**：使用新 token 無縫續接（WebRTC 重連）
 - **55 分鐘時**：提示用戶即將超過 session 上限，準備完整重連（參考 § 8）
 
-## 9. 錯誤處理策略（Error Handling）
+## 9. 三方互動測試框架（3-Party Simulation Test）
+
+🔎 自動化測試 AI Proxy 的任務成功率，無需人工語音測試。透過 LLM 模擬「用戶、AI Proxy、對方」三方互動，量化 prompt 與機制的實際效果。
+
+### 9.1 架構概覽
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Test Harness (Node.js)                    │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  ┌─────────────┐    設定任務     ┌─────────────────┐        │
+│  │   User      │ ─────────────▶ │  AI Proxy Agent │        │
+│  │ (Simulated) │    按按鈕      │ (gpt-5-mini)    │        │
+│  └─────────────┘                └────────┬────────┘        │
+│                                          │                  │
+│                                  語音對話 │ (文字模擬)       │
+│                                          ▼                  │
+│                                 ┌─────────────────┐         │
+│                                 │  Counterpart    │         │
+│                                 │ (gpt-5-mini)    │         │
+│                                 └─────────────────┘         │
+│                                                             │
+│  ┌─────────────────────────────────────────────────────────┐│
+│  │                    Evaluator                            ││
+│  │  - 身份正確率 (Identity Accuracy)                        ││
+│  │  - 目標推進率 (Goal Progress)                            ││
+│  │  - 按鈕響應率 (Button Responsiveness)                    ││
+│  │  - 任務完成率 (Task Completion)                          ││
+│  └─────────────────────────────────────────────────────────┘│
+└─────────────────────────────────────────────────────────────┘
+```
+
+### 9.2 三方角色定義
+
+| 角色 | 模型 | 職責 |
+|------|------|------|
+| **User (模擬用戶)** | 腳本驅動 | 設定任務、在關鍵時刻按按鈕 |
+| **AI Proxy Agent** | gpt-5-mini | 使用實際 session instructions，代表用戶與對方對話 |
+| **Counterpart (對方)** | gpt-5-mini | 扮演對話另一方（如煤氣公司、銷售經理等） |
+
+### 9.3 測試場景配置
+
+```javascript
+// 場景配置範例
+{
+  name: "煤氣味報告",
+  config: {
+    agentName: "陳大文",
+    counterpartType: "煤氣公司",
+    goal: "報告在家門口聞到煤氣味，請求派人檢查",
+    taskLanguage: "zh-TW",
+    rules: "不要透露家中無人",
+    ssot: "地址：九龍塘金巴倫道123號"
+  },
+  counterpartPersona: "你是煤氣公司客服，負責處理煤氣洩漏報告。詢問地址、情況嚴重程度，並安排檢查。",
+  userActions: [
+    { turn: 3, action: "AGREE" },       // 第 3 輪按「同意」
+    { turn: 5, action: "SAY_GOODBYE" }  // 第 5 輪說再見
+  ],
+  successCriteria: {
+    mustMention: ["陳大文", "煤氣味", "金巴倫道"],
+    mustNotSay: ["我是煤氣公司", "請問您在哪裡"],
+    maxTurns: 10,
+    goalKeywords: ["派人", "檢查", "安排"]
+  }
+}
+```
+
+### 9.4 評估指標
+
+| 指標 | 計算方式 | 目標 |
+|------|----------|------|
+| **身份正確率** | AI 每輪是否保持 I 角色（不說 O 的話）| ≥ 95% |
+| **目標推進率** | 對話中是否提及 Goal 相關關鍵詞 | ≥ 80% |
+| **按鈕響應率** | 按按鈕後下一輪策略是否改變 | ≥ 90% |
+| **任務完成率** | 是否達成 successCriteria | ≥ 70% |
+| **誠實率** | 未知問題時是否誠實回應 | 100% |
+
+### 9.5 輸出報告格式
+
+```
+══════════════════════════════════════════════════════════════
+場景：煤氣味報告
+══════════════════════════════════════════════════════════════
+配置：AI=陳大文, 對方=煤氣公司, 語言=zh-TW
+
+對話記錄：
+──────────────────────────────────────────────────────────────
+[Turn 1] 煤氣公司: 你好，這裡是煤氣公司，有什麼可以幫到你？
+[Turn 1] AI Proxy: 你好，我是陳大文，我想報告在家門口聞到煤氣味...
+         ✓ 身份正確 | ✓ 目標推進
+[Turn 2] 煤氣公司: 請問具體位置在哪裡？
+[Turn 2] AI Proxy: 在九龍塘金巴倫道123號門口附近
+         ✓ 身份正確 | ✓ 目標推進
+[Turn 3] [USER ACTION: AGREE]
+[Turn 3] 煤氣公司: 好的，我們會派人過去檢查
+[Turn 3] AI Proxy: 好的，謝謝你們的安排
+         ✓ 身份正確 | ✓ 按鈕響應
+──────────────────────────────────────────────────────────────
+
+評估結果：
+  身份正確率: 100% (3/3)
+  目標推進率: 100% (3/3)
+  按鈕響應率: 100% (1/1)
+  任務完成: ✓ (提及派人檢查)
+
+總評：PASS
+══════════════════════════════════════════════════════════════
+```
+
+### 9.6 API 規格
+
+#### `POST /api/simulate`
+執行單一場景的三方互動測試。
+
+**請求**：
+```json
+{
+  "scenario": {
+    "name": "煤氣味報告",
+    "config": { ... },
+    "counterpartPersona": "...",
+    "userActions": [ ... ],
+    "successCriteria": { ... }
+  },
+  "maxTurns": 10,
+  "verbose": true
+}
+```
+
+**響應**：
+```json
+{
+  "scenario": "煤氣味報告",
+  "turns": [
+    {
+      "turn": 1,
+      "counterpart": "你好，這裡是煤氣公司...",
+      "aiProxy": "你好，我是陳大文...",
+      "evaluation": {
+        "identityCorrect": true,
+        "goalProgress": true,
+        "buttonResponse": null
+      }
+    }
+  ],
+  "metrics": {
+    "identityAccuracy": 1.0,
+    "goalProgressRate": 1.0,
+    "buttonResponseRate": 1.0,
+    "taskCompleted": true
+  },
+  "result": "PASS"
+}
+```
+
+### 9.7 命令行介面
+
+```bash
+# 執行所有場景
+node src/tests/simulation/run_simulation.js
+
+# 執行單一場景
+node src/tests/simulation/run_simulation.js --scenario "煤氣味報告"
+
+# 詳細輸出
+node src/tests/simulation/run_simulation.js --verbose
+
+# 輸出 JSON 報告
+node src/tests/simulation/run_simulation.js --output reports/simulation_report.json
+```
+
+### 9.8 場景庫
+
+預設場景庫存放於 `src/tests/simulation/scenarios/`：
+
+| 場景 | 語言 | 測試重點 |
+|------|------|----------|
+| `gas_report.json` | zh-TW | 報告問題、身份保持 |
+| `discount_negotiation.json` | en | 談判、按鈕響應 |
+| `complaint.json` | zh-CN | 投訴、堅定立場 |
+| `interview.json` | ja | 面試、禮貌回應 |
+| `service_provider.json` | en | 角色反轉（AI 作為服務方）|
+| `unknown_info.json` | zh-TW | 誠實策略測試 |
+
+## 10. 錯誤處理策略（Error Handling）
 
 🔎 系統必須優雅處理所有錯誤情況，避免崩潰或用戶數據丟失。
 

@@ -1,0 +1,23 @@
+{
+  "name": "AI 作為客服（角色反轉）",
+  "description": "測試 AI 作為服務提供者角色，幫助客戶解決問題",
+  "config": {
+    "agentName": "Support Agent",
+    "counterpartType": "Customer",
+    "goal": "Help the customer resolve their billing issue",
+    "taskLanguage": "en",
+    "rules": "Be empathetic. Offer refund if error confirmed. Do not make promises you cannot keep.",
+    "ssot": "Customer account: #12345. Last bill: $150. Payment history: good standing."
+  },
+  "counterpartPersona": "You are an upset customer - charged twice ($150 x2). Speak naturally, short sentences. Don't lecture, just explain your problem and react to responses.",
+  "userActions": [
+    { "turn": 2, "action": "AGREE" }
+  ],
+  "successCriteria": {
+    "mustMention": [],
+    "mustNotSay": ["I have a billing problem", "I was charged twice", "I need help"],
+    "maxTurns": 6,
+    "goalKeywords": ["refund", "sorry", "investigate", "confirm", "account"]
+  },
+  "maxTurns": 5
+}

@@ -125,21 +125,7 @@ Content-Type: application/json
 
 ## ⚠️ 中優先級坑位已補充
 
-### 5. Magic Word 檢測邏輯（已解決）✅
-
-**檢測方式**：
-- **檢測時機**：每次收到 Realtime 的 `conversation.item.created`（role=user）事件
-- **匹配規則**：對 transcript 進行**不區分大小寫**的子字串匹配
-- **支援多個 Magic Word**：逗號分隔，任一匹配即觸發 Soft stop
-- **範例**：Magic Word=`"red alert"`，用戶說`"Red Alert"`→匹配成功
-
-**已更新文檔**：
-- `spec/design.md` § 6：補充完整 Magic Word 檢測邏輯
-- `spec/tasks.md` T1.6：加入 Magic Word 檢測實作與測試
-
----
-
-### 6. SSOT 摘要策略（已解決）✅
+### 5. SSOT 摘要策略（已解決）✅
 
 **壓縮時機**：
 - 用戶點擊「開始對話」按鈕時
@@ -330,7 +316,6 @@ sessionStorage.setItem('button_mapping', JSON.stringify({
 - ✅ Controller 調用路徑與後端 API 規格
 
 **中優先級（5-10）**：
-- ✅ Magic Word 檢測邏輯
 - ✅ SSOT 摘要策略與 API
 - ✅ 按鈕映射表存儲方式
 - ✅ Controller 狀態管理（`previous_response_id`）
@@ -360,16 +345,16 @@ sessionStorage.setItem('button_mapping', JSON.stringify({
    - § 1.1：技術棧、CORS 配置
    - § 4.2：SSOT 摘要策略、Recent Turns N=3
    - § 5：按鈕映射、Controller 狀態管理
-   - § 6：Magic Word 檢測、停止條件優先級
+   - § 6：停止條件優先級
    - § 8：Session 重連策略
    - § 9（新增）：**完整錯誤處理策略**
    - § 9（原 § 8）：Ephemeral Token 生成與續期
 3. **`spec/tasks.md`**：
    - T0.0：模型 ID 確認步驟
    - T0.1：Token 端點、TTL
-   - T1.1：SSOT 自動摘要、Magic Word、voice 選擇
+   - T1.1：SSOT 自動摘要、voice 選擇
    - T1.4：Responses API、`/api/controller`、`/api/summarize_ssot`
-   - T1.6：Magic Word 檢測實作
+   - T1.6：停止條件實作
    - T2.3：雙層計時器（token 續期 + session 重連）
 4. **`src/skills/openai-gpt5-mini-controller/SKILL.md`**：
    - 模型版本區塊（ID、文檔連結）
@@ -393,3 +378,177 @@ sessionStorage.setItem('button_mapping', JSON.stringify({
 **下一步**：
 1. 提交規格修訂 commit（包含所有更新的文檔）
 2. 進入 `prompt_2_implement.md` 階段開始編碼
+
+---
+
+## 🎓 經驗教訓（2025-01-27 Prompt 優化階段）
+
+### 1. 測試必須測試生產代碼，而非重複實現 ❗
+
+**問題**：測試框架 (simulator.js) 與主程式 (app.js) 各自實現了 prompt 生成邏輯。測試全部通過，但主程式使用的 prompt 是舊版本，導致 AI 角色錯亂。
+
+**症狀**：
+- 6 個場景測試 100% 通過
+- 實際運行時 AI 說：「好的，我明白了。你可以先確定一下具體是哪個位置...」
+- AI 扮演了**對方**（煤氣公司客服）而非**致電者**（陳大文）
+
+**教訓**：
+```
+❌ 錯誤做法：測試代碼複製生產邏輯
+   test: buildProxyInstructions() → 獨立實現
+   prod: _sendSessionUpdate()     → 另一個實現
+
+✅ 正確做法：測試代碼引用生產模組
+   test: import { buildInstructions } from '../frontend/app.js'
+   prod: export function buildInstructions() { ... }
+```
+
+**修正方式**：確保所有 prompt 定義統一來源，同步更新：
+- `src/frontend/app.js` ← **主要來源**
+- `src/tests/simulation/simulator.js` ← 必須與 app.js 一致
+- `src/backend/prompt_templates.py` ← Python 版本也須同步
+
+---
+
+### 2. AI 角色錯亂需要「強化身份」指令 ❗
+
+**問題**：簡單的 `[IDENTITY] You are X. You are NOT Y.` 不足以防止角色混淆。
+
+**原始 prompt（失敗）**：
+```
+[IDENTITY] You are 陳大文. You are NOT 煤氣公司.
+[INTERACTION] The voice you hear is 煤氣公司. You respond as 陳大文.
+[PURPOSE] 報告煤氣味
+```
+
+**強化 prompt（成功）**：
+```
+[CRITICAL IDENTITY]
+- You ARE 陳大文.
+- You are CALLING 煤氣公司 to achieve your goal.
+- You are the CALLER, not the service provider.
+- NEVER act as 煤氣公司. NEVER give advice like a customer service rep.
+- NEVER say "I understand" or "Let me help you" - those are 煤氣公司's lines, not yours.
+
+[INTERACTION] The voice you hear is 煤氣公司 (the one you called). You respond as 陳大文 (the caller).
+```
+
+**關鍵改進**：
+| 原始 | 強化 |
+|------|------|
+| `You are NOT X` | `NEVER act as X` |
+| 無角色定義 | `You are the CALLER` |
+| 無禁止語句 | `NEVER say "I understand"` |
+| 簡單互動說明 | 明確標註 `(the one you called)` / `(the caller)` |
+
+---
+
+### 3. 測試場景必須符合系統設計約束
+
+**問題**：Voice Proxy Negotiator 的設計是 AI 代替用戶**撥打電話**（CALLER 角色）。測試中有場景讓 AI 扮演「客服」，違反系統設計。
+
+**錯誤場景（已移除）**：
+```javascript
+// Scenario 5: AI as Service Provider ← 違反設計！
+{
+    agentName: 'Support Agent',
+    counterpartType: 'Customer',
+    goal: 'Help the customer...'  // AI 不應該提供幫助
+}
+```
+
+**正確場景（已修正）**：
+```javascript
+// Scenario 5: Calling Support Line (AI as customer calling support)
+{
+    agentName: 'John Doe',
+    counterpartType: 'Customer Support',
+    goal: 'Get a refund for the billing error...'  // AI 作為致電者爭取權益
+}
+```
+
+**教訓**：測試場景必須在系統設計約束內，否則即使測試通過也沒有意義。
+
+---
+
+### 4. 驗證邏輯必須隨模板更新
+
+**問題**：`validateNoHardcoding()` 函數檢查 "caller"、"service provider" 是否出現在模板中。但強化 prompt 後，這些詞是**刻意加入**的，導致測試失敗。
+
+**原始驗證（會報錯）**：
+```javascript
+const hardcodedPatterns = [
+    { pattern: /caller/i, name: 'caller' },           // 現在是模板內容！
+    { pattern: /service provider/i, name: 'service provider' },  // 現在是模板內容！
+];
+```
+
+**修正後驗證**：
+```javascript
+// 只檢查場景特定內容，不檢查通用模板詞彙
+const hardcodedScenarioPatterns = [
+    { pattern: /煤氣公司/i, name: 'specific counterpart (煤氣公司)' },
+    { pattern: /陳大文/i, name: 'specific agent name (陳大文)' },
+];
+```
+
+**教訓**：驗證邏輯的假設必須與模板演進同步。
+
+---
+
+### 5. 文檔範例不應包含場景特定內容
+
+**問題**：在 Python docstring 中寫了場景特定的例子：
+```python
+agent_name: Who the AI represents (e.g., "陳大文", "John Smith")
+```
+
+**用戶反饋**：「你在 hardcode？」
+
+**正確做法**：使用通用變數名稱，不提供場景特定例子：
+```python
+agent_name: The identity the AI assumes (I)
+counterpart_type: The other party in conversation (O)
+goal: The objective to achieve (G)
+```
+
+**教訓**：遵循 Prompt Consolidation Pattern 的 I/O/G/L/R/S 變數命名法，保持文檔的通用性。
+
+---
+
+### 6. 回歸測試清單（220 項測試）
+
+確保所有測試通過後才部署：
+
+```bash
+# JavaScript 測試
+node src/tests/test_prompt_scenarios.js      # 83 項
+node src/tests/test_conversation_simulation.js  # 5 項
+node src/tests/test_state_machine.js         # 48 項
+node src/tests/test_app.js                   # 49 項
+
+# Python 測試
+python -m pytest src/tests/test_controller.py -v  # 35 項
+
+# 3-Party Simulation（需後端運行）
+python src/backend/main.py &
+node src/tests/simulation/run_simulation.js
+```
+
+---
+
+### 📋 Prompt 同步檢查清單
+
+當修改 prompt 模板時，必須同步更新以下位置：
+
+- [ ] `src/frontend/app.js` → `_sendSessionUpdate()` 內的 instructions
+- [ ] `src/tests/simulation/simulator.js` → `buildProxyInstructions()`
+- [ ] `src/backend/prompt_templates.py` → `build_realtime_session_instructions()`
+- [ ] `src/tests/test_prompt_scenarios.js` → `extractInstructions()` + 驗證函數
+- [ ] `src/tests/test_conversation_simulation.js` → `getInstructions()`
+- [ ] `src/skills/prompt-consolidation/SKILL.md` → "After" 範例
+
+---
+
+**記錄時間**：2025-01-27
+**觸發事件**：AI Proxy 角色錯亂問題排查與修正

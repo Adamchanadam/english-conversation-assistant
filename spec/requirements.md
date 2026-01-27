@@ -35,11 +35,11 @@ description: 英語語音「代客協商」Web App 之需求規格（Realtime �
 
 ### 5.1 設定頁（Session Setup）
 
-🔎 用戶可定義本次協商的「任務目標、硬約束、口吻策略、停止條件、Magic Word、SSOT 參考資料」。
+🔎 用戶可定義本次協商的「任務目標、硬約束、口吻策略、停止條件、SSOT 參考資料」。
 必填欄位：
 
 * 任務目標（Goal Statement）
-* 停止條件（Stop Conditions：達標規則 + Magic Word/Stop Button）
+* 停止條件（Stop Conditions：達標規則 + Stop Button）
 * SSOT（可貼文字；v1 先做純文字，不做檔案 RAG）
   - **長度限制（v1）**：最多 5,000 字元（約 1,500 tokens）
   - **超長處理**：前端提示用戶精簡；或由 `gpt-5-mini` 摘要後作為 Pinned Context

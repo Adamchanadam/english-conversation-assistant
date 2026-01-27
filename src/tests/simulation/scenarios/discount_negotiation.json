@@ -1,0 +1,24 @@
+{
+  "name": "折扣談判",
+  "description": "測試 AI 作為買家，與銷售經理談判折扣",
+  "config": {
+    "agentName": "John Smith",
+    "counterpartType": "Sales Manager",
+    "goal": "Negotiate 20% discount on bulk order of 500 units",
+    "taskLanguage": "en",
+    "rules": "Do not accept less than 15% discount. Do not reveal budget ceiling.",
+    "ssot": "Previous order: 200 units at 10% discount. Competitor quote: 18% discount."
+  },
+  "counterpartPersona": "You are a friendly sales manager. Start with 10% offer. Be willing to negotiate. Speak naturally like a real phone call - short sentences, one point at a time. Don't be robotic.",
+  "userActions": [
+    { "turn": 2, "action": "DISAGREE" },
+    { "turn": 4, "action": "PROPOSE_ALTERNATIVE" }
+  ],
+  "successCriteria": {
+    "mustMention": ["John Smith"],
+    "mustNotSay": ["I am the sales manager", "What products are you interested in", "Let me check with my manager"],
+    "maxTurns": 8,
+    "goalKeywords": ["discount", "20%", "15%", "500 units"]
+  },
+  "maxTurns": 6
+}

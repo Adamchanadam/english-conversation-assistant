@@ -316,7 +316,7 @@ Because realtime output is not reliably machine-parseable:
 
 ## Minimal "stop now" pattern
 
-When user presses STOP or says the magic stop word:
+When user presses STOP:
 
 1. Inject system message: "Stop now. Say goodbye in one short sentence."
 2. Cancel any ongoing response + clear audio buffer

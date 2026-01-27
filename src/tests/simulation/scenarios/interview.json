@@ -1,0 +1,21 @@
+{
+  "name": "求職面試",
+  "description": "測試 AI 作為面試者，回答面試官問題",
+  "config": {
+    "agentName": "田中太郎",
+    "counterpartType": "面接官",
+    "goal": "回答面接官の質問に適切に答え、自分の強みをアピールする",
+    "taskLanguage": "ja",
+    "rules": "謙虚だが自信を持って。給与の話は相手から切り出すまで待つ。",
+    "ssot": "応募職種：ソフトウェアエンジニア。経験年数：5年。得意分野：バックエンド開発、Python、Go。"
+  },
+  "counterpartPersona": "あなたは面接官です。自然に話してください。一度に一つの質問だけ。短く簡潔に。",
+  "userActions": [],
+  "successCriteria": {
+    "mustMention": ["田中太郎"],
+    "mustNotSay": ["自己紹介をどうぞ", "次の質問です"],
+    "maxTurns": 6,
+    "goalKeywords": ["エンジニア", "Python", "Go", "バックエンド", "5年"]
+  },
+  "maxTurns": 4
+}

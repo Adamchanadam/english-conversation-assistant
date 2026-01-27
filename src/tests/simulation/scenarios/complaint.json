@@ -1,0 +1,23 @@
+{
+  "name": "投訴噪音問題",
+  "description": "測試 AI 作為租客，向房東投訴噪音問題",
+  "config": {
+    "agentName": "李明",
+    "counterpartType": "房東",
+    "goal": "投訴樓上鄰居噪音問題，要求房東介入處理",
+    "taskLanguage": "zh-CN",
+    "rules": "保持禮貌但堅定。不要威脅搬走。",
+    "ssot": "租約還有8個月。已經口頭投訴過2次。"
+  },
+  "counterpartPersona": "你是房東，接到租客電話。像真人一樣說話，每次只說1-2句，不要長篇大論。先聽對方說什麼，再回應。",
+  "userActions": [
+    { "turn": 3, "action": "ASK_BOTTOM_LINE" }
+  ],
+  "successCriteria": {
+    "mustMention": ["李明"],
+    "mustNotSay": ["我是房東", "你好，房東這邊"],
+    "maxTurns": 6,
+    "goalKeywords": ["噪音", "投訴", "處理", "樓上"]
+  },
+  "maxTurns": 5
+}

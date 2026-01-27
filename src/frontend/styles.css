@@ -1,0 +1,629 @@
+/**
+ * Voice Proxy Negotiator - Shared Styles
+ * Design: Dark theme, Traditional Chinese fonts
+ * Reference: spike/realtime_test.html
+ */
+
+/* ============================================
+   Reset & Base
+   ============================================ */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: 'Noto Sans TC', 'Microsoft JhengHei', sans-serif;
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 20px;
+    background: #1a1a2e;
+    color: #eee;
+    min-height: 100vh;
+}
+
+h1 {
+    color: #00d4ff;
+    margin-bottom: 20px;
+    font-size: 1.8rem;
+}
+
+h2 {
+    color: #00d4ff;
+    margin-bottom: 15px;
+    font-size: 1.4rem;
+}
+
+h3 {
+    color: #ddd;
+    margin-bottom: 10px;
+    font-size: 1.1rem;
+}
+
+/* ============================================
+   Form Elements
+   ============================================ */
+.form-group {
+    margin-bottom: 20px;
+}
+
+label {
+    display: block;
+    margin-bottom: 8px;
+    color: #aaa;
+    font-size: 0.95rem;
+}
+
+label .required {
+    color: #ff6b6b;
+    margin-left: 4px;
+}
+
+input[type="text"],
+textarea,
+select {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #333;
+    border-radius: 6px;
+    background: #16213e;
+    color: #eee;
+    font-size: 1rem;
+    font-family: inherit;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+input[type="text"]:focus,
+textarea:focus,
+select:focus {
+    outline: none;
+    border-color: #00d4ff;
+    box-shadow: 0 0 0 2px rgba(0, 212, 255, 0.2);
+}
+
+textarea {
+    resize: vertical;
+    min-height: 80px;
+}
+
+textarea.large {
+    min-height: 150px;
+}
+
+select {
+    cursor: pointer;
+}
+
+select option {
+    background: #16213e;
+    color: #eee;
+}
+
+/* Character counter */
+.char-counter {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 6px;
+    font-size: 0.85rem;
+    color: #888;
+}
+
+.char-counter .count {
+    color: #aaa;
+}
+
+.char-counter .count.warning {
+    color: #ffaa00;
+}
+
+.char-counter .count.error {
+    color: #ff4444;
+}
+
+.char-counter .token-estimate {
+    color: #00d4ff;
+}
+
+/* Error message */
+.error-message {
+    color: #ff4444;
+    font-size: 0.85rem;
+    margin-top: 6px;
+    display: none;
+}
+
+.error-message.visible {
+    display: block;
+}
+
+/* ============================================
+   Buttons
+   ============================================ */
+button {
+    padding: 12px 24px;
+    margin: 5px;
+    border: none;
+    border-radius: 6px;
+    font-size: 1rem;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.btn-primary {
+    background: #00d4ff;
+    color: #000;
+    font-weight: 600;
+}
+
+.btn-primary:hover:not(:disabled) {
+    background: #00a8cc;
+}
+
+.btn-secondary {
+    background: #333;
+    color: #eee;
+}
+
+.btn-secondary:hover:not(:disabled) {
+    background: #444;
+}
+
+.btn-danger {
+    background: #ff4444;
+    color: #fff;
+    font-weight: 600;
+}
+
+.btn-danger:hover:not(:disabled) {
+    background: #cc3333;
+}
+
+.btn-warning {
+    background: #ffaa00;
+    color: #000;
+}
+
+.btn-warning:hover:not(:disabled) {
+    background: #cc8800;
+}
+
+.btn-success {
+    background: #00ff88;
+    color: #000;
+    font-weight: 600;
+}
+
+.btn-success:hover:not(:disabled) {
+    background: #00cc6a;
+}
+
+/* Large button */
+.btn-large {
+    padding: 16px 48px;
+    font-size: 1.2rem;
+}
+
+/* ============================================
+   Status Box
+   ============================================ */
+.status {
+    padding: 15px;
+    margin: 10px 0;
+    border-radius: 8px;
+    background: #16213e;
+}
+
+.status.connected {
+    border-left: 4px solid #00ff88;
+}
+
+.status.disconnected {
+    border-left: 4px solid #ff4444;
+}
+
+.status.connecting {
+    border-left: 4px solid #ffaa00;
+}
+
+/* ============================================
+   Button Grid (3x3 for conversation page)
+   ============================================ */
+.button-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin: 20px 0;
+}
+
+.button-grid button {
+    padding: 20px 10px;
+    font-size: 1rem;
+    margin: 0;
+    min-height: 70px;
+}
+
+/* Emergency stop button special styling */
+.button-grid .btn-emergency {
+    background: #ff4444;
+    color: #fff;
+    font-weight: 700;
+    border: 2px solid #ff6666;
+}
+
+.button-grid .btn-emergency:hover:not(:disabled) {
+    background: #cc3333;
+    border-color: #ff4444;
+}
+
+/* Goal met button special styling */
+.button-grid .btn-goal-met {
+    background: #00cc6a;
+    color: #000;
+    font-weight: 600;
+}
+
+.button-grid .btn-goal-met:hover:not(:disabled) {
+    background: #00994f;
+}
+
+/* ============================================
+   Event Log
+   ============================================ */
+.event-log {
+    background: #0f0f23;
+    border: 1px solid #333;
+    border-radius: 8px;
+    padding: 15px;
+    height: 400px;  /* Increased height for chat logs */
+    overflow-y: auto;
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 0.85rem;
+    white-space: pre-wrap;
+}
+
+.log-info { color: #00d4ff; }
+.log-success { color: #00ff88; }
+.log-error { color: #ff4444; }
+.log-warn { color: #ffaa00; }
+.log-event { color: #aa88ff; }
+.log-chat {
+    color: #ffffff;
+    background: #2a2a4a;
+    padding: 4px 8px;
+    margin: 2px 0;
+    border-radius: 4px;
+    display: block;
+}
+.log-debug { color: #666; font-size: 0.8rem; }
+
+/* ============================================
+   Audio Indicator
+   ============================================ */
+.audio-indicator {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    margin-right: 8px;
+    vertical-align: middle;
+}
+
+.audio-indicator.active {
+    background: #00ff88;
+    animation: pulse 0.5s ease-in-out infinite;
+}
+
+.audio-indicator.inactive {
+    background: #444;
+}
+
+@keyframes pulse {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.2); opacity: 0.7; }
+}
+
+/* ============================================
+   Card / Panel
+   ============================================ */
+.card {
+    background: #16213e;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.card-header {
+    border-bottom: 1px solid #333;
+    padding-bottom: 10px;
+    margin-bottom: 15px;
+}
+
+/* ============================================
+   Helper Classes
+   ============================================ */
+.text-center {
+    text-align: center;
+}
+
+.text-muted {
+    color: #888;
+}
+
+.mt-10 {
+    margin-top: 10px;
+}
+
+.mt-20 {
+    margin-top: 20px;
+}
+
+.mb-10 {
+    margin-bottom: 10px;
+}
+
+.mb-20 {
+    margin-bottom: 20px;
+}
+
+/* Flex utilities */
+.flex {
+    display: flex;
+}
+
+.flex-between {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.flex-center {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* ============================================
+   Responsive
+   ============================================ */
+@media (max-width: 600px) {
+    body {
+        padding: 10px;
+    }
+
+    .button-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .button-grid button {
+        font-size: 0.9rem;
+        padding: 15px 8px;
+    }
+}
+
+/* ============================================
+   Button Preview (Setup Page)
+   ============================================ */
+.btn-preview {
+    display: inline-block;
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    color: #eee;
+}
+
+.btn-preview.btn-secondary {
+    background: #333;
+}
+
+.btn-preview.btn-warning {
+    background: #ffaa00;
+    color: #000;
+}
+
+.btn-preview.btn-goal-met {
+    background: #00cc6a;
+    color: #000;
+}
+
+.btn-preview.btn-emergency {
+    background: #ff4444;
+    color: #fff;
+}
+
+/* ============================================
+   Button Config Card (Advanced Mode)
+   ============================================ */
+.button-config-card {
+    background: #0f1729;
+    border: 1px solid #333;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 15px;
+}
+
+.button-config-card .btn-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #333;
+}
+
+.button-config-card .btn-label {
+    font-weight: 600;
+    color: #00d4ff;
+    font-size: 1rem;
+}
+
+.button-config-card .form-row {
+    display: grid;
+    grid-template-columns: 120px 1fr;
+    gap: 10px;
+    align-items: start;
+    margin-bottom: 10px;
+}
+
+.button-config-card .form-row label {
+    color: #888;
+    font-size: 0.85rem;
+    padding-top: 8px;
+    margin-bottom: 0;
+}
+
+.button-config-card input[type="text"],
+.button-config-card select,
+.button-config-card textarea {
+    padding: 8px 10px;
+    font-size: 0.9rem;
+}
+
+.button-config-card textarea {
+    min-height: 60px;
+    resize: vertical;
+}
+
+.button-config-card .style-select {
+    max-width: 200px;
+}
+
+/* Code styling for variables */
+code {
+    background: #0f1729;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 0.85rem;
+    color: #00d4ff;
+}
+
+/* ============================================
+   Session Timer Progress Bar
+   ============================================ */
+.timer-container {
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.timer-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+    font-size: 0.9rem;
+}
+
+.timer-header span:first-child {
+    color: #aaa;
+}
+
+.timer-progress-bar {
+    height: 8px;
+    background: #1a2744;
+    border-radius: 4px;
+    overflow: hidden;
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.timer-progress {
+    height: 100%;
+    /* > 10 minutes: CYAN */
+    background: linear-gradient(90deg, #00d4ff, #00e5ff);
+    border-radius: 4px;
+    transition: width 1s linear, background 0.5s;
+}
+
+.timer-progress.caution {
+    /* 5-10 minutes: LIGHT BLUE (distinct from cyan) */
+    background: linear-gradient(90deg, #4da6ff, #66b3ff);
+}
+
+.timer-progress.warning {
+    /* 3-5 minutes: ORANGE */
+    background: linear-gradient(90deg, #ff9900, #ffaa00);
+}
+
+.timer-progress.critical {
+    /* < 3 minutes: RED flashing */
+    background: linear-gradient(90deg, #ff3333, #ff5555);
+    animation: progress-pulse 1s infinite;
+}
+
+@keyframes progress-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
+/* ============================================
+   Session Timer Notification (Toast)
+   ============================================ */
+.timer-notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 12px 40px 12px 16px;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    font-weight: 500;
+    z-index: 1000;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    transition: opacity 0.3s, transform 0.3s;
+    max-width: 300px;
+}
+
+.timer-notification.hidden {
+    opacity: 0;
+    transform: translateX(100%);
+    pointer-events: none;
+}
+
+.timer-notification.info {
+    background: #1a3a5c;
+    border: 1px solid #2d5a87;
+    color: #8ecfff;
+}
+
+.timer-notification.warning {
+    background: #5c4a1a;
+    border: 1px solid #876e2d;
+    color: #ffdd8e;
+}
+
+.timer-notification.critical {
+    background: #5c1a1a;
+    border: 1px solid #872d2d;
+    color: #ff8e8e;
+    animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
+.notification-dismiss {
+    position: absolute;
+    top: 50%;
+    right: 10px;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: inherit;
+    opacity: 0.7;
+    cursor: pointer;
+    font-size: 1rem;
+    padding: 4px;
+    line-height: 1;
+}
+
+.notification-dismiss:hover {
+    opacity: 1;
+}

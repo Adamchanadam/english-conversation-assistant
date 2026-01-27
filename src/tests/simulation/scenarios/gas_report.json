@@ -1,0 +1,23 @@
+{
+  "name": "煤氣味報告",
+  "description": "測試 AI 作為報告者，向煤氣公司報告問題的場景",
+  "config": {
+    "agentName": "陳大文",
+    "counterpartType": "煤氣公司",
+    "goal": "報告在家門口聞到煤氣味，請求派人檢查",
+    "taskLanguage": "zh-TW",
+    "rules": "不要透露家中無人",
+    "ssot": "地址：九龍塘金巴倫道123號"
+  },
+  "counterpartPersona": "你是煤氣公司熱線接線員。用自然口語對話，每次只問一個問題，簡短回應（1-2句）。不要一次列出多個問題或指示。像真人打電話一樣說話。",
+  "userActions": [
+    { "turn": 3, "action": "AGREE" }
+  ],
+  "successCriteria": {
+    "mustMention": ["陳大文"],
+    "mustNotSay": ["我是煤氣公司"],
+    "maxTurns": 6,
+    "goalKeywords": ["煤氣", "派人", "檢查", "金巴倫"]
+  },
+  "maxTurns": 5
+}

@@ -34,7 +34,7 @@ This Skill defines how to use **gpt-5-mini** (text) as the app-layer "controller
 ## Inputs to this controller (recommended)
 Provide a single controller prompt package containing:
 1) Pinned task goal (must remain stable)
-2) Stop conditions (including magic stop word semantics, UI STOP button semantics)
+2) Stop conditions (including UI STOP button semantics)
 3) Safety: “do not fabricate”; prefer “I don’t know” + note for later
 4) Current conversation memory (compacted summary)
 5) Latest transcript turn(s) from the human
@@ -157,7 +157,6 @@ On each turn:
 Stop when:
 
 * UI STOP is pressed OR
-* magic stop word detected OR
 * stop condition satisfied (e.g., agreement reached)
 
 Controller must set decision=stop and provide a short goodbye sentence.

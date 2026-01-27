@@ -65,8 +65,8 @@ description: 端到端落地任務清單（milestones、實作步驟、測試與
 
 🔎 交付可用 mock-up：設定頁、對話頁、按鈕指令、停止條件、最小記憶治理。
 
-**T1.1** 設定頁表單
-- 實作 `src/frontend/setup_page.html`（Goal、Rules、SSOT、Stop conditions、Magic word、按鈕配置）
+**T1.1** 設定頁表單 ✅ COMPLETED (UI 部分)
+- 實作 `src/frontend/setup_page.html`（Goal、Rules、SSOT、Stop conditions、按鈕配置）
 - 實作 SSOT 長度驗證（最多 5,000 字元，顯示字符計數）（參考 `requirements.md` § 5.1）
 - 實作 SSOT token 估算與自動摘要（參考 `design.md` § 4.2）：
   - 使用 `token_estimator.js` 估算 SSOT tokens
@@ -76,28 +76,64 @@ description: 端到端落地任務清單（milestones、實作步驟、測試與
   - v1 使用默認映射（9 個按鈕）
   - 存儲到 sessionStorage（參考 `design.md` § 5）
 - 實作 voice 選擇下拉框（選項：marin, cedar；鎖定在 INIT）
-- 實作 Magic Word 輸入框（支援多個，逗號分隔）（參考 `design.md` § 6）
 - **驗收**：
   - 瀏覽器打開 `setup_page.html`，填寫表單，檢查驗證規則
   - 貼入 > 5,000 字元的 SSOT，驗證提示錯誤
   - 貼入 > 1,500 tokens 的 SSOT，驗證自動摘要
+- **完成日期**：2026-01-26
+- **完成內容**：
+  - 表單所有欄位（Goal、Rules、SSOT、Stop Conditions、Voice）
+  - 字符計數即時更新
+  - Token 估算（簡化公式：中文字 x2 + 英文詞 x1.3）
+  - SSOT > 5000 字元錯誤顯示
+  - sessionStorage 存儲 vpn_config
+  - 頁面跳轉到 conversation_page.html
+- **待後續 Batch 完成**：SSOT 自動摘要需後端 `/api/summarize_ssot` API
 
-**T1.2** 對話頁
+**T1.2** 對話頁 ✅ COMPLETED
 - 實作 `src/frontend/conversation_page.html`（Push-to-start、狀態顯示、按鈕列、緊急停止）
 - 實作 `src/frontend/styles.css`（繁體中文字體：Noto Sans TC / Microsoft JhengHei）
 - 實作按鈕列（9 個按鈕，繁中文字）
 - **驗收**：
   - 瀏覽器打開 `conversation_page.html`，檢查 UI 布局與按鈕點擊響應
+- **完成日期**：2026-01-26
+- **完成內容**：
+  - 連線狀態顯示（connected/disconnected/connecting）
+  - 當前狀態顯示（INIT/LISTENING/THINKING/SPEAKING/CHECKPOINT/STOPPING/STOPPED）
+  - 麥克風/播放狀態指示器（帶動畫）
+  - 任務目標顯示區
+  - 3x3 按鈕列（同意/不同意/我需要時間考慮/請重複一次/提出替代方案/詢問對方底線/是時候說再見/達標/立即停止）
+  - 「立即停止」按鈕紅色警示樣式
+  - 「達標」按鈕綠色樣式
+  - 事件日誌區域（支援 info/success/error/warn/event 顏色）
+  - 按鈕點擊 console.log 響應
+  - 載入 sessionStorage 設定並顯示
+  - 暗色主題樣式（與 spike/realtime_test.html 一致）
 
-**T1.3** App 狀態機骨架
+**T1.3** App 狀態機骨架 ✅ COMPLETED
 - 實作 `src/frontend/state_machine.js`（INIT/LISTENING/THINKING/SPEAKING/CHECKPOINT/STOPPING/STOPPED）
 - 實作狀態轉換邏輯與驗證
 - 創建單元測試：`src/tests/test_state_machine.js`
 - **驗收**：
-  - 執行測試：`node src/tests/test_state_machine.js`（或瀏覽器端測試）
+  - 執行測試：`node src/tests/test_state_machine.js`
   - 驗證非法狀態轉換會被阻止
+- **完成日期**：2026-01-26
+- **完成內容**：
+  - `src/frontend/state_machine.js` - StateMachine 類別
+    - VALID_TRANSITIONS 定義所有合法狀態轉換
+    - `canTransition()`: 檢查轉換是否有效
+    - `transition()`: 執行狀態轉換並通知監聽器
+    - `onTransition()`: 註冊狀態變化回調
+    - `reset()`: 重置為 INIT 狀態
+  - `src/tests/test_state_machine.js` - 48 個測試
+    - 有效轉換序列測試
+    - 無效轉換拒絕測試
+    - 監聽器回調測試
+    - 錯誤處理測試
+    - Reset 功能測試
+  - 測試結果：48 passed
 
-**T1.4** 文字控制器（gpt-5-mini）
+**T1.4** 文字控制器（gpt-5-mini） ✅ COMPLETED
 - 實作 `src/backend/controller.py`（調用 Responses API）
   - 使用模型：`gpt-5-mini-2025-08-07`
   - API 端點：`POST https://api.openai.com/v1/responses`
@@ -119,33 +155,58 @@ description: 端到端落地任務清單（milestones、實作步驟、測試與
 - 實作後端 API 端點：`POST /api/summarize_ssot`（參考 `design.md` § 4.2）
 - 創建單元測試：`src/tests/test_controller.py`（Mock OpenAI Responses API）
 - **驗收**：
-  - 執行測試：`C:\Users\adam\anaconda3\envs\adamlab4_env\python.exe src/tests/test_controller.py`
+  - 執行測試：`python -m pytest src/tests/test_controller.py -v`
   - 驗證 JSON 解析失敗時不崩潰
   - 驗證 `previous_response_id` 正確傳遞
+- **完成日期**：2026-01-26
+- **完成內容**：
+  - `src/backend/controller.py` - 完整 Controller 邏輯
+  - `src/backend/prompt_templates.py` - CONTROLLER_INSTRUCTION, SSOT_SUMMARIZE_INSTRUCTION 模板
+  - `src/backend/models.py` - Pydantic 資料模型（ControllerRequest/Response, SummarizeSsotRequest/Response）
+  - `src/backend/main.py` - FastAPI 應用（/api/token, /api/controller, /api/summarize_ssot）
+  - `src/tests/test_controller.py` - 27 個測試（Mock API, fail-soft parsing, token estimation）
+  - fail-soft JSON 解析：3 層策略（直接解析 → regex 提取 → best-effort）
+  - `previous_response_id` 正確傳遞
+  - 測試結果：27 passed
 
-**T1.5** 誠實策略守門
+**T1.5** 誠實策略守門 ✅ COMPLETED
 - 修改 `src/backend/prompt_templates.py`：加入「不虛構」規則
 - 修改 `src/backend/controller.py`：檢測「I don't know」類回應，記錄到 `notes_for_user`
 - **驗收**：
   - 人工測試：對方問 SSOT 中沒有的問題，驗證代理是否誠實回應
+- **完成日期**：2026-01-26
+- **完成內容**：
+  - CONTROLLER_INSTRUCTION 已包含「NEVER fabricate facts」規則
+  - `detect_honesty_response()` 函數：檢測 17 種誠實表達短語
+  - 短語清單：i don't know, i'm not sure, let me check, let me find out, i'll need to verify, i can't confirm, i'm uncertain, i need to look into, i'll get back to you, that's outside my knowledge, i don't have that information 等
+  - 檢測後添加繁中提示到 notes_for_user：「提示：AI 表示不確定此資訊，請人工確認或提供更多資料」
+  - 8 個測試案例全部通過
+  - 測試結果：35 passed（含原有 27 + 新增 8）
 
-**T1.6** 停止條件處理
+**T1.6** 停止條件處理 ✅ COMPLETED
 - 實作 `src/frontend/app.js` 中的停止邏輯：
   - `handleHardStop()`：立即 cancel + clear（參考 `design.md` § 6）
   - `handleSoftStop()`：注入 goodbye 指令，播放後結束
-- 實作 Magic Word 檢測（參考 `design.md` § 6）：
-  - 監聽 Realtime 的 `conversation.item.created`（role=user）事件
-  - 對 transcript 進行不區分大小寫的子字串匹配
-  - 支援多個 Magic Word（逗號分隔），任一匹配即觸發 Soft stop
-  - 範例：Magic Word="red alert"，用戶說"Red Alert"→匹配成功
 - 實作衝突解決邏輯（參考 `design.md` § 6）：
   - 用戶按「達標」但 Controller 判定「未達標」：以用戶為準，顯示警告
   - Controller 判定「達標」但用戶未按按鈕：彈出提示，需用戶確認
 - **驗收**：
   - 手動測試：按「立即停止」，驗證立即切斷
   - 手動測試：按「是時候說再見」，驗證播放 goodbye 後結束
-  - 手動測試：說出 Magic Word，驗證觸發 Soft stop
   - 手動測試：衝突場景，驗證提示正確顯示
+- **完成日期**：2026-01-26
+- **完成內容**：
+  - `src/frontend/app.js` - VoiceProxyApp 類別（完整應用邏輯）
+    - WebRTC 連線整合（基於 spike）
+    - StateMachine 整合
+    - `handleHardStop()`: response.cancel + output_audio_buffer.clear + truncate
+    - `handleSoftStop()`: 注入 goodbye 後等待播放完成再斷線
+    - `_handleControllerDecision()`: 衝突解決邏輯
+    - `_checkControllerTrigger()`: 5 輪/70% token 觸發 Controller
+    - `_injectUtterance()`: 注入 Controller 建議的英文回應
+  - `src/tests/test_app.js` - 測試（初始化, 設定載入, 狀態機整合, Token 估算, Controller 觸發, 指令處理, Reset）
+  - 更新 `conversation_page.html` 整合 app.js
+  - 測試結果：55 passed
 
 **總體驗收（Milestone 1）**：
 * 連續完成 3 組「對方↔代理」往返（不少於 6 turns）
@@ -229,6 +290,38 @@ description: 端到端落地任務清單（milestones、實作步驟、測試與
 
 🔎 以「可重播測試腳本 + 指標表」量化成功率，支援是否進一步投入開發的決策。
 
+### T3.1 三方互動測試框架（3-Party Simulation Test）
+- 實作 `src/tests/simulation/run_simulation.js`（測試執行器）
+- 實作 `src/tests/simulation/simulator.js`（三方互動模擬器）
+- 實作 `src/tests/simulation/evaluator.js`（評估器）
+- 創建場景庫 `src/tests/simulation/scenarios/`：
+  - `gas_report.json` - 煤氣味報告（zh-TW）
+  - `discount_negotiation.json` - 折扣談判（en）
+  - `complaint.json` - 投訴（zh-CN）
+  - `interview.json` - 面試（ja）
+  - `service_provider.json` - 角色反轉（en）
+  - `unknown_info.json` - 誠實策略測試（zh-TW）
+- 實作後端 API：`POST /api/simulate`（參考 `design.md` § 9.6）
+- 實作命令行介面（參考 `design.md` § 9.7）
+- **驗收**：
+  - 執行測試：`node src/tests/simulation/run_simulation.js`
+  - 所有預設場景通過
+  - 輸出人類可讀報告
+  - 輸出 JSON 格式報告（可供後續分析）
+
+### T3.2 量化指標儀表板
+- 實作 `src/tests/simulation/metrics.js`（指標計算）
+- 計算指標：
+  - 身份正確率（Identity Accuracy）：≥ 95%
+  - 目標推進率（Goal Progress Rate）：≥ 80%
+  - 按鈕響應率（Button Responsiveness）：≥ 90%
+  - 任務完成率（Task Completion Rate）：≥ 70%
+  - 誠實率（Honesty Rate）：100%
+- 實作報告生成：`reports/simulation_report.json`、`reports/simulation_report.md`
+- **驗收**：
+  - 執行測試後生成指標報告
+  - 指標達標判定正確
+
 ### 量化指標（v1 建議）
 
 * M1 打斷成功率：`#success_interrupt / #attempts`
@@ -236,16 +329,19 @@ description: 端到端落地任務清單（milestones、實作步驟、測試與
 * M3 達標率（在固定腳本下）：`#goal_met / #runs`
 * M4 用戶可控性：按鈕介入後「策略方向符合」比例
 * M5 誠實率：未知問題場景中無捏造（人工抽檢）
+* **M6 身份正確率**：AI 保持 I 角色不混淆
+* **M7 目標推進率**：對話推進至 Goal 關鍵詞
 
 ### 測試方法
 
-* 腳本式對話（由測試人員扮演對方）
-* 每個腳本包含：至少 2 次打斷、1 次條件改動、1 次未知問題
-* 每次 run 輸出：事件時間線、摘要、達標判定、停止原因
+* ~~腳本式對話（由測試人員扮演對方）~~ **改為自動化三方 LLM 互動測試**
+* 每個場景包含：預設對話流程、用戶按鈕介入點、成功判定條件
+* 每次 run 輸出：對話記錄、每輪評估、指標統計、總評
 
 **驗收**：
 
 * 指標達到 Milestone 0/1/2 的門檻
 * 生成一份「是否值得做 v2」結論（以指標為依據）
+* **三方互動測試全場景通過**
 
 ---
