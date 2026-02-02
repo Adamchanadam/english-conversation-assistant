@@ -1,6 +1,11 @@
-請先完整閱讀 requirements.md, design.md, tasks.md, steering.md, CLAUDE.md（以及其中引用的 Precedence / Tooling Router / skills）。
+請先完整閱讀以下文件（按優先順序）：
+1. **spec/lessons_learned.md** — 必讀！避免重複犯錯
+2. requirements.md, design.md, tasks.md, steering.md
+3. CLAUDE.md（以及其中引用的 Precedence / Tooling Router / skills）
 
 以這些文件作「初始 SSOT（可優化的工作版）」：允許在 Plan 階段由 swarm 完善、補洞、重排與優化，但必須以「可落檔」形式交付修訂稿。
+
+**注意**：規劃時必須考慮 lessons_learned.md 中記錄的已知問題，避免重蹈覆轍。
 
 以 tasks.md 為主線，輸出三個部分：
 

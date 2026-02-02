@@ -1,8 +1,18 @@
 依 tasks.md 由上而下逐項實作（支援 Swarm mode 並行）。可同時處理多個 tasks，但必須以「Workstream / Batch」方式組織，避免互相踩檔與驗收不可重播。
 
 Implementation 起手式（必做）：
-- 先套用 Plan 階段輸出的「Spec Improvement Pack」到 repo（更新 requirements/design/tasks/steering/CLAUDE 等），並先做一次獨立 commit（只包含規格修訂）。
-- 之後才開始按 tasks.md 落地代碼與測試。
+1. **必讀 `spec/lessons_learned.md`** — 避免重複犯錯，特別注意：
+   - §1.x：OpenAI Realtime API 正確語法（事件名稱、session config、response.create 格式）
+   - §2.x：前端架構陷阱（SmartSegmenter buffer 累積、API 調用防抖）
+   - §3.x：狀態管理（超時保護、狀態轉換驗證）
+2. 先套用 Plan 階段輸出的「Spec Improvement Pack」到 repo（更新 requirements/design/tasks/steering/CLAUDE 等），並先做一次獨立 commit（只包含規格修訂）
+3. 之後才開始按 tasks.md 落地代碼與測試
+
+**常見陷阱提醒**：
+- 不要憑記憶寫 API 調用，先讀 `src/skills/` 或官方文檔
+- Web Speech fullText 是累積的，需要追蹤 processedLength
+- 任何觸發 API 的事件都需要防抖機制
+- 遇到重大問題解決後，立即更新 lessons_learned.md
 
 Swarm 並行規則（硬規約）：
 - 先把 tasks.md 分解為若干 Workstreams（可並行），每個 Workstream 需列明：
