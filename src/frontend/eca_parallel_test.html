@@ -348,6 +348,7 @@
     <script src="/static/segment_renderer.js"></script>
     <script src="/static/audio_capture.js"></script>
     <script src="/static/webspeech_realtime.js"></script>
+    <script src="/static/smart_segmenter.js"></script>
 
     <script>
         // ============================================
@@ -368,6 +369,9 @@
         // Web Speech for real-time English subtitles (雙軌策略)
         let webSpeech = null;
         let currentRealtimeEnglish = '';  // 當前實時英文預覽
+
+        // Smart Segmenter for intelligent segmentation (600ms vs 2-3s)
+        let smartSegmenter = null;
 
         // DOM Elements
         const statusBadge = document.getElementById('statusBadge');
@@ -468,15 +472,53 @@
                 log(`API Error: ${error.message || error.code}`, 'error');
             };
 
+            // Initialize Smart Segmenter (600ms threshold vs OpenAI's 2-3s)
+            if (typeof SmartSegmenter !== 'undefined') {
+                // Use AdaptiveSegmenter for dynamic WPM adjustment
+                smartSegmenter = new AdaptiveSegmenter({
+                    pauseThreshold: 600,   // 600ms pause triggers segmentation
+                    softLimit: 15,         // 15 words + grammar cue = segment
+                    hardLimit: 25,         // 25 words = forced segment
+                    minSegmentWords: 3     // Minimum 3 words per segment
+                });
+
+                // When segment detected, force translation
+                smartSegmenter.onSegment = (segment, info) => {
+                    log(`SmartSegmenter: "${segment.substring(0, 40)}..." (${info.wordCount}w, ${info.reason})`, 'event');
+                    // Force OpenAI to create response immediately
+                    forceTranslation();
+                };
+
+                log('SmartSegmenter initialized (600ms threshold)', 'success');
+            } else {
+                log('smart_segmenter.js not loaded - using OpenAI default (2-3s)', 'warn');
+            }
+
             // Initialize Web Speech for real-time English subtitles
             if (typeof WebSpeechRealtime !== 'undefined') {
                 webSpeech = new WebSpeechRealtime();
 
                 if (webSpeech.isSupported()) {
-                    // 實時英文回調 - 邊說邊顯示
+                    // 實時英文回調 - 邊說邊顯示 + 智能分段
                     webSpeech.onInterimResult = (fullText, interim) => {
                         currentRealtimeEnglish = fullText;
                         updateRealtimePreview(fullText, interim);
+
+                        // Feed to SmartSegmenter
+                        if (smartSegmenter) {
+                            smartSegmenter.process(fullText, false);
+                        }
+                    };
+
+                    // Web Speech final result
+                    // 注意：不需要在這裡再次調用 SmartSegmenter.process()
+                    // 因為 onInterimResult 已經包含了最終文字，而且 SmartSegmenter
+                    // 有自己的停頓偵測機制（600ms）來決定何時分段。
+                    // Web Speech 的 "final" 只表示「確認這段文字」，不是「用戶停止說話」。
+                    webSpeech.onFinalResult = (finalText) => {
+                        // 僅記錄，不調用 SmartSegmenter
+                        // SmartSegmenter 已從 onInterimResult 獲得累積文字
+                        console.log('[WebSpeech] Final result received:', finalText.substring(0, 40));
                     };
 
                     webSpeech.onError = (error, message) => {
@@ -571,6 +613,12 @@
                 if (webSpeech && webSpeech.isSupported()) {
                     webSpeech.start();
                     log('WebSpeech started for real-time English', 'success');
+                }
+
+                // Start Smart Segmenter (600ms threshold)
+                if (smartSegmenter) {
+                    smartSegmenter.start();
+                    log('SmartSegmenter started (600ms threshold)', 'success');
                 }
 
                 // UI updates
@@ -668,6 +716,11 @@
         function sendSessionUpdate() {
             // Translation mode session configuration
             // Uses GA API format (2025)
+            //
+            // 🔧 Smart Segmentation Strategy (2026-02-02):
+            // - create_response: false → 禁用 OpenAI 的自動分段（2-3s 延遲）
+            // - 前端 SmartSegmenter 控制分段（600ms 閾值）
+            // - 見 spec/research/speech_segmentation.md
             const sessionConfig = {
                 type: 'session.update',
                 session: {
@@ -700,7 +753,8 @@ Listen to English speech and provide Traditional Chinese translation.
                             turn_detection: {
                                 type: 'semantic_vad',
                                 eagerness: 'high',
-                                create_response: true,
+                                // 🔧 Disable auto response - SmartSegmenter controls segmentation
+                                create_response: false,
                                 interrupt_response: false
                             }
                         }
@@ -709,7 +763,7 @@ Listen to English speech and provide Traditional Chinese translation.
             };
 
             sendEvent(sessionConfig);
-            log('Session configured for translation mode');
+            log('Session configured: SmartSegmenter controls segmentation (600ms)');
         }
 
         function sendEvent(event) {
@@ -718,12 +772,67 @@ Listen to English speech and provide Traditional Chinese translation.
             }
         }
 
+        /**
+         * Force translation by sending response.create event
+         * This bypasses OpenAI's 2-3s semantic_vad delay
+         *
+         * See: src/skills/openai-realtime-mini-voice/SKILL.md
+         *
+         * 🐛 Bug fix (2026-02-02):
+         * - response.create 格式應該是 { conversation: "auto" }，不是 { modalities: ["text"] }
+         * - 添加防抖機制，避免頻繁觸發
+         * - 添加最小間隔檢查
+         */
+        let lastForceTranslationTime = 0;
+        const MIN_TRANSLATION_INTERVAL = 500;  // 最少 500ms 間隔
+
+        function forceTranslation() {
+            if (!dataChannel || dataChannel.readyState !== 'open') {
+                log('Cannot force translation: data channel not open', 'warn');
+                return;
+            }
+
+            // 防抖：確保最少 500ms 間隔
+            const now = Date.now();
+            if (now - lastForceTranslationTime < MIN_TRANSLATION_INTERVAL) {
+                // 太頻繁，跳過
+                return;
+            }
+            lastForceTranslationTime = now;
+
+            // Commit current audio buffer and create response
+            // This tells OpenAI: "I've finished speaking this segment, process it now"
+            const commitEvent = {
+                type: 'input_audio_buffer.commit'
+            };
+            sendEvent(commitEvent);
+
+            // Create response (translation)
+            // 正確格式：{ conversation: "auto" }，不是 { modalities: ["text"] }
+            const responseEvent = {
+                type: 'response.create',
+                response: {
+                    conversation: 'auto'
+                }
+            };
+            sendEvent(responseEvent);
+
+            log('Force translation triggered', 'event');
+        }
+
         // ============================================
         // Stop Test
         // ============================================
 
         function stopTest() {
             log('Stopping...');
+
+            // Stop Smart Segmenter
+            if (smartSegmenter) {
+                smartSegmenter.stop();
+                const stats = smartSegmenter.getStats();
+                log(`SmartSegmenter stats: ${stats.segmentCount} segments, avg ${stats.avgWordsPerSegment} words/segment`, 'info');
+            }
 
             // Stop Web Speech
             if (webSpeech) {

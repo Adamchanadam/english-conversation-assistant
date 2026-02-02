@@ -307,9 +307,122 @@ class EnhancedSegmentStore {
 
 ---
 
+### 1.9 response.create 格式錯誤
+
+| 項目 | 內容 |
+|------|------|
+| **日期** | 2026-02-02 |
+| **問題** | 手動觸發翻譯時收到 `Unknown parameter: 'response.modalities'` 錯誤 |
+| **症狀** | `forceTranslation()` 調用後 API 報錯，翻譯不工作 |
+| **根因** | 使用了過時的 Beta 版格式 `{ modalities: ['text'] }` |
+| **解決方案** | 使用 GA 版格式 `{ conversation: 'auto' }` |
+
+```javascript
+// ❌ 錯誤（Beta 版）
+{
+  type: 'response.create',
+  response: {
+    modalities: ['text']  // 無效參數
+  }
+}
+
+// ✅ 正確（GA 版）
+{
+  type: 'response.create',
+  response: {
+    conversation: 'auto'
+  }
+}
+```
+
+| **預防措施** | 1. 參考 `src/skills/openai-realtime-mini-voice/SKILL.md` |
+|           | 2. API 格式變更時更新 SKILL.md |
+
+---
+
 ## 2. 前端架構相關
 
-### 2.1 單文件過大難以維護
+### 2.1 SmartSegmenter Buffer 累積錯誤（Web Speech 累積特性）
+
+| 項目 | 內容 |
+|------|------|
+| **日期** | 2026-02-02 |
+| **問題** | SmartSegmenter 的 buffer 字數不斷增長（9w → 100w+），導致分段失效 |
+| **症狀** | 同一段話重複觸發多次分段；`input_audio_buffer_commit_empty` 錯誤 |
+| **根因** | Web Speech API 的 `fullText` 是從 session 開始累積的，SmartSegmenter 錯誤地將整個累積文字存入 buffer |
+| **解決方案** | 追蹤 `processedLength`，只處理新增的文字 |
+
+```javascript
+// ❌ 錯誤：buffer 存儲整個累積文字
+process(transcript) {
+  this.buffer = transcript;  // 第一次 "hello" = 1 word
+                             // 第二次 "hello world" = 2 words
+                             // ... 越來越長！
+  this.wordCount = this._countWords(this.buffer);
+}
+
+// ✅ 正確：只存儲當前分段
+constructor() {
+  this.processedLength = 0;  // 追蹤已處理位置
+}
+
+process(transcript) {
+  const currentSegment = transcript.slice(this.processedLength);
+  this.buffer = currentSegment;  // 只有當前分段
+  this.wordCount = this._countWords(this.buffer);
+}
+
+_emitSegment() {
+  // 輸出後更新 processedLength
+  this.processedLength = this._currentTranscriptLength;
+  this._resetBuffer();  // 只重置 buffer，不重置 processedLength
+}
+```
+
+| **預防措施** | 1. **理解 Web Speech API 特性** — fullText 是累積的，不是每次獨立的 |
+|           | 2. **分段器需要追蹤「已處理位置」** — 避免重複處理 |
+|           | 3. **區分「完全重置」和「分段重置」** — reset() vs _resetBuffer() |
+
+---
+
+### 2.2 SmartSegmenter 頻繁觸發導致 API 錯誤
+
+| 項目 | 內容 |
+|------|------|
+| **日期** | 2026-02-02 |
+| **問題** | SmartSegmenter 每秒觸發多次 `forceTranslation()`，導致 `input_audio_buffer_commit_empty` |
+| **症狀** | 控制台大量 "Force translation triggered" 日誌；API 返回空 buffer 錯誤 |
+| **根因** | 1. Buffer 累積錯誤導致反覆觸發 hardLimit<br>2. 沒有防抖機制，每個分段立即調用 API |
+| **解決方案** | 1. 修復 buffer 累積問題（見 §2.1）<br>2. 添加防抖機制（最少 500ms 間隔） |
+
+```javascript
+// ❌ 錯誤：無限制調用
+smartSegmenter.onSegment = (segment) => {
+  forceTranslation();  // 可能每秒調用 10+ 次
+};
+
+// ✅ 正確：防抖機制
+let lastForceTranslationTime = 0;
+const MIN_TRANSLATION_INTERVAL = 500;  // 最少 500ms 間隔
+
+function forceTranslation() {
+  const now = Date.now();
+  if (now - lastForceTranslationTime < MIN_TRANSLATION_INTERVAL) {
+    return;  // 太頻繁，跳過
+  }
+  lastForceTranslationTime = now;
+
+  // 執行 API 調用...
+}
+```
+
+| **預防措施** | 1. **任何觸發 API 調用的事件都需要防抖** |
+|           | 2. **OpenAI audio buffer 需要足夠音訊才能 commit** — 太快會得到空 buffer |
+|           | 3. **日誌中出現重複事件時要警覺** — 可能是觸發機制有問題 |
+
+---
+
+### 2.3 單文件過大難以維護
 
 | 項目 | 內容 |
 |------|------|
@@ -591,6 +704,7 @@ function updateEntryText(entryId, field, text) {
 
 | 日期 | 更新內容 |
 |------|---------|
+| 2026-02-02 | 新增 §1.9 response.create 格式錯誤、§2.1 SmartSegmenter Buffer 累積錯誤、§2.2 頻繁觸發 API 錯誤 |
 | 2026-02-02 | 新增 §1.3 Response 事件時序假設錯誤、§1.4 沒有處理 transcription.delta、§3.2 OpenAI 可能跳過 Segment |
 | 2026-02-01 | 初版建立，記錄 M1→M2 轉型期間的問題 |
 
