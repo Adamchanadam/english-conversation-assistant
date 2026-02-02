@@ -1,0 +1,809 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ECA 並行翻譯測試 - Parallel Translation Test</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            --bg-primary: #0f0f1a;
+            --bg-secondary: #1a1a2e;
+            --bg-tertiary: #16213e;
+            --text-primary: #f0f0f0;
+            --text-secondary: #a0a0a0;
+            --accent-blue: #00d4ff;
+            --accent-green: #00ff88;
+            --accent-red: #ff4444;
+            --accent-yellow: #ffaa00;
+            --border-color: #333;
+        }
+
+        body {
+            font-family: 'Noto Sans TC', 'Microsoft JhengHei', -apple-system, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Header */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 20px;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .header-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 18px;
+            font-weight: 500;
+        }
+
+        .header-status {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .status-badge {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 13px;
+            background: var(--bg-tertiary);
+        }
+
+        .status-badge.connected {
+            background: rgba(0, 255, 136, 0.15);
+            color: var(--accent-green);
+        }
+
+        .status-badge.disconnected {
+            background: rgba(255, 68, 68, 0.15);
+            color: var(--accent-red);
+        }
+
+        .status-badge.connecting {
+            background: rgba(255, 170, 0, 0.15);
+            color: var(--accent-yellow);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: currentColor;
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            gap: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        /* Stats Bar */
+        .stats-bar {
+            display: flex;
+            gap: 20px;
+            padding: 12px 16px;
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .stat-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .stat-label {
+            color: var(--text-secondary);
+        }
+
+        .stat-value {
+            font-weight: 500;
+            color: var(--accent-blue);
+        }
+
+        /* Transcript Panel */
+        .transcript-panel {
+            flex: 1;
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            min-height: 400px;
+        }
+
+        .transcript-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 16px;
+            background: var(--bg-tertiary);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .transcript-header h3 {
+            font-size: 14px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .transcript-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+        }
+
+        .transcript-empty {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: var(--text-secondary);
+            text-align: center;
+            gap: 12px;
+        }
+
+        /* Control Bar */
+        .control-bar {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            padding: 16px;
+            background: var(--bg-secondary);
+            border-top: 1px solid var(--border-color);
+        }
+
+        .control-btn {
+            padding: 14px 28px;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* Realtime Preview (Web Speech) */
+        .realtime-preview {
+            background: linear-gradient(135deg, rgba(0, 212, 255, 0.1), rgba(0, 255, 136, 0.1));
+            border: 2px solid var(--accent-blue);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+
+        .preview-label {
+            font-size: 12px;
+            color: var(--accent-blue);
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        .preview-text {
+            font-size: 20px;
+            color: var(--text-primary);
+            min-height: 32px;
+            line-height: 1.5;
+        }
+
+        .preview-text .interim {
+            color: var(--accent-yellow);
+            border-bottom: 2px solid var(--accent-yellow);
+        }
+
+        .control-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-start {
+            background: var(--accent-blue);
+            color: #000;
+        }
+
+        .btn-stop {
+            background: var(--accent-red);
+            color: #fff;
+        }
+
+        .btn-clear {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+        }
+
+        /* Log Panel */
+        .log-panel {
+            max-height: 200px;
+            overflow-y: auto;
+            padding: 12px;
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 12px;
+        }
+
+        .log-entry {
+            padding: 2px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .log-entry.event { color: var(--accent-blue); }
+        .log-entry.success { color: var(--accent-green); }
+        .log-entry.warn { color: var(--accent-yellow); }
+        .log-entry.error { color: var(--accent-red); }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-title">
+            <span>🧪</span>
+            <span>ECA 並行翻譯測試</span>
+        </div>
+        <div class="header-status">
+            <div class="status-badge disconnected" id="statusBadge">
+                <span class="status-dot"></span>
+                <span id="statusText">未連線</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Stats Bar -->
+        <div class="stats-bar">
+            <div class="stat-item">
+                <span class="stat-label">段落數:</span>
+                <span class="stat-value" id="segmentCount">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">活躍中:</span>
+                <span class="stat-value" id="activeCount">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">已完成:</span>
+                <span class="stat-value" id="doneCount">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">等待隊列:</span>
+                <span class="stat-value" id="queueCount">0</span>
+            </div>
+        </div>
+
+        <!-- Transcript Panel -->
+        <div class="transcript-panel">
+            <div class="transcript-header">
+                <h3>
+                    <span>🔊</span>
+                    <span>即時翻譯（Segment-based 並行處理）</span>
+                </h3>
+            </div>
+            <div class="transcript-content" id="transcriptContent">
+                <div class="transcript-empty" id="transcriptEmpty">
+                    <div style="font-size:48px;opacity:0.5;">🎧</div>
+                    <div>準備好後點擊「開始測試」</div>
+                    <div style="font-size:13px;">測試新的 Segment-based 並行翻譯架構</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Log Panel -->
+        <div class="log-panel" id="logPanel">
+            <div style="color:var(--text-secondary);">等待日誌...</div>
+        </div>
+    </main>
+
+    <!-- Control Bar -->
+    <div class="control-bar">
+        <button class="control-btn btn-start" id="btnStart" onclick="startTest()">
+            <span>▶️</span>
+            <span>開始測試</span>
+        </button>
+        <button class="control-btn btn-stop" id="btnStop" onclick="stopTest()" disabled>
+            <span>⏹️</span>
+            <span>停止</span>
+        </button>
+        <button class="control-btn btn-clear" onclick="clearAll()">
+            <span>🗑️</span>
+            <span>清除</span>
+        </button>
+    </div>
+
+    <!-- Load modules -->
+    <script src="/static/segment_store.js"></script>
+    <script src="/static/realtime_event_handler.js"></script>
+    <script src="/static/segment_renderer.js"></script>
+    <script src="/static/audio_capture.js"></script>
+    <script src="/static/webspeech_realtime.js"></script>
+
+    <script>
+        // ============================================
+        // ECA Parallel Translation Test
+        // Tests: segment_store.js, realtime_event_handler.js, segment_renderer.js
+        // ============================================
+
+        // State
+        let audioCapture = null;
+        let peerConnection = null;
+        let dataChannel = null;
+        let isConnected = false;
+
+        // New modules
+        let eventHandler = null;
+        let renderer = null;
+
+        // Web Speech for real-time English subtitles (雙軌策略)
+        let webSpeech = null;
+        let currentRealtimeEnglish = '';  // 當前實時英文預覽
+
+        // DOM Elements
+        const statusBadge = document.getElementById('statusBadge');
+        const statusText = document.getElementById('statusText');
+        const transcriptContent = document.getElementById('transcriptContent');
+        const transcriptEmpty = document.getElementById('transcriptEmpty');
+        const btnStart = document.getElementById('btnStart');
+        const btnStop = document.getElementById('btnStop');
+        const logPanel = document.getElementById('logPanel');
+
+        // Stats
+        const segmentCountEl = document.getElementById('segmentCount');
+        const activeCountEl = document.getElementById('activeCount');
+        const doneCountEl = document.getElementById('doneCount');
+        const queueCountEl = document.getElementById('queueCount');
+
+        // ============================================
+        // Logging
+        // ============================================
+
+        function log(msg, level = 'info') {
+            const time = new Date().toLocaleTimeString('zh-TW');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${level}`;
+            entry.textContent = `[${time}] ${msg}`;
+            logPanel.appendChild(entry);
+            logPanel.scrollTop = logPanel.scrollHeight;
+            console.log(`[${level}] ${msg}`);
+        }
+
+        // ============================================
+        // Status Updates
+        // ============================================
+
+        function updateStatus(status, text) {
+            statusBadge.className = `status-badge ${status}`;
+            statusText.textContent = text;
+        }
+
+        function updateStats() {
+            if (!eventHandler) return;
+            const store = eventHandler.getStore();
+
+            const all = store.getAll();
+            const active = store.getActiveSegments();
+            const done = all.filter(s => s.status === 'done');
+            const queue = store.pendingForResponse?.length || 0;
+
+            segmentCountEl.textContent = all.length;
+            activeCountEl.textContent = active.length;
+            doneCountEl.textContent = done.length;
+            queueCountEl.textContent = queue;
+        }
+
+        // ============================================
+        // Initialize Modules
+        // ============================================
+
+        function initModules() {
+            // Check if modules are loaded
+            if (typeof EnhancedSegmentStore === 'undefined') {
+                log('ERROR: segment_store.js not loaded!', 'error');
+                return false;
+            }
+            if (typeof RealtimeEventHandler === 'undefined') {
+                log('ERROR: realtime_event_handler.js not loaded!', 'error');
+                return false;
+            }
+            if (typeof SegmentRenderer === 'undefined') {
+                log('ERROR: segment_renderer.js not loaded!', 'error');
+                return false;
+            }
+
+            // Initialize event handler (creates EnhancedSegmentStore internally)
+            eventHandler = new RealtimeEventHandler();
+
+            // Initialize renderer
+            renderer = new SegmentRenderer(transcriptContent);
+
+            // Inject styles
+            if (typeof injectSegmentRendererStyles === 'function') {
+                injectSegmentRendererStyles();
+            }
+
+            // Connect event handler to renderer
+            eventHandler.onSegmentUpdate = (segment) => {
+                renderer.queueUpdate(segment);
+                updateStats();
+            };
+
+            // Connect logging
+            eventHandler.onLog = (msg, level) => {
+                log(msg, level);
+            };
+
+            // Error handling
+            eventHandler.onError = (error) => {
+                log(`API Error: ${error.message || error.code}`, 'error');
+            };
+
+            // Initialize Web Speech for real-time English subtitles
+            if (typeof WebSpeechRealtime !== 'undefined') {
+                webSpeech = new WebSpeechRealtime();
+
+                if (webSpeech.isSupported()) {
+                    // 實時英文回調 - 邊說邊顯示
+                    webSpeech.onInterimResult = (fullText, interim) => {
+                        currentRealtimeEnglish = fullText;
+                        updateRealtimePreview(fullText, interim);
+                    };
+
+                    webSpeech.onError = (error, message) => {
+                        log(`WebSpeech error: ${error}`, 'warn');
+                    };
+
+                    log('WebSpeech initialized for real-time English subtitles', 'success');
+                } else {
+                    log('WebSpeech not supported in this browser', 'warn');
+                }
+            } else {
+                log('webspeech_realtime.js not loaded', 'warn');
+            }
+
+            log('Modules initialized: EnhancedSegmentStore, RealtimeEventHandler, SegmentRenderer', 'success');
+            return true;
+        }
+
+        // 更新實時英文預覽（邊說邊顯示）
+        function updateRealtimePreview(fullText, interim) {
+            let previewEl = document.getElementById('realtimePreview');
+            if (!previewEl) {
+                // 創建實時預覽區域
+                previewEl = document.createElement('div');
+                previewEl.id = 'realtimePreview';
+                previewEl.className = 'realtime-preview';
+                previewEl.innerHTML = `
+                    <div class="preview-label">🎤 實時英文（Web Speech）</div>
+                    <div class="preview-text" id="previewText"></div>
+                `;
+                transcriptContent.parentNode.insertBefore(previewEl, transcriptContent);
+            }
+
+            const textEl = document.getElementById('previewText');
+            if (textEl) {
+                // 顯示完整文字，interim 部分加底線
+                if (interim) {
+                    const finalPart = fullText.slice(0, fullText.length - interim.length);
+                    textEl.innerHTML = finalPart + '<span class="interim">' + interim + '</span>';
+                } else {
+                    textEl.textContent = fullText || '等待語音...';
+                }
+            }
+        }
+
+        // ============================================
+        // Start Test
+        // ============================================
+
+        async function startTest() {
+            // Initialize modules if not done
+            if (!eventHandler) {
+                if (!initModules()) {
+                    return;
+                }
+            }
+
+            // Check AudioCapture
+            if (!audioCapture) {
+                log('ERROR: AudioCapture not loaded!', 'error');
+                return;
+            }
+
+            try {
+                updateStatus('connecting', '連線中...');
+                btnStart.disabled = true;
+
+                // Step 1: Capture microphone
+                log('Requesting microphone access...');
+                const audioStream = await audioCapture.captureMicrophone();
+                log('Microphone access granted', 'success');
+
+                // Step 2: Get ephemeral token
+                log('Getting ephemeral token...');
+                const tokenResponse = await fetch('/api/token', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ voice: 'marin' })
+                });
+
+                if (!tokenResponse.ok) {
+                    throw new Error('Failed to get token');
+                }
+
+                const tokenData = await tokenResponse.json();
+                log('Token received', 'success');
+
+                // Step 3: Setup WebRTC
+                await setupWebRTC(audioStream, tokenData.client_secret);
+
+                // Start Web Speech for real-time English subtitles
+                if (webSpeech && webSpeech.isSupported()) {
+                    webSpeech.start();
+                    log('WebSpeech started for real-time English', 'success');
+                }
+
+                // UI updates
+                btnStop.disabled = false;
+                isConnected = true;
+                transcriptEmpty.style.display = 'none';
+
+            } catch (error) {
+                log(`Start failed: ${error.message}`, 'error');
+                resetUI();
+            }
+        }
+
+        async function setupWebRTC(audioStream, clientSecret) {
+            const rtcConfig = {
+                iceServers: [
+                    { urls: 'stun:stun.l.google.com:19302' },
+                    { urls: 'stun:stun1.l.google.com:19302' }
+                ]
+            };
+
+            peerConnection = new RTCPeerConnection(rtcConfig);
+
+            // Add audio track
+            const audioTrack = audioStream.getAudioTracks()[0];
+            peerConnection.addTrack(audioTrack, audioStream);
+            log('Audio track added');
+
+            // Handle remote audio (not needed for translation, but required by API)
+            peerConnection.ontrack = (event) => {
+                log('Remote track received', 'event');
+            };
+
+            // Create data channel
+            dataChannel = peerConnection.createDataChannel('oai-events');
+            setupDataChannel();
+
+            // ICE state handling
+            peerConnection.oniceconnectionstatechange = () => {
+                log(`ICE state: ${peerConnection.iceConnectionState}`, 'event');
+                if (peerConnection.iceConnectionState === 'connected') {
+                    updateStatus('connected', '翻譯中');
+                } else if (peerConnection.iceConnectionState === 'failed') {
+                    stopTest();
+                }
+            };
+
+            // Create and send offer
+            await peerConnection.setLocalDescription();
+            log('SDP offer created');
+
+            const sdpResponse = await fetch('https://api.openai.com/v1/realtime/calls', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${clientSecret}`,
+                    'Content-Type': 'application/sdp'
+                },
+                body: peerConnection.localDescription.sdp
+            });
+
+            if (!sdpResponse.ok) {
+                throw new Error(`SDP exchange failed: ${sdpResponse.status}`);
+            }
+
+            const answerSdp = await sdpResponse.text();
+            await peerConnection.setRemoteDescription({
+                type: 'answer',
+                sdp: answerSdp
+            });
+
+            log('WebRTC connected', 'success');
+        }
+
+        function setupDataChannel() {
+            dataChannel.onopen = () => {
+                log('Data channel opened', 'success');
+                sendSessionUpdate();
+            };
+
+            dataChannel.onclose = () => {
+                log('Data channel closed', 'warn');
+            };
+
+            dataChannel.onerror = (error) => {
+                log(`Data channel error: ${error}`, 'error');
+            };
+
+            dataChannel.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                // Route to new event handler
+                eventHandler.handle(data);
+            };
+        }
+
+        function sendSessionUpdate() {
+            // Translation mode session configuration
+            // Uses GA API format (2025)
+            const sessionConfig = {
+                type: 'session.update',
+                session: {
+                    type: 'realtime',
+                    instructions: `You are a real-time English to Traditional Chinese translator.
+
+## Your Task
+Listen to English speech and provide Traditional Chinese translation.
+
+## Rules
+1. Translate naturally, not word-by-word
+2. Preserve the speaker's tone and intent
+3. Use Hong Kong Traditional Chinese (繁體中文)
+4. Keep translations concise for easy reading
+5. If unsure about a word, provide best guess with [?] marker
+6. Output ONLY the Chinese translation, no English, no explanations
+7. Translate sentence by sentence as you hear them
+
+## Output Format
+- Only output the Chinese translation
+- No meta-commentary like "Translation:" or "The speaker said:"
+- One sentence at a time`,
+                    output_modalities: ['text'],
+                    audio: {
+                        input: {
+                            format: { type: 'audio/pcm', rate: 24000 },
+                            transcription: {
+                                model: 'gpt-4o-mini-transcribe'
+                            },
+                            turn_detection: {
+                                type: 'semantic_vad',
+                                eagerness: 'high',
+                                create_response: true,
+                                interrupt_response: false
+                            }
+                        }
+                    }
+                }
+            };
+
+            sendEvent(sessionConfig);
+            log('Session configured for translation mode');
+        }
+
+        function sendEvent(event) {
+            if (dataChannel && dataChannel.readyState === 'open') {
+                dataChannel.send(JSON.stringify(event));
+            }
+        }
+
+        // ============================================
+        // Stop Test
+        // ============================================
+
+        function stopTest() {
+            log('Stopping...');
+
+            // Stop Web Speech
+            if (webSpeech) {
+                webSpeech.isRunning = false;  // Prevent auto-restart
+                webSpeech.stop();
+                webSpeech.reset();
+            }
+
+            if (audioCapture) {
+                audioCapture.cleanup();
+            }
+
+            if (dataChannel) {
+                dataChannel.close();
+                dataChannel = null;
+            }
+
+            if (peerConnection) {
+                peerConnection.close();
+                peerConnection = null;
+            }
+
+            isConnected = false;
+            resetUI();
+            updateStatus('disconnected', '已停止');
+            log('Stopped', 'success');
+        }
+
+        function resetUI() {
+            btnStart.disabled = false;
+            btnStop.disabled = true;
+        }
+
+        function clearAll() {
+            // Clear renderer
+            if (renderer) {
+                renderer.clear();
+            }
+
+            // Reset event handler
+            if (eventHandler) {
+                eventHandler.reset();
+            }
+
+            // Show empty state
+            transcriptEmpty.style.display = 'flex';
+
+            // Clear log
+            logPanel.innerHTML = '<div style="color:var(--text-secondary);">已清除</div>';
+
+            // Reset stats
+            updateStats();
+
+            log('All cleared');
+        }
+
+        // ============================================
+        // Initialize
+        // ============================================
+
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize AudioCapture
+            if (typeof AudioCapture !== 'undefined') {
+                audioCapture = new AudioCapture();
+                audioCapture.onError = (error) => {
+                    log(`Audio error: ${error}`, 'error');
+                    stopTest();
+                };
+                log('AudioCapture initialized', 'success');
+            } else {
+                log('AudioCapture not loaded - check if audio_capture.js exists', 'error');
+            }
+
+            // Initialize new modules
+            if (!initModules()) {
+                log('Module initialization failed - some features may not work', 'error');
+            }
+
+            log('ECA Parallel Translation Test ready');
+        });
+    </script>
+</body>
+</html>
