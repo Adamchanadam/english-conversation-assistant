@@ -17,7 +17,7 @@ import logging
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from dotenv import load_dotenv
 import httpx
 
@@ -33,6 +33,8 @@ try:
         HealthResponse,
         SimulateLLMRequest,
         SimulateLLMResponse,
+        TranslateRequest,
+        TranslateResponse,
     )
     from .controller import (
         generate_controller_response,
@@ -50,6 +52,8 @@ except ImportError:
         HealthResponse,
         SimulateLLMRequest,
         SimulateLLMResponse,
+        TranslateRequest,
+        TranslateResponse,
     )
     from controller import (
         generate_controller_response,
@@ -72,9 +76,9 @@ logger = logging.getLogger(__name__)
 # =============================================================================
 
 app = FastAPI(
-    title="Voice Proxy Negotiator",
-    description="Backend API for English voice negotiation agent",
-    version="1.0.0"
+    title="English Conversation Assistant",
+    description="Backend API for real-time English translation and script generation",
+    version="2.0.0"
 )
 
 # CORS configuration (design.md § 1.1)
@@ -291,10 +295,191 @@ async def health_check():
 
 
 # =============================================================================
-# 3-Party Simulation Endpoint (design.md § 9)
+# Translation Endpoint (方案 A: 兩階段架構)
+# Reference: spec/lessons_learned.md (Test 21)
 # =============================================================================
 
 OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses"
+OPENAI_CHAT_URL = "https://api.openai.com/v1/chat/completions"
+
+# 翻譯模型：使用 gpt-4.1-nano（最快，首字回應約 700ms）
+# 測試結果：gpt-4.1-nano 703ms < gpt-3.5-turbo 1235ms < gpt-4o-mini 1377ms
+# 注意：這不是「文字控制器」，不受 CLAUDE.md gpt-5-mini 限制
+# Controller API 仍使用 gpt-5-mini
+TRANSLATION_MODEL = "gpt-4.1-nano"
+
+
+@app.post("/api/translate", response_model=TranslateResponse)
+async def translate_text(request: TranslateRequest):
+    """
+    Translate English text to Traditional Chinese using gpt-4o-mini.
+
+    方案 A: 兩階段架構
+    - Web Speech API 負責 STT（語音轉文字）
+    - gpt-4o-mini 負責翻譯（文字轉文字）- 快速，約 0.3-0.8 秒
+
+    注意：翻譯不是「文字控制器」功能，使用 gpt-4o-mini 以獲得更快回應。
+    Controller API (/api/controller) 仍使用 gpt-5-mini。
+
+    Reference:
+    - spec/lessons_learned.md (Test 21 - 方案 A)
+    """
+    if not OPENAI_API_KEY:
+        return TranslateResponse(
+            translation="",
+            source_text=request.text,
+            error="OPENAI_API_KEY not configured"
+        )
+
+    logger.info(f"Translate request: {len(request.text)} chars")
+
+    try:
+        # Twilio-style translation prompt (proven effective)
+        system_prompt = """You are a translation machine. Translate English to Traditional Chinese (Hong Kong style, 繁體中文).
+
+RULES:
+- Output ONLY the Chinese translation, nothing else.
+- No greetings, no explanations, no "好的", no "我明白".
+- Use Traditional Chinese (說話 not 说话).
+- Proper nouns: 中文 (English), e.g., "愛潑斯坦 (Epstein)"
+- Numbers: Keep digits, e.g., "$75,000", "2019年"."""
+
+        async with httpx.AsyncClient() as client:
+            # 使用 Chat Completions API（更快，無 reasoning 開銷）
+            response = await client.post(
+                OPENAI_CHAT_URL,
+                headers={
+                    "Authorization": f"Bearer {OPENAI_API_KEY}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": TRANSLATION_MODEL,  # gpt-4o-mini
+                    "messages": [
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": request.text}
+                    ],
+                    "max_tokens": 500,
+                    "temperature": 0.3,  # 低溫度 = 更一致的翻譯
+                },
+                timeout=10.0,  # 10 秒足夠
+            )
+
+            if response.status_code != 200:
+                error_msg = f"OpenAI API error: {response.status_code} - {response.text}"
+                logger.error(error_msg)
+                return TranslateResponse(
+                    translation="",
+                    source_text=request.text,
+                    error=error_msg
+                )
+
+            data = response.json()
+
+            # Chat Completions API 格式
+            translation_text = ""
+            if "choices" in data and len(data["choices"]) > 0:
+                translation_text = data["choices"][0]["message"].get("content", "")
+
+            logger.info(f"Translation ({TRANSLATION_MODEL}): {len(translation_text)} chars")
+            return TranslateResponse(
+                translation=translation_text.strip(),
+                source_text=request.text
+            )
+
+    except httpx.TimeoutException:
+        return TranslateResponse(
+            translation="",
+            source_text=request.text,
+            error="Translation API timeout"
+        )
+    except Exception as e:
+        logger.error(f"Translation error: {e}")
+        return TranslateResponse(
+            translation="",
+            source_text=request.text,
+            error=str(e)
+        )
+
+
+# =============================================================================
+# Streaming Translation Endpoint (快速回應，~0.3s 首字)
+# =============================================================================
+
+@app.post("/api/translate/stream")
+async def translate_text_stream(request: TranslateRequest):
+    """
+    Streaming translation using SSE (Server-Sent Events).
+
+    優點：
+    - 首字回應時間約 0.3 秒
+    - 用戶可以邊看邊讀，感覺更快
+
+    使用方式：
+    前端用 EventSource 或 fetch + ReadableStream 接收
+    """
+    if not OPENAI_API_KEY:
+        async def error_gen():
+            yield f"data: {{\"error\": \"OPENAI_API_KEY not configured\"}}\n\n"
+        return StreamingResponse(error_gen(), media_type="text/event-stream")
+
+    system_prompt = """You are a translation machine. Translate English to Traditional Chinese (Hong Kong style, 繁體中文).
+Output ONLY the Chinese translation. No greetings, no explanations. Use Traditional Chinese (說話 not 说话)."""
+
+    async def generate():
+        try:
+            async with httpx.AsyncClient() as client:
+                async with client.stream(
+                    "POST",
+                    OPENAI_CHAT_URL,
+                    headers={
+                        "Authorization": f"Bearer {OPENAI_API_KEY}",
+                        "Content-Type": "application/json",
+                    },
+                    json={
+                        "model": TRANSLATION_MODEL,
+                        "messages": [
+                            {"role": "system", "content": system_prompt},
+                            {"role": "user", "content": request.text}
+                        ],
+                        "max_tokens": 500,
+                        "temperature": 0.3,
+                        "stream": True,  # 啟用串流
+                    },
+                    timeout=15.0,
+                ) as response:
+                    async for line in response.aiter_lines():
+                        if line.startswith("data: "):
+                            data = line[6:]  # Remove "data: " prefix
+                            if data == "[DONE]":
+                                yield f"data: {{\"done\": true}}\n\n"
+                                break
+                            try:
+                                import json
+                                chunk = json.loads(data)
+                                delta = chunk.get("choices", [{}])[0].get("delta", {})
+                                content = delta.get("content", "")
+                                if content:
+                                    # 發送翻譯片段
+                                    yield f"data: {{\"text\": {json.dumps(content)}}}\n\n"
+                            except:
+                                pass
+        except Exception as e:
+            logger.error(f"Streaming translation error: {e}")
+            yield f"data: {{\"error\": \"{str(e)}\"}}\n\n"
+
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+        }
+    )
+
+
+# =============================================================================
+# 3-Party Simulation Endpoint (design.md § 9)
+# =============================================================================
 
 
 @app.post("/api/simulate/llm", response_model=SimulateLLMResponse)
@@ -382,16 +567,43 @@ FRONTEND_DIR = os.path.join(PROJECT_ROOT, "src", "frontend")
 
 @app.get("/")
 async def serve_index():
-    """Serve the setup page (development)."""
+    """Serve the ECA main page (default)."""
+    eca_page = os.path.join(FRONTEND_DIR, "eca_main.html")
+    if os.path.exists(eca_page):
+        return FileResponse(eca_page)
+    return {"message": "English Conversation Assistant API", "docs": "/docs"}
+
+
+@app.get("/eca")
+async def serve_eca():
+    """Serve the ECA main page."""
+    eca_page = os.path.join(FRONTEND_DIR, "eca_main.html")
+    if os.path.exists(eca_page):
+        return FileResponse(eca_page)
+    raise HTTPException(status_code=404, detail="ECA page not found")
+
+
+@app.get("/eca-test")
+async def serve_eca_test():
+    """Serve the ECA parallel translation test page."""
+    test_page = os.path.join(FRONTEND_DIR, "eca_parallel_test.html")
+    if os.path.exists(test_page):
+        return FileResponse(test_page)
+    raise HTTPException(status_code=404, detail="ECA test page not found")
+
+
+@app.get("/setup")
+async def serve_setup():
+    """Serve the legacy setup page."""
     setup_page = os.path.join(FRONTEND_DIR, "setup_page.html")
     if os.path.exists(setup_page):
         return FileResponse(setup_page)
-    return {"message": "Voice Proxy Negotiator API", "docs": "/docs"}
+    raise HTTPException(status_code=404, detail="Setup page not found")
 
 
 @app.get("/conversation")
 async def serve_conversation():
-    """Serve the conversation page (development)."""
+    """Serve the legacy conversation page."""
     conversation_page = os.path.join(FRONTEND_DIR, "conversation_page.html")
     if os.path.exists(conversation_page):
         return FileResponse(conversation_page)
@@ -418,7 +630,7 @@ if __name__ == "__main__":
     port = int(os.getenv("BACKEND_PORT", "8000"))
     debug = os.getenv("DEBUG", "false").lower() == "true"
 
-    print(f"Starting Voice Proxy Negotiator backend on http://{host}:{port}")
+    print(f"Starting English Conversation Assistant backend on http://{host}:{port}")
     print(f"Controller Model: {CONTROLLER_MODEL}")
     print(f"Realtime Model: {REALTIME_MODEL}")
     print(f"API Key configured: {bool(OPENAI_API_KEY)}")

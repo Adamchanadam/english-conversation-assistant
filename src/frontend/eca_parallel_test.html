@@ -224,6 +224,40 @@
             border-bottom: 2px solid var(--accent-yellow);
         }
 
+        /* Toggle button for realtime preview */
+        .preview-toggle {
+            cursor: pointer;
+            user-select: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .preview-toggle:hover {
+            opacity: 0.8;
+        }
+
+        .preview-toggle .toggle-icon {
+            transition: transform 0.2s;
+        }
+
+        .realtime-preview.collapsed .preview-toggle .toggle-icon {
+            transform: rotate(-90deg);
+        }
+
+        .realtime-preview.collapsed .preview-text {
+            display: none;
+        }
+
+        .realtime-preview.stopped {
+            border-color: var(--text-secondary);
+            background: rgba(160, 160, 160, 0.1);
+        }
+
+        .realtime-preview.stopped .preview-label {
+            color: var(--text-secondary);
+        }
+
         .control-btn:disabled {
             opacity: 0.5;
             cursor: not-allowed;
@@ -264,6 +298,60 @@
         .log-entry.success { color: var(--accent-green); }
         .log-entry.warn { color: var(--accent-yellow); }
         .log-entry.error { color: var(--accent-red); }
+
+        /* Preset Selector */
+        .preset-selector {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            flex-wrap: wrap;
+        }
+
+        .preset-label {
+            font-size: 14px;
+            color: var(--text-secondary);
+            white-space: nowrap;
+        }
+
+        .preset-buttons {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .preset-btn {
+            padding: 6px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+
+        .preset-btn:hover {
+            background: var(--bg-primary);
+            border-color: var(--accent-blue);
+        }
+
+        .preset-btn.active {
+            background: var(--accent-blue);
+            color: #000;
+            border-color: var(--accent-blue);
+            font-weight: 500;
+        }
+
+        .preset-info {
+            font-size: 12px;
+            color: var(--text-secondary);
+            font-family: monospace;
+            margin-left: auto;
+        }
     </style>
 </head>
 <body>
@@ -283,6 +371,29 @@
 
     <!-- Main Content -->
     <main class="main-content">
+        <!-- Preset Selector -->
+        <div class="preset-selector">
+            <span class="preset-label">⚙️ 分段模式:</span>
+            <div class="preset-buttons" id="presetButtons">
+                <button class="preset-btn" data-preset="ultra-fast" title="暫停:400ms 穩定:80ms&#10;最快反應，可能切斷單詞">
+                    🚀 極速
+                </button>
+                <button class="preset-btn active" data-preset="fast" title="暫停:500ms 穩定:100ms&#10;快速反應（預設）">
+                    ⚡ 快速
+                </button>
+                <button class="preset-btn" data-preset="balanced" title="暫停:600ms 穩定:150ms&#10;平衡速度與穩定性">
+                    ⚖️ 平衡
+                </button>
+                <button class="preset-btn" data-preset="stable" title="暫停:750ms 穩定:200ms&#10;更穩定，較慢">
+                    🛡️ 穩定
+                </button>
+                <button class="preset-btn" data-preset="conservative" title="暫停:900ms 穩定:250ms&#10;最穩定，最慢">
+                    🔒 保守
+                </button>
+            </div>
+            <span class="preset-info" id="presetInfo">暫停:500ms 穩定:100ms</span>
+        </div>
+
         <!-- Stats Bar -->
         <div class="stats-bar">
             <div class="stat-item">
@@ -372,6 +483,87 @@
 
         // Smart Segmenter for intelligent segmentation (600ms vs 2-3s)
         let smartSegmenter = null;
+
+        // ============================================
+        // Segmenter Presets Configuration
+        // ============================================
+
+        const SEGMENTER_PRESETS = {
+            'ultra-fast': {
+                name: '極速',
+                pauseThreshold: 400,    // 更短的暫停偵測
+                stabilityDelay: 80,     // 更短的穩定等待
+                softLimit: 12,          // 更短的軟性限制
+                hardLimit: 20,          // 更短的硬性限制
+                minSegmentWords: 2,     // 更少的最小字數
+                description: '最快反應，可能切斷單詞'
+            },
+            'fast': {
+                name: '快速',
+                pauseThreshold: 500,
+                stabilityDelay: 100,
+                softLimit: 14,
+                hardLimit: 22,
+                minSegmentWords: 3,
+                description: '快速反應，輕微風險'
+            },
+            'balanced': {
+                name: '平衡',
+                pauseThreshold: 600,
+                stabilityDelay: 150,
+                softLimit: 15,
+                hardLimit: 25,
+                minSegmentWords: 3,
+                description: '平衡速度與穩定性（預設）'
+            },
+            'stable': {
+                name: '穩定',
+                pauseThreshold: 750,
+                stabilityDelay: 200,
+                softLimit: 18,
+                hardLimit: 28,
+                minSegmentWords: 4,
+                description: '更穩定，較慢'
+            },
+            'conservative': {
+                name: '保守',
+                pauseThreshold: 900,
+                stabilityDelay: 250,
+                softLimit: 20,
+                hardLimit: 30,
+                minSegmentWords: 4,
+                description: '最穩定，最慢'
+            }
+        };
+
+        let currentPreset = 'fast';
+
+        function applyPreset(presetKey) {
+            const preset = SEGMENTER_PRESETS[presetKey];
+            if (!preset) {
+                log(`Unknown preset: ${presetKey}`, 'error');
+                return;
+            }
+
+            currentPreset = presetKey;
+
+            // Update UI
+            document.querySelectorAll('.preset-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.preset === presetKey);
+            });
+            document.getElementById('presetInfo').textContent =
+                `暫停:${preset.pauseThreshold}ms 穩定:${preset.stabilityDelay}ms`;
+
+            // Apply to SmartSegmenter if it exists
+            if (smartSegmenter) {
+                smartSegmenter.pauseThreshold = preset.pauseThreshold;
+                smartSegmenter.stabilityDelay = preset.stabilityDelay;
+                smartSegmenter.softLimit = preset.softLimit;
+                smartSegmenter.hardLimit = preset.hardLimit;
+                smartSegmenter.minSegmentWords = preset.minSegmentWords;
+                log(`Preset applied: ${preset.name} (暫停:${preset.pauseThreshold}ms, 穩定:${preset.stabilityDelay}ms)`, 'success');
+            }
+        }
 
         // DOM Elements
         const statusBadge = document.getElementById('statusBadge');
@@ -472,24 +664,30 @@
                 log(`API Error: ${error.message || error.code}`, 'error');
             };
 
-            // Initialize Smart Segmenter (600ms threshold vs OpenAI's 2-3s)
+            // Initialize Smart Segmenter with current preset
             if (typeof SmartSegmenter !== 'undefined') {
+                const preset = SEGMENTER_PRESETS[currentPreset];
+
                 // Use AdaptiveSegmenter for dynamic WPM adjustment
                 smartSegmenter = new AdaptiveSegmenter({
-                    pauseThreshold: 600,   // 600ms pause triggers segmentation
-                    softLimit: 15,         // 15 words + grammar cue = segment
-                    hardLimit: 25,         // 25 words = forced segment
-                    minSegmentWords: 3     // Minimum 3 words per segment
+                    pauseThreshold: preset.pauseThreshold,
+                    stabilityDelay: preset.stabilityDelay,
+                    softLimit: preset.softLimit,
+                    hardLimit: preset.hardLimit,
+                    minSegmentWords: preset.minSegmentWords
                 });
 
-                // When segment detected, force translation
+                // When segment detected, translate via backend API (方案 A)
                 smartSegmenter.onSegment = (segment, info) => {
                     log(`SmartSegmenter: "${segment.substring(0, 40)}..." (${info.wordCount}w, ${info.reason})`, 'event');
-                    // Force OpenAI to create response immediately
-                    forceTranslation();
+
+                    // 🔧 方案 A: 兩階段架構
+                    // 不再使用 OpenAI Realtime API 翻譯（會變成 Q&A 對話）
+                    // 改用 gpt-4.1-nano 文字 API 翻譯
+                    translateViaBackend(segment);
                 };
 
-                log('SmartSegmenter initialized (600ms threshold)', 'success');
+                log(`SmartSegmenter initialized (preset: ${preset.name}, 暫停:${preset.pauseThreshold}ms)`, 'success');
             } else {
                 log('smart_segmenter.js not loaded - using OpenAI default (2-3s)', 'warn');
             }
@@ -546,11 +744,17 @@
                 previewEl.id = 'realtimePreview';
                 previewEl.className = 'realtime-preview';
                 previewEl.innerHTML = `
-                    <div class="preview-label">🎤 實時英文（Web Speech）</div>
+                    <div class="preview-label preview-toggle" onclick="toggleRealtimePreview()">
+                        <span class="toggle-icon">▼</span>
+                        <span>🎤 實時英文（Web Speech）</span>
+                    </div>
                     <div class="preview-text" id="previewText"></div>
                 `;
                 transcriptContent.parentNode.insertBefore(previewEl, transcriptContent);
             }
+
+            // 移除 stopped 狀態（如果有）
+            previewEl.classList.remove('stopped');
 
             const textEl = document.getElementById('previewText');
             if (textEl) {
@@ -561,6 +765,14 @@
                 } else {
                     textEl.textContent = fullText || '等待語音...';
                 }
+            }
+        }
+
+        // Toggle 實時預覽的展開/收合
+        function toggleRealtimePreview() {
+            const previewEl = document.getElementById('realtimePreview');
+            if (previewEl) {
+                previewEl.classList.toggle('collapsed');
             }
         }
 
@@ -721,34 +933,41 @@
             // - create_response: false → 禁用 OpenAI 的自動分段（2-3s 延遲）
             // - 前端 SmartSegmenter 控制分段（600ms 閾值）
             // - 見 spec/research/speech_segmentation.md
+            //
+            // 🔧 Fix Test 21 Issues (2026-02-02):
+            // - 2.2a 簡體→繁體：明確指定 "Traditional Chinese (Hong Kong)" + 負面範例
+            // - 2.2b Q&A→翻譯：採用 Twilio 風格 prompt "translation machine"
+            // - Reference: https://github.com/twilio-samples/live-translation-openai-realtime-api
             const sessionConfig = {
                 type: 'session.update',
                 session: {
                     type: 'realtime',
-                    instructions: `You are a real-time English to Traditional Chinese translator.
+                    // 🔧 Twilio-style translation prompt (Test 21 fix)
+                    // Key elements:
+                    // 1. "translation machine" identity - prevents dialogue mode
+                    // 2. Explicit "Traditional Chinese (Hong Kong)" - prevents simplified Chinese
+                    // 3. Negative examples - prevents common errors
+                    instructions: `You are a translation machine. Your sole function is to translate English audio to Traditional Chinese (Hong Kong style, 繁體中文).
 
-## Your Task
-Listen to English speech and provide Traditional Chinese translation.
+CRITICAL RULES:
+- Do NOT respond to the audio content. Do NOT have a dialogue.
+- Do NOT say "我明白", "好的", "請問", or any conversational phrases.
+- Output ONLY the Chinese translation, nothing else.
+- Use Traditional Chinese characters (繁體字), NOT Simplified Chinese (简体字).
+  ✓ Correct: 說話、學習、電話、經濟
+  ✗ Wrong: 说话、学习、电话、经济
 
-## Rules
-1. Translate naturally, not word-by-word
-2. Preserve the speaker's tone and intent
-3. Use Hong Kong Traditional Chinese (繁體中文)
-4. Keep translations concise for easy reading
-5. If unsure about a word, provide best guess with [?] marker
-6. Output ONLY the Chinese translation, no English, no explanations
-7. Translate sentence by sentence as you hear them
-
-## Output Format
-- Only output the Chinese translation
-- No meta-commentary like "Translation:" or "The speaker said:"
-- One sentence at a time`,
+FORMAT:
+- Proper nouns: HK-style with English in brackets, e.g., "曼德爾森 (Peter Mandelson)"
+- Numbers: Keep as digits, e.g., "$75,000", "2019年"
+- Output: Pure translation text only`,
                     output_modalities: ['text'],
                     audio: {
                         input: {
                             format: { type: 'audio/pcm', rate: 24000 },
                             transcription: {
-                                model: 'gpt-4o-mini-transcribe'
+                                model: 'gpt-4o-mini-transcribe',
+                                language: 'en'  // 🔧 強制英文轉錄，避免誤識別為其他語言
                             },
                             turn_detection: {
                                 type: 'semantic_vad',
@@ -763,7 +982,11 @@ Listen to English speech and provide Traditional Chinese translation.
             };
 
             sendEvent(sessionConfig);
-            log('Session configured: SmartSegmenter controls segmentation (600ms)');
+            log('Session configured: Twilio-style translation prompt + SmartSegmenter (600ms)');
+
+            // ⚠️ 移除 few-shot priming - 經測試發現會讓模型進入對話模式
+            // 原因：TEXT 範例與 AUDIO 輸入不同，模型會認為在對話
+            // 改用更強的 session instructions + response.create instructions
         }
 
         function sendEvent(event) {
@@ -808,16 +1031,227 @@ Listen to English speech and provide Traditional Chinese translation.
             sendEvent(commitEvent);
 
             // Create response (translation)
-            // 正確格式：{ conversation: "auto" }，不是 { modalities: ["text"] }
+            // 🔧 Test 21 fix: 強化翻譯行為
+            // 1. 明確指定繁體中文
+            // 2. 禁止對話模式
             const responseEvent = {
                 type: 'response.create',
                 response: {
-                    conversation: 'auto'
+                    conversation: 'auto',
+                    // 🔧 Twilio-style: 強化翻譯指令
+                    instructions: 'Translate to Traditional Chinese (繁體中文). Output ONLY the translation. No dialogue, no "我明白", no "好的", no questions. Use Traditional characters (說話 not 说话).'
                 }
             };
             sendEvent(responseEvent);
 
-            log('Force translation triggered', 'event');
+            log('Force translation triggered (Traditional Chinese)', 'event');
+        }
+
+        // ============================================
+        // 方案 A: 串流翻譯 API (gpt-4o-mini + SSE)
+        // 首字回應約 0.3 秒
+        // ============================================
+
+        let segmentCounter = 0;
+
+        /**
+         * 透過串流 API 翻譯英文段落
+         * 方案 A: 兩階段架構 + 串流回應
+         * - Web Speech API → 英文 STT
+         * - gpt-4o-mini → 文字翻譯（串流）
+         *
+         * 優點：首字回應約 0.3 秒，用戶可以邊看邊讀
+         */
+        async function translateViaBackend(englishText) {
+            if (!englishText || englishText.trim().length === 0) {
+                return;
+            }
+
+            // 創建 segment 用於 UI 顯示
+            const segmentId = `seg-${++segmentCounter}`;
+            const segment = {
+                id: segmentId,
+                englishText: englishText.trim(),
+                chineseTranslation: '',
+                status: 'translating',
+                createdAt: Date.now(),
+                completedAt: null,
+                error: null
+            };
+
+            // 立即顯示英文（狀態：翻譯中）
+            renderSegment(segment);
+            updateStats();
+
+            const startTime = Date.now();
+            log(`[串流] 開始翻譯: "${englishText.substring(0, 30)}..."`, 'event');
+
+            try {
+                // 使用串流 API
+                const response = await fetch('/api/translate/stream', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text: englishText.trim() })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`API error: ${response.status}`);
+                }
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let firstChunkTime = null;
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    const text = decoder.decode(value, { stream: true });
+                    const lines = text.split('\n');
+
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            try {
+                                const data = JSON.parse(line.slice(6));
+
+                                if (data.text) {
+                                    // 記錄首字時間
+                                    if (!firstChunkTime) {
+                                        firstChunkTime = Date.now() - startTime;
+                                        log(`[串流] 首字回應: ${firstChunkTime}ms`, 'success');
+                                    }
+
+                                    // 累加翻譯文字
+                                    segment.chineseTranslation += data.text;
+                                    // 即時更新 UI
+                                    renderSegment(segment);
+                                }
+
+                                if (data.done) {
+                                    // 完成
+                                    segment.status = 'done';
+                                    segment.completedAt = Date.now();
+                                    renderSegment(segment);
+                                    updateStats();
+
+                                    const totalTime = Date.now() - startTime;
+                                    log(`[串流] 完成: ${totalTime}ms, "${segment.chineseTranslation.substring(0, 30)}..."`, 'success');
+                                }
+
+                                if (data.error) {
+                                    throw new Error(data.error);
+                                }
+                            } catch (e) {
+                                // JSON parse error, skip
+                            }
+                        }
+                    }
+                }
+
+                // 確保標記為完成
+                if (segment.status !== 'done') {
+                    segment.status = 'done';
+                    segment.completedAt = Date.now();
+                    renderSegment(segment);
+                    updateStats();
+                }
+
+            } catch (error) {
+                // 錯誤處理
+                segment.status = 'error';
+                segment.error = error.message;
+                segment.chineseTranslation = `[翻譯失敗] ${error.message}`;
+
+                renderSegment(segment);
+                updateStats();
+
+                log(`[串流] 翻譯錯誤: ${error.message}`, 'error');
+            }
+        }
+
+        /**
+         * 渲染單個 segment 到 UI
+         * 簡化版：直接操作 DOM，不依賴 SegmentRenderer
+         */
+        function renderSegment(segment) {
+            // 隱藏空狀態
+            transcriptEmpty.style.display = 'none';
+
+            let segmentEl = document.getElementById(segment.id);
+
+            if (!segmentEl) {
+                // 創建新的 segment 元素
+                segmentEl = document.createElement('div');
+                segmentEl.id = segment.id;
+                segmentEl.className = 'segment-item';
+                segmentEl.style.cssText = `
+                    background: var(--bg-tertiary);
+                    border-radius: 8px;
+                    padding: 12px 16px;
+                    margin-bottom: 12px;
+                    border-left: 3px solid var(--accent-blue);
+                `;
+                transcriptContent.insertBefore(segmentEl, transcriptContent.firstChild);
+            }
+
+            // 狀態顏色
+            const statusColors = {
+                'translating': 'var(--accent-yellow)',
+                'done': 'var(--accent-green)',
+                'error': 'var(--accent-red)'
+            };
+            const statusIcons = {
+                'translating': '⏳',
+                'done': '✅',
+                'error': '❌'
+            };
+            const statusTexts = {
+                'translating': '翻譯中...',
+                'done': '完成',
+                'error': '錯誤'
+            };
+
+            segmentEl.style.borderLeftColor = statusColors[segment.status] || 'var(--accent-blue)';
+
+            // 時間格式
+            const time = new Date(segment.createdAt).toLocaleTimeString('zh-TW');
+
+            segmentEl.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <div style="font-size: 18px; color: var(--text-primary);">${segment.englishText}</div>
+                </div>
+                <div style="font-size: 16px; color: var(--accent-blue); margin-bottom: 8px;">
+                    ${segment.chineseTranslation || '<span style="color: var(--text-secondary);">翻譯中...</span>'}
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 12px; color: var(--text-secondary);">
+                    <span>${time}</span>
+                    <span style="color: ${statusColors[segment.status]}">${statusIcons[segment.status]} ${statusTexts[segment.status]}</span>
+                </div>
+            `;
+        }
+
+        /**
+         * 更新統計數據（方案 A 版本）
+         */
+        function updateStats() {
+            const segments = document.querySelectorAll('.segment-item');
+            const total = segments.length;
+            let done = 0;
+            let active = 0;
+
+            segments.forEach(el => {
+                const html = el.innerHTML;
+                if (html.includes('✅') || html.includes('完成')) {
+                    done++;
+                } else if (html.includes('⏳') || html.includes('翻譯中')) {
+                    active++;
+                }
+            });
+
+            segmentCountEl.textContent = total;
+            activeCountEl.textContent = active;
+            doneCountEl.textContent = done;
+            queueCountEl.textContent = '0';  // 方案 A 沒有隊列
         }
 
         // ============================================
@@ -839,7 +1273,17 @@ Listen to English speech and provide Traditional Chinese translation.
                 webSpeech.isRunning = false;  // Prevent auto-restart
                 webSpeech.stop();
                 webSpeech.reset();
+                log('WebSpeech stopped', 'info');
             }
+
+            // 🔧 v7: 取消所有活躍的 segment（更新 UI 狀態）
+            if (eventHandler && eventHandler.getStore()) {
+                const cancelledCount = eventHandler.getStore().cancelAllActive();
+                log(`Cancelled ${cancelledCount} active segments`, 'info');
+            }
+
+            // 🐛 Bug fix: 標記實時英文預覽為已停止
+            clearRealtimePreview();
 
             if (audioCapture) {
                 audioCapture.cleanup();
@@ -856,9 +1300,26 @@ Listen to English speech and provide Traditional Chinese translation.
             }
 
             isConnected = false;
+            currentRealtimeEnglish = '';  // 重置變數
             resetUI();
             updateStatus('disconnected', '已停止');
             log('Stopped', 'success');
+        }
+
+        /**
+         * 標記實時英文預覽為已停止（保留內容供對照）
+         */
+        function clearRealtimePreview() {
+            const previewEl = document.getElementById('realtimePreview');
+            if (previewEl) {
+                // 不移除，改為標記 stopped 狀態（變灰色）
+                previewEl.classList.add('stopped');
+                // 更新標籤文字
+                const labelEl = previewEl.querySelector('.preview-label span:last-child');
+                if (labelEl) {
+                    labelEl.textContent = '🎤 英文原文（已停止）- 點擊展開/收合';
+                }
+            }
         }
 
         function resetUI() {
@@ -875,6 +1336,12 @@ Listen to English speech and provide Traditional Chinese translation.
             // Reset event handler
             if (eventHandler) {
                 eventHandler.reset();
+            }
+
+            // 完全移除英文原文框
+            const previewEl = document.getElementById('realtimePreview');
+            if (previewEl) {
+                previewEl.remove();
             }
 
             // Show empty state
@@ -910,6 +1377,13 @@ Listen to English speech and provide Traditional Chinese translation.
             if (!initModules()) {
                 log('Module initialization failed - some features may not work', 'error');
             }
+
+            // Initialize preset selector buttons
+            document.querySelectorAll('.preset-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    applyPreset(btn.dataset.preset);
+                });
+            });
 
             log('ECA Parallel Translation Test ready');
         });

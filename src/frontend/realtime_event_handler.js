@@ -148,7 +148,7 @@ class RealtimeEventHandler {
      * ⚠️ 注意：這不是「即時」預覽！
      * - OpenAI 的 transcription 事件只在 speech_stopped 後才觸發
      * - 真正的即時英文預覽由 WebSpeechRealtime 處理
-     * - 這裡的 delta 用於最終英文記錄（比 Web Speech 更準確）
+     * - v7: 如果已有 Web Speech 文字，跳過 OpenAI 轉錄（Web Speech 更準確）
      */
     _handleTranscriptionDelta(event) {
         const itemId = event.item_id;
@@ -160,7 +160,13 @@ class RealtimeEventHandler {
             segment = this.store.getOrCreate(itemId);
         }
 
-        // 增量更新英文文本
+        // v7: 如果已有 Web Speech 文字（更準確），跳過 OpenAI 轉錄
+        if (segment.englishText && segment.englishText.length > 0) {
+            // 已有 Web Speech 文字，不覆蓋
+            return;
+        }
+
+        // 增量更新英文文本（只有在沒有 Web Speech 文字時）
         if (event.delta) {
             segment.englishText += event.delta;
             this.store.updateAndNotify(segment);
@@ -174,6 +180,7 @@ class RealtimeEventHandler {
 
     /**
      * 處理 transcription completed（最終結果）
+     * v7: 如果已有 Web Speech 文字，不覆蓋
      */
     _handleTranscriptionCompleted(event) {
         const itemId = event.item_id;
@@ -186,15 +193,19 @@ class RealtimeEventHandler {
             this._log(`Transcription completed created new segment: ${itemId}`, 'warn');
         }
 
-        // 最終轉錄結果
-        if (event.transcript) {
+        // v7: 只有在沒有 Web Speech 文字時才使用 OpenAI 轉錄結果
+        const hasWebSpeechText = segment.englishText && segment.englishText.length > 0;
+        if (event.transcript && !hasWebSpeechText) {
             segment.englishText = event.transcript;
         }
 
         // 更新狀態（但不再負責加入隊列，隊列在 getOrCreate 時已加入）
         this.store.markTranscriptionCompleted(itemId);
 
-        this._log(`Transcription completed: ${segment.id} = "${segment.englishText.substring(0, 50)}..."`, 'event');
+        // 🔍 DEBUG: 顯示英文來源
+        const source = hasWebSpeechText ? 'WebSpeech' : 'OpenAI';
+        console.log(`%c[TRANSCRIPTION] ${segment.id} (${source}): "${segment.englishText}"`, 'color: #2196F3; font-weight: bold;');
+        this._log(`Transcription completed: ${segment.id} = "${segment.englishText.substring(0, 80)}..."`, 'event');
     }
 
     // =========================================================================
@@ -260,6 +271,10 @@ class RealtimeEventHandler {
         if (event.text) {
             segment.chineseTranslation = event.text;
         }
+
+        // 🔍 DEBUG: 顯示翻譯結果，方便與轉錄對比
+        console.log(`%c[TRANSLATION] ${segment.id}: "${segment.chineseTranslation}"`, 'color: #4CAF50; font-weight: bold;');
+        console.log(`%c[COMPARE] EN: "${segment.englishText.substring(0, 60)}..." → ZH: "${segment.chineseTranslation.substring(0, 60)}..."`, 'color: #FF9800;');
 
         this.store.updateAndNotify(segment);
     }

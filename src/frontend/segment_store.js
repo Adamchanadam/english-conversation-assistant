@@ -300,6 +300,110 @@ class EnhancedSegmentStore extends SegmentStore {
         this.pendingTranslations = new Map();  // v5: response_id → 緩存的翻譯內容
         this.completedResponses = new Set();   // v6: 已完成但 segment 還沒創建的 response_id
         this.speechStartedItems = new Set();  // 追蹤已 speech_started 但還沒 transcription 的 items
+
+        // v8: Web Speech 文字記錄（帶時間戳）
+        // 用時間戳匹配，而非 FIFO，因為 OpenAI semantic_vad 與 SmartSegmenter 不同步
+        this.webSpeechHistory = [];  // [{text, timestamp, used}]
+        this.maxHistorySize = 20;    // 保留最近 20 條記錄
+    }
+
+    /**
+     * v8: 記錄 Web Speech 文字（帶時間戳）
+     */
+    setPendingWebSpeechText(text) {
+        const entry = {
+            text: text,
+            timestamp: Date.now(),
+            used: false
+        };
+        this.webSpeechHistory.push(entry);
+
+        // 限制歷史記錄大小
+        if (this.webSpeechHistory.length > this.maxHistorySize) {
+            this.webSpeechHistory.shift();
+        }
+
+        console.log(`[Store] Web Speech recorded: "${text.substring(0, 50)}..." (history: ${this.webSpeechHistory.length})`);
+    }
+
+    /**
+     * v9: 改進的 Web Speech 文字匹配策略
+     *
+     * 🔧 Test 21 fix (2.1 英文段落不對齊):
+     * - 問題：OpenAI semantic_vad 與 SmartSegmenter 時機不同步
+     * - v8 用時間戳匹配，但 5 秒太長可能錯配
+     * - v9 改用「最早未使用」策略（FIFO），因為語音順序是固定的
+     *
+     * @param {number} targetTime - 目標時間戳（segment 創建時間）- v9 不再使用
+     * @param {number} maxDelta - 最大時間差（毫秒）- v9 不再使用
+     */
+    findClosestWebSpeechText(targetTime, maxDelta = 5000) {
+        // v9: 改用 FIFO 策略（最早未使用）
+        // 理由：語音是順序的，第一個 transcription 應該對應第一個 Web Speech 分段
+        for (const entry of this.webSpeechHistory) {
+            if (entry.used) continue;
+
+            // 找到第一個未使用的就用
+            entry.used = true;
+            const age = Date.now() - entry.timestamp;
+            console.log(`[Store] v9 FIFO matched Web Speech text (age: ${age}ms): "${entry.text.substring(0, 40)}..."`);
+            return entry.text;
+        }
+
+        console.log(`[Store] v9 No unused Web Speech text available`);
+        return '';
+    }
+
+    /**
+     * v8: 兼容舊 API - 獲取最新未使用的 Web Speech 文字
+     */
+    consumePendingWebSpeechText() {
+        // 找最近的未使用記錄
+        for (let i = this.webSpeechHistory.length - 1; i >= 0; i--) {
+            const entry = this.webSpeechHistory[i];
+            if (!entry.used) {
+                entry.used = true;
+                console.log(`[Store] Consumed Web Speech text: "${entry.text.substring(0, 40)}..."`);
+                return entry.text;
+            }
+        }
+        return '';
+    }
+
+    /**
+     * v7: 取消所有活躍的 segment（停止時調用）
+     */
+    cancelAllActive() {
+        const activeSegments = this.getActiveSegments();
+        let cancelledCount = 0;
+
+        // 🔧 先清空隊列，再更新 segment（確保 UI 顯示正確）
+        this.pendingForResponse = [];
+        this.pendingResponses = [];
+        this.pendingTranslations.clear();
+        this.completedResponses.clear();
+        this.webSpeechHistory = [];  // v8
+
+        for (const segment of activeSegments) {
+            segment._clearTimeout();
+            // 如果有翻譯內容，標記為完成；否則標記為取消
+            if (segment.chineseTranslation) {
+                segment.status = SegmentStatus.DONE;
+                segment.completedAt = Date.now();
+            } else {
+                segment.status = SegmentStatus.ERROR;
+                segment.error = '已停止';
+                // 如果有英文但沒翻譯，顯示提示
+                if (segment.englishText) {
+                    segment.chineseTranslation = '[翻譯中斷]';
+                }
+            }
+            this._notifyUpdate(segment);
+            cancelledCount++;
+        }
+
+        console.log(`[Store] Cancelled ${cancelledCount} active segments`);
+        return cancelledCount;
     }
 
     /**
@@ -353,6 +457,7 @@ class EnhancedSegmentStore extends SegmentStore {
     /**
      * 當收到 transcription（delta 或 completed）時創建 segment
      * v6: 檢查 response 是否已完成，直接設為 DONE
+     * v7: 使用 Web Speech 文字作為英文顯示（更準確）
      */
     getOrCreateForTranscription(itemId) {
         if (this.segments.has(itemId)) {
@@ -365,6 +470,14 @@ class EnhancedSegmentStore extends SegmentStore {
 
         // 從 speechStartedItems 移除
         this.speechStartedItems.delete(itemId);
+
+        // v8: 使用時間戳匹配 Web Speech 文字（更準確）
+        // 因為 OpenAI semantic_vad 與 SmartSegmenter 時機不同步，FIFO 隊列會錯配
+        const webSpeechText = this.findClosestWebSpeechText(segment.createdAt);
+        if (webSpeechText) {
+            segment.englishText = webSpeechText;
+            console.log(`[Store] Using Web Speech text for ${segment.id}: "${webSpeechText.substring(0, 40)}..."`);
+        }
 
         // v4+v5+v6: 檢查是否有等待的 response
         if (this.pendingResponses.length > 0) {
@@ -481,6 +594,7 @@ class EnhancedSegmentStore extends SegmentStore {
         this.pendingTranslations.clear();  // v5
         this.completedResponses.clear();   // v6
         this.speechStartedItems.clear();
+        this.webSpeechHistory = [];  // v8
     }
 }
 

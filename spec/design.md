@@ -2,8 +2,8 @@
 name: english-conversation-assistant-design
 description: 英文對話助手（ECA）技術設計 — 即時翻譯 + 講稿生成 + Smart 建議 + Panic Button
 status: approved
-version: 2.3
-date: 2026-02-02
+version: 2.5
+date: 2026-02-03
 ---
 
 # English Conversation Assistant — Design v2.0
@@ -75,7 +75,8 @@ date: 2026-02-02
 
 🚨 **此規則優先級最高，不可變更**：
 - **Realtime 語音**：必須使用 `gpt-realtime-mini`
-- **文字控制器**：必須使用 `gpt-5-mini`（不得使用 gpt-4o-mini 或其他模型）
+- **文字控制器**：必須使用 `gpt-5-mini`（講稿生成、Smart 建議）
+- **即時翻譯**：必須使用 `gpt-4.1-nano`（經測試為最快模型，703ms 首字回應）
 
 ---
 
@@ -167,14 +168,25 @@ date: 2026-02-02
 - 無 API 成本
 - 用戶可即時看到對方說的英文
 
-**OpenAI Realtime API 的角色**：
+**方案 A: 兩階段架構**（已採用）：
+- Web Speech API → SmartSegmenter → `/api/translate/stream`（gpt-4.1-nano）
+- 不使用 OpenAI Realtime API 翻譯（會進入 Q&A 對話模式）
+- 翻譯使用 SSE 串流，首字回應 ~700ms
+
+**OpenAI Realtime API 的角色**（僅用於 STT）：
 - 提供最終轉錄結果（比 Web Speech 更準確）
-- 提供中文翻譯
 - 提供語義 VAD（semantic_vad）用於分段信號
+- **不用於翻譯**（詳見 lessons_learned.md §方案 A）
 
 ### 4.2 智能分段系統（SmartSegmenter）
 
 > **核心問題**：Web Speech API 不會智能分段，等待用戶完全停止說話（>1-2秒）才觸發，導致翻譯延遲過長。
+
+> ✅ **實現狀態（2026-02-02）**：
+> - `src/frontend/smart_segmenter.js` - SmartSegmenter + AdaptiveSegmenter 類
+> - 整合至 `eca_parallel_test.html`
+> - 禁用 OpenAI `create_response: true`，改由前端控制分段
+> - 使用 `input_audio_buffer.commit` + `response.create` 強制翻譯
 
 #### 4.2.1 人類說話習慣參數
 
@@ -215,19 +227,28 @@ date: 2026-02-02
 └─────────────────────────────────────────────────────────────┘
 ```
 
-#### 4.2.3 分段參數
+#### 4.2.3 分段參數與預設模式
+
+**5 種預設模式**（用戶可在 UI 選擇）：
+
+| 模式 | pauseThreshold | stabilityDelay | softLimit | hardLimit | 適用場景 |
+|------|---------------|----------------|-----------|-----------|---------|
+| 🚀 極速 | 400ms | 80ms | 12 | 20 | 最快反應，可能切斷單詞 |
+| ⚡ 快速 | 500ms | 100ms | 12 | 20 | **預設**，快速反應 |
+| ⚖️ 平衡 | 600ms | 150ms | 15 | 25 | 平衡速度與穩定性 |
+| 🛡️ 穩定 | 750ms | 200ms | 15 | 25 | 更穩定，較慢 |
+| 🔒 保守 | 900ms | 250ms | 18 | 30 | 最穩定，最慢 |
 
 ```javascript
-const PAUSE_THRESHOLDS = {
-  sentence_boundary: 600,    // ms - 主要分段觸發
-  clause_boundary: 300,      // ms - 子句邊界
-  word_gap_normal: 150,      // ms - 正常詞間停頓（不觸發）
-};
-
-const LENGTH_LIMITS = {
-  soft_limit: 15,   // words - 超過此字數且有語法線索 → 分段
-  hard_limit: 25,   // words - 超過此字數 → 強制分段
-  min_segment: 3,   // words - 最小分段字數（避免過短）
+const SEGMENTER_PRESETS = {
+  'fast': {  // 預設
+    pauseThreshold: 500,
+    stabilityDelay: 100,
+    softLimit: 12,
+    hardLimit: 20,
+    minSegmentWords: 2
+  }
+  // ... 其他預設見 eca_parallel_test.html
 };
 
 const GRAMMAR_TRIGGERS = {
@@ -236,6 +257,11 @@ const GRAMMAR_TRIGGERS = {
   conjunctions: ['and', 'but', 'or', 'so', 'because', 'however']
 };
 ```
+
+**動態穩定性檢測**：
+- 當偵測到暫停時，不立即發出，而是等待 `stabilityDelay`
+- 如果在等待期間有新文字進來，取消並重新等待
+- 這樣可以動態處理任何內容，避免單詞中間切割
 
 #### 4.2.4 語速自適應
 
@@ -1159,14 +1185,16 @@ const scenarioPresets = {
 
 ---
 
-*最後更新：2026-02-02*
-*版本：2.3*
+*最後更新：2026-02-03*
+*版本：2.5*
 *狀態：approved*
 
 ### 更新日誌
 
 | 版本 | 日期 | 變更 |
 |------|------|------|
+| 2.5 | 2026-02-03 | 新增：gpt-4.1-nano 用於即時翻譯（703ms）；SmartSegmenter 5 種預設模式（預設為「快速」）；動態穩定性檢測 |
+| 2.4 | 2026-02-02 | 採用方案 A：Web Speech + 後端 API 翻譯（避免 OpenAI 對話模式） |
 | 2.3 | 2026-02-02 | 澄清：雙軌架構（Web Speech API 必須用於即時英文預覽，OpenAI 僅用於最終記錄+翻譯） |
 | 2.2 | 2026-02-01 | 修復：重複 4.4 章節、更新參考資料路徑（整理後目錄結構） |
 | 2.1 | 2026-02-01 | 新增：智能分段系統 (4.2)、並行翻譯架構 (4.3)、性能指標更新 (12.1-12.2) |

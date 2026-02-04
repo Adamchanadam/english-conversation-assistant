@@ -1,14 +1,15 @@
 ---
+name: english-conversation-assistant-steering
+description: ECA 長期規約：技術棧、事件處理準則、模型使用範圍、程式風格、驗收口徑。
+version: 2.2
+date: 2026-02-03
+---
 
-name: voice-proxy-negotiator-steering
-description: Kiro 長期規約：此專案的技術棧、事件處理準則、模型使用範圍、程式風格、驗收口徑（避免每次對話重覆說明）。
--------------------------------------------------------------------
-
-# Voice Proxy Negotiator — Steering
+# English Conversation Assistant — Steering v2.0
 
 ## 0. Precedence（SSOT 優先序｜硬規約）
 
-🔎 如有衝突／矛盾，一律按以下優先序仲裁（由高至低），並需在輸出中明確回報衝突點（不得私自改寫需求）。
+如有衝突／矛盾，一律按以下優先序仲裁（由高至低），並需在輸出中明確回報衝突點（不得私自改寫需求）。
 
 1) Spec（需求/設計/任務合約）
    - `spec/requirements.md`
@@ -17,7 +18,6 @@ description: Kiro 長期規約：此專案的技術棧、事件處理準則、�
 
 2) Steering（執行規約/工程準則）
    - `spec/steering.md`
-   - `.kiro/steering/**`（如存在）
 
 3) Skills（工具/環境/除錯操作指南；只定義「How」，不得推翻「What」）
    - `src/skills/openai-gpt5-mini-controller/SKILL.md`
@@ -25,23 +25,23 @@ description: Kiro 長期規約：此專案的技術棧、事件處理準則、�
    - `src/skills/windows-python/SKILL.md`
    - `src/skills/chrome-devtools-mcp.skill`
 
-## 0.1 Tooling Router（Skills Index｜Router-only）
+## 0.1 Tooling Router（Skills Index）
 
-🔎 Skills 只在「需要正確使用工具/SDK/環境/除錯」時才讀；任何需求/合約/驗收標準的定義，只能以 Spec/Steering 為準。
+Skills 只在「需要正確使用工具/SDK/環境/除錯」時才讀；任何需求/合約/驗收標準的定義，只能以 Spec/Steering 為準。
 
-- `src/skills/openai-gpt5-mini-controller/SKILL.md`
-  - 何時必讀：實作/調整 `gpt-5-mini` Control Plane（狀態機、達標判定、摘要壓縮、誠實守門、文本計劃生成）
-- `src/skills/openai-realtime-mini-voice/SKILL.md`
-  - 何時必讀：實作/調整 `gpt-realtime-mini` Realtime Voice（WebRTC 管線、VAD、interruptions、cancel/clear/truncate、語音 UX）
-- `src/skills/windows-python/SKILL.md`
-  - 何時必讀：本地 Windows 開發環境、Python 依賴、測試與腳本執行、CI/命令一致性
-- `src/skills/chrome-devtools-mcp.skill`
-  - 何時必讀：用 Chrome DevTools/MCP 除錯 WebRTC、音訊權限、裝置選擇、console/network 記錄與重現問題
+| Skill | 何時必讀 |
+|-------|---------|
+| `openai-gpt5-mini-controller/SKILL.md` | 實作講稿生成、Smart 建議（使用 `gpt-5-mini`） |
+| `openai-realtime-mini-voice/SKILL.md` | 實作即時翻譯、WebRTC、VAD、事件處理 |
+| `windows-python/SKILL.md` | 本地開發環境、Python 依賴、測試 |
+| `chrome-devtools-mcp.skill` | 除錯 WebRTC、音訊權限、console/network |
 
 ## 1. 專案北極星
 
-
-🔎 以「低延遲語音協商」為首要體驗；一切治理（達標/不虛構/記憶）放在 App/Control 平面，避免拖慢語音回合。
+以「用戶主導、AI 輔助」為核心理念：
+- **即時翻譯**：讓用戶聽懂對方說什麼
+- **講稿生成**：讓用戶知道自己怎麼說
+- **低延遲**：翻譯 < 500ms，講稿 < 1.5s
 
 ## 2. 模型使用範圍（Hard Rule）
 
@@ -54,6 +54,11 @@ description: Kiro 長期規約：此專案的技術棧、事件處理準則、�
 - **文字控制器**：`gpt-5-mini`
   - 最新穩定版本：`gpt-5-mini-2025-08-07`
   - 文檔：[GPT-5 mini Model | OpenAI API](https://platform.openai.com/docs/models/gpt-5-mini)
+
+- **即時翻譯**：`gpt-4.1-nano`
+  - 用途：英→中即時翻譯（方案 A）
+  - 首字回應：~700ms（經測試為最快模型）
+  - ⚠️ 不可用 gpt-5-mini（reasoning 開銷太大，需 5-6 秒）
 
 ### 模型 ID 確認步驟（強制）
 在 Milestone 0 開始前，必須執行：
@@ -85,21 +90,28 @@ curl https://api.openai.com/v1/models \
 🔎 單一 session 最長 60 分鐘；必須提供倒數提示與可續接重連。 ([OpenAI Platform][6])
 🔎 一旦開始輸出音訊後 voice 不可更改；voice 必須在 INIT 鎖定。 ([OpenAI Platform][6])
 
-## 6. 記憶治理（One-rule-one-place）
+## 6. Segment 管理準則
 
-🔎 任務目標/硬約束永遠以 Pinned Context 單點保存；對話歷史只以 Rolling Summary + 最近 N turns 保存。
-要求：
+Segment（翻譯段落）管理遵循以下規則：
 
-* 任何壓縮只可由 `gpt-5-mini` 產生
-* 壓縮後必須保留：已承諾/未承諾、對方條件、未解問題、下一步策略
+* **主鍵**：使用 OpenAI `item_id` 作為 Segment 的主鍵
+* **雙向索引**：`item_id → Segment` 和 `response_id → Segment`
+* **路由**：所有事件用 `item_id` 或 `response_id` 路由到正確的 Segment
+* **FIFO 隊列**：`response.created` 事件不含 `item_id`，用 FIFO 隊列關聯
+* **狀態機**：`listening → transcribing → translating → done`
+* **獨立生命週期**：每個 Segment 獨立處理，新 Segment 不阻塞舊 Segment
+* **超時保護**：任何「等待」狀態必須有超時機制（30 秒）
 
-## 7. 「不虛構」合約（Mandatory）
+詳細設計見：
+- `design.md` 第 4.3 節（並行翻譯架構）
+- `design_parallel_translation.md`（完整實現規格）
 
-🔎 遇到未知或缺資訊，必須採用「承認未知 + 澄清/記錄待辦」策略，不得編造。
-最低回應模板（英語語音亦須遵守語義）：
+## 7. 翻譯準確性要求
 
-* “I’m not sure about that. Let me note it down and get back to you.”
-* “Could you clarify X so I can respond accurately?”
+* 翻譯必須忠於原文語義
+* 不確定的詞彙用 `[?]` 標記
+* 顯示英文原文讓用戶可以對照
+* 信心指示（v2）：低信心時提示用戶
 
 ## 8. 參考起點（Allowed References）
 

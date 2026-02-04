@@ -5,7 +5,9 @@
 
 ## 模型硬性規則（Hard Model Constraint）
   - **Realtime 語音**：必須使用 `gpt-realtime-mini`
-  - **文字控制器**：必須使用 `gpt-5-mini`（不得使用 gpt-4o-mini 或其他模型）
+  - **文字控制器**：必須使用 `gpt-5-mini`（講稿生成、Smart 建議）
+  - **即時翻譯**：必須使用 `gpt-4.1-nano`（經測試最快，703ms 首字回應）
+    - ⚠️ 不可用 gpt-5-mini（reasoning 開銷，需 5-6 秒）
   - 此規則優先級最高，不可變更
 
 ## Source of Truth
@@ -89,12 +91,13 @@
   - Session config: `audio.input.transcription`（不是 `input_audio_transcription`）
   - response.create 格式：`{ conversation: 'auto' }`（不是 `{ modalities: ['text'] }`）
   - 詳見 `src/skills/openai-realtime-mini-voice/SKILL.md`
-- **雙軌架構**（詳見 lessons_learned.md §1.5）：
-  - Web Speech API → 即時英文預覽（邊說邊顯示）
-  - OpenAI Realtime → 正式轉錄 + 翻譯（語音結束後處理）
+- **方案 A 兩階段架構**（詳見 lessons_learned.md §方案 A）：
+  - Web Speech API → SmartSegmenter → `/api/translate/stream`（gpt-4.1-nano）
+  - 不用 OpenAI Realtime 翻譯（會進入 Q&A 對話模式）
 - **SmartSegmenter**（詳見 lessons_learned.md §2.1, §2.2）：
   - Web Speech fullText 是累積的，需用 `processedLength` 追蹤
-  - 觸發 API 需要防抖（最少 500ms 間隔）
+  - 動態穩定性檢測：暫停後等 100ms，有新文字就取消重等
+  - 5 種預設模式，預設為「快速」（500ms/100ms）
 - **Entry ID 綁定**：必須建立 `response.id → entry_id` 映射（詳見 lessons_learned.md §1.3）
 - **狀態超時保護**：任何「等待」狀態必須有超時機制（詳見 lessons_learned.md §3.1）
 - **條目排序**：新條目只能 push 到末尾，不可中間插入（詳見 lessons_learned.md §4.1）

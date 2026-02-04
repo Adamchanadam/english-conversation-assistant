@@ -6,6 +6,251 @@
 
 ---
 
+## 🚨 Test 21 修復記錄（2026-02-02）
+
+### 問題結構（修復前）
+```
+1) Web Speech = 實時逐字英文字幕（頁頂）✅ 正常
+
+2) 分拆段落條目 =
+   2.1) 英文段落 ❌ 問題：文字不完整、過短、與 2.2 中文不對齊
+   2.2) 英譯中 ❌ 問題：
+        - 語言錯誤：顯示簡體中文，應為繁體中文
+        - 模式錯誤：Q&A 對話模式，非純文字翻譯
+```
+
+### 修復方案
+| 項目 | 問題 | 修復 | 狀態 |
+|------|------|------|------|
+| 2.2a | 簡體→繁體中文 | 明確指定 "Traditional Chinese (Hong Kong)" + 繁簡對比範例 | ✅ 已修復 |
+| 2.2b | Q&A 模式→翻譯模式 | 採用 Twilio 風格 prompt："You are a translation machine..." | ✅ 已修復 |
+| 2.1 | 英文段落不對齊 | v9: 改用 FIFO 策略（最早未使用）取代時間戳匹配 | ✅ 已修復 |
+
+### 技術修復細節
+
+#### 2.2 翻譯模式修復（Twilio 風格 prompt）
+```javascript
+// session.update instructions
+instructions: `You are a translation machine. Your sole function is to translate English audio to Traditional Chinese (Hong Kong style, 繁體中文).
+
+CRITICAL RULES:
+- Do NOT respond to the audio content. Do NOT have a dialogue.
+- Do NOT say "我明白", "好的", "請問", or any conversational phrases.
+- Output ONLY the Chinese translation, nothing else.
+- Use Traditional Chinese characters (繁體字), NOT Simplified Chinese (简体字).
+  ✓ Correct: 說話、學習、電話、經濟
+  ✗ Wrong: 说话、学习、电话、经济
+...`
+
+// response.create instructions（每次翻譯時強化）
+instructions: 'Translate to Traditional Chinese (繁體中文). Output ONLY the translation. No dialogue...'
+```
+
+#### 2.1 英文段落對齊修復（v9 FIFO）
+```javascript
+// v9: 改用 FIFO 策略取代時間戳匹配
+findClosestWebSpeechText() {
+    // 理由：語音是順序的，第一個 transcription 應該對應第一個 Web Speech 分段
+    for (const entry of this.webSpeechHistory) {
+        if (entry.used) continue;
+        entry.used = true;  // 找到第一個未使用的就用
+        return entry.text;
+    }
+    return '';
+}
+```
+
+### 參考資源
+- [Twilio Live Translation](https://github.com/twilio-samples/live-translation-openai-realtime-api) - prompt 風格參考
+- [OpenAI Cookbook - One-Way Translation](https://cookbook.openai.com/examples/voice_solutions/one_way_translation_using_realtime_api)
+
+### 回歸測試結果（2026-02-02）
+
+**測試腳本**: `src/tests/test_translate_api.py`
+
+```
+============================================================
+REGRESSION TEST RESULTS:
+  Test 1 (OpenAI Responses API): ✅ PASS
+  Test 2 (Backend Endpoint):     ✅ PASS
+============================================================
+
+測試案例:
+- "Hello, how are you today?" → "你好，你今天好嗎？" ✅ 繁體
+- "The meeting is scheduled for next Monday at 3 PM." → "會議定於下星期一下午3時舉行。" ✅ 繁體
+- "Jeffrey Epstein was a convicted American sex offender." → "傑弗里·愛潑斯坦 (Jeffrey Epstein) 曾是被定罪的美國性罪犯。" ✅ 繁體+專有名詞格式
+```
+
+**已驗證**:
+- [x] 翻譯結果是繁體中文（說話、學習，非 说话、学习）
+- [x] 翻譯是純翻譯（無對話回應，無 "我明白"、"好的"）
+- [x] 專有名詞格式正確：中文 (English)
+
+**待人工驗證（Test 22）**:
+- [ ] 實際語音測試：Web Speech + SmartSegmenter + 後端翻譯 整合
+
+---
+
+## 🔧 方案 A 實現記錄（2026-02-02 Test 21 後）
+
+### 問題根因
+OpenAI Realtime API 的語音輸入模式**天生是對話模式**：
+- `session.update` 的 `instructions` 被忽略或優先級低
+- 語音輸入觸發「對話回應」行為，而非「翻譯」
+- 無論 Twilio 風格 prompt 或 XML 格式都無法解決
+
+### 方案 A: 兩階段架構
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  麥克風音訊                                                    │
+│    │                                                          │
+│    └──→ Web Speech API ──→ SmartSegmenter ──→ /api/translate │
+│         (瀏覽器 STT)       (600ms 分段)      (gpt-5-mini)     │
+│                                                ↓              │
+│                                           繁體中文翻譯         │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### 實現細節
+
+**後端** (`main.py`):
+```python
+@app.post("/api/translate")
+async def translate_text(request: TranslateRequest):
+    # 使用 gpt-5-mini（符合 CLAUDE.md 模型規則）
+    # Twilio 風格 prompt："You are a translation machine..."
+```
+
+**前端** (`eca_parallel_test.html`):
+```javascript
+smartSegmenter.onSegment = (segment) => {
+    // 不再調用 forceTranslation()（OpenAI Realtime）
+    // 改用後端 API
+    translateViaBackend(segment);
+};
+
+async function translateViaBackend(englishText) {
+    const response = await fetch('/api/translate', {
+        method: 'POST',
+        body: JSON.stringify({ text: englishText })
+    });
+    // 更新 UI...
+}
+```
+
+### 優點
+1. **完全控制翻譯行為**：gpt-5-mini 文字 API 不會進入對話模式
+2. **符合模型規則**：CLAUDE.md 指定文字控制器使用 gpt-5-mini
+3. **簡化架構**：不需要處理 OpenAI Realtime 的複雜事件時序
+
+### 缺點
+1. **額外 API 調用**：每個分段一次 HTTP 請求
+2. ~~**略增延遲**：約 500-1000ms（但可接受）~~ → 已優化
+
+### 效能優化記錄（2026-02-02）
+
+**問題**：gpt-5-mini 翻譯需要 5-6 秒（reasoning tokens 開銷）
+
+**根因分析**：
+- gpt-5-mini 是 reasoning 模型，需要大量 reasoning tokens
+- `max_output_tokens: 500` 不夠，reasoning 用完配額後沒有輸出
+- 增加到 `max_output_tokens: 2000` 後能翻譯，但需要 5-6 秒
+
+**解決方案**：
+1. 改用 Chat Completions API（無 reasoning 開銷）
+2. 使用串流回應（SSE）立即顯示部分結果
+3. 選擇最快的模型
+
+**模型速度測試**：
+| 模型 | 首字回應 | 總時間 |
+|------|---------|--------|
+| gpt-4.1-nano | **703ms** | 850ms |
+| gpt-3.5-turbo | 1235ms | 1358ms |
+| gpt-4o-mini | 1377ms | 1506ms |
+| gpt-5-mini (Responses API) | ~3000ms | 5000-6000ms |
+
+**最終配置**：
+- 模型：`gpt-4.1-nano`（**重要：不可更改，經測試為最快模型**）
+- API：Chat Completions + Streaming
+- 端點：`/api/translate/stream`
+- 預期首字回應：~700ms
+
+**⚠️ 模型選擇警告**：
+翻譯必須使用 `gpt-4.1-nano`，原因：
+1. 首字回應最快（703ms vs 1235ms+ 其他模型）
+2. 翻譯品質足夠好
+3. 成本最低
+
+**不可使用的模型**：
+- ❌ `gpt-5-mini` - reasoning 模型，太慢（5-6秒）
+- ❌ `gpt-4o-mini` - 1377ms，比 nano 慢一倍
+- ❌ `gpt-3.5-turbo` - 1235ms，已淘汰
+
+### SmartSegmenter 動態穩定性檢測（2026-02-03）
+
+**問題**：分段在單詞中間切割
+- ❌ "gpt4" → "g" + "pt4"
+- ❌ "tagline" → "tag" + "line"
+
+**根因**：Web Speech interim results 可能在單詞中間，當 600ms 暫停觸發時切割
+
+**錯誤方案（已棄用）**：hardcode 單詞列表
+- ❌ 不可擴展，無法處理動態內容
+- ❌ 需要維護大量特例
+
+**正確方案**：動態穩定性檢測（`_scheduleEmit`）
+```javascript
+// 原理：當偵測到暫停時，不立即發出，而是等待 150ms
+// 如果在這 150ms 內有新文字進來，取消發出並重新等待
+// 這樣可以動態處理任何內容，不需要 hardcode
+
+process(transcript) {
+    // 如果文字有變化，取消待發出的 segment
+    if (currentSegmentText !== this.lastBufferSnapshot) {
+        if (this.pendingEmit) {
+            clearTimeout(this.pendingEmit);
+            this.pendingEmit = null;
+        }
+        this.lastBufferSnapshot = currentSegmentText;
+    }
+    // ...
+}
+
+_scheduleEmit(reason) {
+    if (this.pendingEmit) clearTimeout(this.pendingEmit);
+
+    this.pendingEmit = setTimeout(() => {
+        this.pendingEmit = null;
+        // 文字已穩定 150ms，可以安全發出
+        this._emitSegment(reason);
+    }, this.stabilityDelay);  // 150ms
+}
+```
+
+**優點**：
+- ✅ 無需 hardcode，可處理任何語言/內容
+- ✅ 自動適應 Web Speech 的更新頻率
+- ✅ 配置簡單（只需調整 `stabilityDelay`）
+
+### SmartSegmenter 預設模式（2026-02-03）
+
+**背景**：不同用戶說話速度和停頓習慣不同，固定參數無法適合所有人
+
+**解決方案**：提供 5 種預設模式讓用戶自行選擇
+
+| 模式 | pauseThreshold | stabilityDelay | 特點 |
+|------|---------------|----------------|------|
+| 🚀 極速 | 400ms | 80ms | 最快反應，可能切斷單詞 |
+| ⚡ 快速 | 500ms | 100ms | **預設**，快速反應 |
+| ⚖️ 平衡 | 600ms | 150ms | 平衡速度與穩定性 |
+| 🛡️ 穩定 | 750ms | 200ms | 更穩定，較慢 |
+| 🔒 保守 | 900ms | 250ms | 最穩定，最慢 |
+
+**實現**：`eca_parallel_test.html` 頁頂選擇器，即時生效
+
+---
+
 ## 目錄
 
 1. [OpenAI Realtime API 相關](#1-openai-realtime-api-相關)
@@ -337,6 +582,51 @@ class EnhancedSegmentStore {
 
 | **預防措施** | 1. 參考 `src/skills/openai-realtime-mini-voice/SKILL.md` |
 |           | 2. API 格式變更時更新 SKILL.md |
+
+---
+
+### 1.10 翻譯模式需要 Few-Shot Priming（模型進入 Q&A 對話模式）
+
+| 項目 | 內容 |
+|------|------|
+| **日期** | 2026-02-02 |
+| **問題** | 翻譯輸出與英文原文完全無關，模型回應「好的，我明白了。請告訴我您想翻譯的內容...」|
+| **症狀** | 第一句總是對話式回應；翻譯內容是通用句子，缺少原文的關鍵實體/數字 |
+| **根因** | OpenAI Realtime API 是**對話式模型**，預設會「回應」而非「翻譯」。僅靠 system prompt 不足以引導模型 |
+| **解決方案** | 使用 `conversation.item.create` 注入 **few-shot 範例**，在用戶開始說話前建立翻譯模式 |
+
+```javascript
+// ✅ 正確做法：Session 建立後注入 few-shot 範例
+function injectFewShotExamples() {
+    // Example 1: User (English) → Assistant (Chinese translation)
+    sendEvent({
+        type: 'conversation.item.create',
+        item: {
+            type: 'message',
+            role: 'user',
+            content: [{ type: 'input_text', text: 'The Prime Minister announced new policies.' }]
+        }
+    });
+    sendEvent({
+        type: 'conversation.item.create',
+        item: {
+            type: 'message',
+            role: 'assistant',
+            content: [{ type: 'output_text', text: '首相 (Prime Minister) 宣布了新政策。' }]
+            // ⚠️ assistant 用 'output_text'，不是 'text'
+        }
+    });
+    // 可加入更多範例...
+}
+
+// 在 session.update 後調用
+sendEvent(sessionConfig);
+injectFewShotExamples();  // 🔧 關鍵！
+```
+
+| **預防措施** | 1. **翻譯場景必須使用 few-shot priming** — 單靠 instructions 不夠 |
+|           | 2. 範例應包含目標格式（如專有名詞+英文對照、數字格式）|
+|           | 3. 參考 OpenAI Cookbook: [One-Way Translation](https://cookbook.openai.com/examples/voice_solutions/one_way_translation_using_realtime_api) |
 
 ---
 
@@ -704,6 +994,8 @@ function updateEntryText(entryId, field, text) {
 
 | 日期 | 更新內容 |
 |------|---------|
+| 2026-02-03 | 新增 SmartSegmenter 動態穩定性檢測、5 種預設模式（預設為「快速」）|
+| 2026-02-02 | 新增 §1.10 翻譯模式需要 Few-Shot Priming（Q&A 對話模式問題）|
 | 2026-02-02 | 新增 §1.9 response.create 格式錯誤、§2.1 SmartSegmenter Buffer 累積錯誤、§2.2 頻繁觸發 API 錯誤 |
 | 2026-02-02 | 新增 §1.3 Response 事件時序假設錯誤、§1.4 沒有處理 transcription.delta、§3.2 OpenAI 可能跳過 Segment |
 | 2026-02-01 | 初版建立，記錄 M1→M2 轉型期間的問題 |

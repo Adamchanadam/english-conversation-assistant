@@ -304,7 +304,170 @@ Your app should listen for (names vary by transport, but conceptually):
 * Conversation items: created / truncated / deleted
 * Errors: error events (log + display non-disruptively)
 
-## Practical guardrails for “do not fabricate”
+## GA API Event Names (2025 - CRITICAL)
+
+**IMPORTANT**: GA API uses different event names than Beta API. Always use these exact names:
+
+### Session Events
+| Event | Description |
+|-------|-------------|
+| `session.created` | Session established |
+| `session.updated` | Session config updated |
+
+### Input/Transcription Events
+| Event | Description |
+|-------|-------------|
+| `input_audio_buffer.speech_started` | User started speaking |
+| `input_audio_buffer.speech_stopped` | User stopped speaking |
+| `input_audio_buffer.committed` | Audio buffer committed |
+| `conversation.item.input_audio_transcription.completed` | Whisper transcription done (user speech → text) |
+
+### Response Events (Text Output Mode: `output_modalities: ['text']`)
+| Event | Description |
+|-------|-------------|
+| `response.created` | Response generation started |
+| `response.output_item.added` | Output item added |
+| `response.content_part.added` | Content part added |
+| `response.output_text.delta` | **Streaming text chunk** (NOT `response.text.delta`) |
+| `response.output_text.done` | **Text complete** (NOT `response.text.done`) |
+| `response.content_part.done` | Content part complete |
+| `response.output_item.done` | Output item complete |
+| `response.done` | Response complete |
+
+### Response Events (Audio Output Mode: `output_modalities: ['audio']`)
+| Event | Description |
+|-------|-------------|
+| `response.audio.delta` | Audio data chunk |
+| `response.audio.done` | Audio complete |
+| `response.audio_transcript.delta` | Transcript of AI speech (streaming) |
+| `response.audio_transcript.done` | Transcript of AI speech (complete) |
+
+### Common Mistakes to Avoid
+```javascript
+// ❌ WRONG (Beta API names)
+case 'response.text.delta':        // Does not exist in GA API
+case 'response.text.done':         // Does not exist in GA API
+
+// ✅ CORRECT (GA API names)
+case 'response.output_text.delta': // Text output streaming
+case 'response.output_text.done':  // Text output complete
+```
+
+### Transcription Model Selection (CRITICAL for UX)
+
+| Model | Streaming Support | Delta Behavior | Best For |
+|-------|------------------|----------------|----------|
+| `whisper-1` | ❌ NO | Delta = full transcript (same as completed) | Stability, but slow UX |
+| `gpt-4o-transcribe` | ✅ YES | Delta = incremental (true streaming) | Best accuracy + streaming |
+| `gpt-4o-mini-transcribe` | ✅ YES | Delta = incremental (true streaming) | Cost-effective streaming |
+
+**IMPORTANT**: If you need real-time transcription display (text appears as user speaks), you MUST use `gpt-4o-transcribe` or `gpt-4o-mini-transcribe`. Using `whisper-1` will cause 2-4 second delays.
+
+```javascript
+// Session config for streaming transcription
+audio: {
+    input: {
+        transcription: {
+            model: 'gpt-4o-mini-transcribe'  // ✅ True streaming
+            // model: 'whisper-1'            // ❌ No streaming, waits for speech end
+        }
+    }
+}
+```
+
+### Translation Use Case Example
+For English→Chinese translation, use **text output mode** + **streaming transcription**:
+```javascript
+// Session config
+output_modalities: ['text'],  // Text output (not audio)
+audio: {
+    input: {
+        transcription: { model: 'gpt-4o-mini-transcribe' }  // Streaming transcription
+    }
+}
+
+// Event handlers
+case 'conversation.item.input_audio_transcription.delta':
+    // Streaming: User's speech transcribed incrementally
+    originalEnglish += event.delta;
+    break;
+
+case 'conversation.item.input_audio_transcription.completed':
+    // Final: May have corrections vs deltas
+    originalEnglish = event.transcript;
+    break;
+
+case 'response.output_text.delta':
+    // AI's Chinese translation (streaming)
+    translation += event.delta;
+    break;
+
+case 'response.output_text.done':
+    // AI's Chinese translation (complete)
+    translation = event.text;
+    break;
+```
+
+### ⚠️ CRITICAL: Few-Shot Priming for Translation Mode
+
+**Problem**: The Realtime API is a conversational model. Without priming, it will enter Q&A mode instead of translation mode, producing responses like "好的，我明白了。請告訴我您想翻譯的內容..." instead of actual translations.
+
+**Solution**: Inject few-shot examples using `conversation.item.create` BEFORE user starts speaking:
+
+```javascript
+// After session.update, inject few-shot examples
+function injectFewShotExamples() {
+    // Example 1: English → Chinese translation
+    sendEvent({
+        type: 'conversation.item.create',
+        item: {
+            type: 'message',
+            role: 'user',
+            content: [{ type: 'input_text', text: 'The Prime Minister announced new policies in London.' }]
+        }
+    });
+    sendEvent({
+        type: 'conversation.item.create',
+        item: {
+            type: 'message',
+            role: 'assistant',
+            content: [{ type: 'output_text', text: '首相 (Prime Minister) 在倫敦 (London) 宣布了新政策。' }]
+            // ⚠️ assistant messages must use 'output_text', NOT 'text'
+        }
+    });
+
+    // Example 2: With numbers and proper nouns
+    sendEvent({
+        type: 'conversation.item.create',
+        item: {
+            type: 'message',
+            role: 'user',
+            content: [{ type: 'input_text', text: 'Epstein paid $50,000 to organizations in 2005.' }]
+        }
+    });
+    sendEvent({
+        type: 'conversation.item.create',
+        item: {
+            type: 'message',
+            role: 'assistant',
+            content: [{ type: 'output_text', text: '愛潑斯坦 (Epstein) 在2005年向機構支付了$50,000。' }]
+        }
+    });
+}
+
+// Usage
+sendEvent(sessionConfig);
+injectFewShotExamples();  // 🔧 MUST call after session.update
+```
+
+**Why this works**:
+- Few-shot examples establish the input→output pattern
+- Model learns to output translation directly, not conversational responses
+- Examples should match target format (proper nouns with English in brackets, numbers as digits)
+
+**Reference**: [OpenAI Cookbook - One-Way Translation](https://cookbook.openai.com/examples/voice_solutions/one_way_translation_using_realtime_api)
+
+## Practical guardrails for "do not fabricate"
 
 Because realtime output is not reliably machine-parseable:
 

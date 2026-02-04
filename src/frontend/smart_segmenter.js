@@ -38,6 +38,12 @@ class SmartSegmenter {
         // 我們需要記住上次分段結束的位置
         this.processedLength = 0;
 
+        // 🔧 動態穩定性檢測（取代 hardcode 單詞列表）
+        // 當偵測到暫停時，等待 stabilityDelay 確認文字已穩定
+        this.stabilityDelay = options.stabilityDelay || 150;  // ms
+        this.pendingEmit = null;  // 待發出的 segment
+        this.lastBufferSnapshot = '';  // 用於檢測文字變化
+
         // 回調
         this.onSegment = null;  // (segment, reason) => void
 
@@ -94,6 +100,13 @@ class SmartSegmenter {
      */
     stop() {
         this._stopPauseCheck();
+
+        // 取消待發出的 segment
+        if (this.pendingEmit) {
+            clearTimeout(this.pendingEmit);
+            this.pendingEmit = null;
+        }
+
         // 強制輸出剩餘內容
         if (this.buffer.trim() && this.wordCount >= this.minSegmentWords) {
             this._emitSegment('stop');
@@ -106,11 +119,18 @@ class SmartSegmenter {
      * 注意：這會重置 processedLength，適用於 Web Speech 重新開始的情況
      */
     reset() {
+        // 取消待發出的 segment
+        if (this.pendingEmit) {
+            clearTimeout(this.pendingEmit);
+            this.pendingEmit = null;
+        }
+
         this.buffer = '';
         this.wordCount = 0;
         this.lastUpdateTime = Date.now();
         this.segmentStartTime = Date.now();
-        this.processedLength = 0;  // 完全重置時也重置處理位置
+        this.processedLength = 0;
+        this.lastBufferSnapshot = '';
         this._currentTranscriptLength = undefined;
     }
 
@@ -138,6 +158,17 @@ class SmartSegmenter {
             return { shouldSegment: false, reason: null };
         }
 
+        // 🔧 動態穩定性檢測：如果文字有變化，取消待發出的 segment
+        // 這避免了在單詞中間切割（如 "g" → "gpt4"）
+        if (currentSegmentText !== this.lastBufferSnapshot) {
+            if (this.pendingEmit) {
+                clearTimeout(this.pendingEmit);
+                this.pendingEmit = null;
+                console.log(`[SmartSegmenter] Text changed, cancelled pending emit`);
+            }
+            this.lastBufferSnapshot = currentSegmentText;
+        }
+
         // 🐛 修復：buffer 只存儲當前分段的文字，不是整個累積文字
         this.buffer = currentSegmentText;
         this.wordCount = this._countWords(this.buffer);
@@ -150,10 +181,35 @@ class SmartSegmenter {
         const result = this._checkSegmentation(pauseDuration, isFinal);
 
         if (result.shouldSegment) {
-            this._emitSegment(result.reason);
+            // 對於非即時觸發的情況，使用延遲發出以確保穩定性
+            if (result.reason === 'pause_detected' || result.reason === 'soft_limit_with_conjunction') {
+                this._scheduleEmit(result.reason);
+            } else {
+                // 硬性限制或 final 結果，立即發出
+                this._emitSegment(result.reason);
+            }
         }
 
         return result;
+    }
+
+    /**
+     * 延遲發出 segment（穩定性檢測）
+     * 等待 stabilityDelay 毫秒，如果期間有新文字進來則取消
+     */
+    _scheduleEmit(reason) {
+        if (this.pendingEmit) {
+            clearTimeout(this.pendingEmit);
+        }
+
+        this.pendingEmit = setTimeout(() => {
+            this.pendingEmit = null;
+            // 再次檢查是否仍然應該發出
+            if (this.buffer.trim() && this.wordCount >= this.minSegmentWords) {
+                console.log(`[SmartSegmenter] Stability confirmed, emitting (waited ${this.stabilityDelay}ms)`);
+                this._emitSegment(reason);
+            }
+        }, this.stabilityDelay);
     }
 
     /**
@@ -246,38 +302,48 @@ class SmartSegmenter {
 
     /**
      * 輸出分段
+     *
+     * 🔧 動態穩定性檢測：
+     * 這個方法只有在文字已經穩定（150ms 內沒有變化）後才會被調用
+     * 因此不需要額外的單詞邊界檢測
      */
     _emitSegment(reason) {
         const segment = this.buffer.trim();
         if (!segment) return;
 
+        if (this._countWords(segment) < this.minSegmentWords) {
+            console.log(`[SmartSegmenter] Skipped (too short: ${this._countWords(segment)} words)`);
+            return;
+        }
+
         const duration = Date.now() - this.segmentStartTime;
 
         // 統計
         this.segmentCount++;
-        this.totalWords += this.wordCount;
+        this.totalWords += this._countWords(segment);
 
-        console.log(`[SmartSegmenter] Segment #${this.segmentCount}: "${segment.substring(0, 50)}${segment.length > 50 ? '...' : ''}" (${this.wordCount} words, reason: ${reason})`);
+        console.log(`[SmartSegmenter] Segment #${this.segmentCount}: "${segment.substring(0, 50)}${segment.length > 50 ? '...' : ''}" (${this._countWords(segment)} words, reason: ${reason})`);
 
         // 回調
         if (this.onSegment) {
             this.onSegment(segment, {
                 reason,
-                wordCount: this.wordCount,
+                wordCount: this._countWords(segment),
                 duration,
                 segmentIndex: this.segmentCount
             });
         }
 
-        // 🐛 關鍵修復：更新 processedLength 到當前位置
-        // 這樣下次 process() 會從這裡開始截取新的分段
+        // 更新 processedLength 到當前位置
         if (this._currentTranscriptLength !== undefined) {
             this.processedLength = this._currentTranscriptLength;
         }
 
-        // 重置 buffer（但不重置 processedLength）
+        // 重置 buffer 和快照
         this._resetBuffer();
+        this.lastBufferSnapshot = '';
     }
+
 
     /**
      * 內部方法：只重置 buffer 相關狀態
@@ -328,17 +394,25 @@ class SmartSegmenter {
     /**
      * 定期檢查停頓
      * 這是偵測「用戶停止說話」的關鍵機制
+     *
+     * 🔧 使用 _scheduleEmit 而非直接 _emitSegment
+     * 確保在發出前文字已穩定（動態穩定性檢測）
      */
     _checkPause() {
         if (!this.buffer.trim() || this.wordCount < this.minSegmentWords) {
             return;
         }
 
+        // 如果已有待發出的 segment，不重複排程
+        if (this.pendingEmit) {
+            return;
+        }
+
         const pauseDuration = Date.now() - this.lastUpdateTime;
 
         if (pauseDuration >= this.pauseThreshold) {
-            console.log(`[SmartSegmenter] Pause detected: ${pauseDuration}ms`);
-            this._emitSegment('pause_timeout');
+            console.log(`[SmartSegmenter] Pause detected: ${pauseDuration}ms, scheduling emit...`);
+            this._scheduleEmit('pause_timeout');
         }
     }
 

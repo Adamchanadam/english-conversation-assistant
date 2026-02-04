@@ -213,3 +213,35 @@ class SimulateLLMResponse(BaseModel):
     """Response model for LLM simulation endpoint."""
     response: str = Field(..., description="LLM response text")
     error: Optional[str] = Field(default=None, description="Error message if failed")
+
+
+# =============================================================================
+# Translation API Models (方案 A: 兩階段架構)
+# =============================================================================
+
+class TranslateRequest(BaseModel):
+    """
+    Request model for text translation API.
+
+    Reference: spec/lessons_learned.md (Test 21 - 方案 A)
+
+    This endpoint uses gpt-5-mini for text translation instead of
+    OpenAI Realtime API (which defaults to Q&A dialogue mode).
+    """
+    text: str = Field(
+        ...,
+        description="English text to translate",
+        min_length=1,
+        max_length=2000
+    )
+    target_language: str = Field(
+        default="Traditional Chinese",
+        description="Target language for translation"
+    )
+
+
+class TranslateResponse(BaseModel):
+    """Response model for text translation API."""
+    translation: str = Field(..., description="Translated text")
+    source_text: str = Field(..., description="Original source text")
+    error: Optional[str] = Field(default=None, description="Error message if failed")

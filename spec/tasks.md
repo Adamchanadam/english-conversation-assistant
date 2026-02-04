@@ -1,347 +1,410 @@
 ---
+name: english-conversation-assistant-tasks
+description: English Conversation Assistant (ECA) 開發任務清單 — MVP 到 v2.0
+version: 2.2
+date: 2026-02-03
+---
 
-name: voice-proxy-negotiator-tasks
-description: 端到端落地任務清單（milestones、實作步驟、測試與驗收、量化評分方法），供 Kiro 逐項完成。
------------------------------------------------------------------
+# English Conversation Assistant — Tasks v2.0
 
-# Voice Proxy Negotiator — Tasks
+## 專案轉型說明
 
-## Milestone 0 — Spike（可行性最小驗證） ✅ COMPLETED
+🔄 **重要**：本專案已從「代客協商」轉型為「英文對話助手」。
 
-🔎 先驗證「可打斷 + 可續接 + 低延遲」三件事，通過後才進入完整產品化。
+**原因**：OpenAI Realtime API 指令遵循率僅 30.5%，約 70% 機率偏離任務，無法可靠執行複雜協商任務。
 
-**完成日期**：2026-01-26
-**驗收結果**：
-- WebRTC 連線：1 秒內建立 ✅
-- 雙向音訊：正常 ✅
-- semantic_vad：speech_started/stopped 正常 ✅
-- 打斷功能：AI 立即停止說話 ✅
-
-### 前置任務（Pre-tasks）
-**T0.0** ✅ 模型 ID 確認與環境設定
-- 執行 `curl https://api.openai.com/v1/models` 確認可用模型 ID
-- 驗證 `gpt-realtime-mini` 和 `gpt-5-mini` 的可用性
-- 創建 `.env.example` 並配置 `OPENAI_API_KEY`
-- 創建目錄結構（按 `design.md` § 1.1）
-- **驗收**：
-  - 已確認並記錄實際 Realtime 模型 ID（`gpt-realtime-mini`）
-  - 已確認並記錄文字控制器模型 ID（`gpt-5-mini`）
-  - `.env.example` 已創建
-
-**T0.1** ✅ 建立最小 WebRTC Realtime 連線並可收/播音訊
-- 實作 `src/spike/backend_token.py`（FastAPI，生成 ephemeral token）
-  - 調用 `POST https://api.openai.com/v1/realtime/client_secrets`
-  - 使用模型：`gpt-realtime-mini-2025-12-15`
-  - 參考：[Client secrets | OpenAI API Reference](https://platform.openai.com/docs/api-reference/realtime-sessions)
-- 實作 `src/spike/realtime_test.html`（WebRTC 初始化、音訊輸入/輸出）
-- 實作 `/api/token` 端點（參考 `design.md` § 9）
-  - 返回 `client_secret`（格式：`ek_1234...`）
-  - TTL：10 分鐘（OpenAI 默認值）
-- **驗收**：
-  - 啟動後端：`C:\Users\adam\anaconda3\envs\adamlab4_env\python.exe src/spike/backend_token.py`
-  - 瀏覽器打開 `realtime_test.html`，可聽到 Realtime 回應
-  - 驗證 token 在 10 分鐘後過期
-
-**T0.2** ✅ 實作 interruptions：`response.cancel` + `output_audio_buffer.clear` ([OpenAI Platform][5])
-- 在 `realtime_test.html` 中實作打斷邏輯
-- 觀察對方打斷行為（手動測試）
-- **驗收**：
-  - 對方開口時代理能停止輸出
-
-**T0.3** ✅ 加入 `conversation.item.truncate`，確保上下文不殘留「未被聽到」的 assistant 內容 ([OpenAI Platform][5])
-- 追蹤客戶端播放進度（`audio_end_ms`）
-- 實作 truncate 邏輯
-- **驗收**：
-  - 打斷後上下文正確同步
-
-**T0.4** ✅ 設定 `semantic_vad` + `interrupt_response`，測試 10 次打斷成功率 ([OpenAI Platform][2])
-- 在 `session.update` 中配置 VAD 參數
-- 手動測試 10 次打斷場景
-- **驗收**：
-  - 打斷成功率 ≥ 8/10（主觀可接受）
-  - 打斷後可自然續接（不重複長段落、不尷尬停滯）
-
-## Milestone 1 — v1 核心流程（設定 → 對話 → 達標/停止）
-
-🔎 交付可用 mock-up：設定頁、對話頁、按鈕指令、停止條件、最小記憶治理。
-
-**T1.1** 設定頁表單 ✅ COMPLETED (UI 部分)
-- 實作 `src/frontend/setup_page.html`（Goal、Rules、SSOT、Stop conditions、按鈕配置）
-- 實作 SSOT 長度驗證（最多 5,000 字元，顯示字符計數）（參考 `requirements.md` § 5.1）
-- 實作 SSOT token 估算與自動摘要（參考 `design.md` § 4.2）：
-  - 使用 `token_estimator.js` 估算 SSOT tokens
-  - 如 > 1,500 tokens，自動調用 `/api/summarize_ssot` 壓縮
-  - 顯示原始 tokens / 摘要後 tokens
-- 實作按鈕映射表配置（繁中顯示文字 ↔ 英文 Directive ID）（參考 `requirements.md` § 5.2）
-  - v1 使用默認映射（9 個按鈕）
-  - 存儲到 sessionStorage（參考 `design.md` § 5）
-- 實作 voice 選擇下拉框（選項：marin, cedar；鎖定在 INIT）
-- **驗收**：
-  - 瀏覽器打開 `setup_page.html`，填寫表單，檢查驗證規則
-  - 貼入 > 5,000 字元的 SSOT，驗證提示錯誤
-  - 貼入 > 1,500 tokens 的 SSOT，驗證自動摘要
-- **完成日期**：2026-01-26
-- **完成內容**：
-  - 表單所有欄位（Goal、Rules、SSOT、Stop Conditions、Voice）
-  - 字符計數即時更新
-  - Token 估算（簡化公式：中文字 x2 + 英文詞 x1.3）
-  - SSOT > 5000 字元錯誤顯示
-  - sessionStorage 存儲 vpn_config
-  - 頁面跳轉到 conversation_page.html
-- **待後續 Batch 完成**：SSOT 自動摘要需後端 `/api/summarize_ssot` API
-
-**T1.2** 對話頁 ✅ COMPLETED
-- 實作 `src/frontend/conversation_page.html`（Push-to-start、狀態顯示、按鈕列、緊急停止）
-- 實作 `src/frontend/styles.css`（繁體中文字體：Noto Sans TC / Microsoft JhengHei）
-- 實作按鈕列（9 個按鈕，繁中文字）
-- **驗收**：
-  - 瀏覽器打開 `conversation_page.html`，檢查 UI 布局與按鈕點擊響應
-- **完成日期**：2026-01-26
-- **完成內容**：
-  - 連線狀態顯示（connected/disconnected/connecting）
-  - 當前狀態顯示（INIT/LISTENING/THINKING/SPEAKING/CHECKPOINT/STOPPING/STOPPED）
-  - 麥克風/播放狀態指示器（帶動畫）
-  - 任務目標顯示區
-  - 3x3 按鈕列（同意/不同意/我需要時間考慮/請重複一次/提出替代方案/詢問對方底線/是時候說再見/達標/立即停止）
-  - 「立即停止」按鈕紅色警示樣式
-  - 「達標」按鈕綠色樣式
-  - 事件日誌區域（支援 info/success/error/warn/event 顏色）
-  - 按鈕點擊 console.log 響應
-  - 載入 sessionStorage 設定並顯示
-  - 暗色主題樣式（與 spike/realtime_test.html 一致）
-
-**T1.3** App 狀態機骨架 ✅ COMPLETED
-- 實作 `src/frontend/state_machine.js`（INIT/LISTENING/THINKING/SPEAKING/CHECKPOINT/STOPPING/STOPPED）
-- 實作狀態轉換邏輯與驗證
-- 創建單元測試：`src/tests/test_state_machine.js`
-- **驗收**：
-  - 執行測試：`node src/tests/test_state_machine.js`
-  - 驗證非法狀態轉換會被阻止
-- **完成日期**：2026-01-26
-- **完成內容**：
-  - `src/frontend/state_machine.js` - StateMachine 類別
-    - VALID_TRANSITIONS 定義所有合法狀態轉換
-    - `canTransition()`: 檢查轉換是否有效
-    - `transition()`: 執行狀態轉換並通知監聽器
-    - `onTransition()`: 註冊狀態變化回調
-    - `reset()`: 重置為 INIT 狀態
-  - `src/tests/test_state_machine.js` - 48 個測試
-    - 有效轉換序列測試
-    - 無效轉換拒絕測試
-    - 監聽器回調測試
-    - 錯誤處理測試
-    - Reset 功能測試
-  - 測試結果：48 passed
-
-**T1.4** 文字控制器（gpt-5-mini） ✅ COMPLETED
-- 實作 `src/backend/controller.py`（調用 Responses API）
-  - 使用模型：`gpt-5-mini-2025-08-07`
-  - API 端點：`POST https://api.openai.com/v1/responses`
-  - 參考：[Responses | OpenAI API Reference](https://platform.openai.com/docs/api-reference/responses)
-  - 使用 `previous_response_id` 模式（無狀態）（參考 `design.md` § 5）
-- 實作 `src/backend/prompt_templates.py`（Controller instruction 模板）
-- 實作功能：
-  - `generate_next_utterance()`：生成下一句短句 plan（1–2 句）
-  - `update_memory()`：更新 Rolling Summary（目標長度 ≤ 1,000 tokens）
-  - `judge_goal_met()`：判定達標與否
-- 實作 fail-soft JSON 解析（解析失敗時 best-effort 提取）
-- 實作調用時機邏輯（參考 `design.md` § 5）：
-  - 觸發時機 A：用戶按按鈕
-  - 觸發時機 B：每 5 輪或 token 達 70%
-  - 不觸發：正常對話流（Realtime 自主回應）
-- 實作後端 API 端點：`POST /api/controller`（參考 `design.md` § 1.1）
-  - 請求包含：directive, pinned_context, memory, latest_turns（最近 3 輪）
-  - 響應包含：decision, next_english_utterance, memory_update, notes_for_user
-- 實作後端 API 端點：`POST /api/summarize_ssot`（參考 `design.md` § 4.2）
-- 創建單元測試：`src/tests/test_controller.py`（Mock OpenAI Responses API）
-- **驗收**：
-  - 執行測試：`python -m pytest src/tests/test_controller.py -v`
-  - 驗證 JSON 解析失敗時不崩潰
-  - 驗證 `previous_response_id` 正確傳遞
-- **完成日期**：2026-01-26
-- **完成內容**：
-  - `src/backend/controller.py` - 完整 Controller 邏輯
-  - `src/backend/prompt_templates.py` - CONTROLLER_INSTRUCTION, SSOT_SUMMARIZE_INSTRUCTION 模板
-  - `src/backend/models.py` - Pydantic 資料模型（ControllerRequest/Response, SummarizeSsotRequest/Response）
-  - `src/backend/main.py` - FastAPI 應用（/api/token, /api/controller, /api/summarize_ssot）
-  - `src/tests/test_controller.py` - 27 個測試（Mock API, fail-soft parsing, token estimation）
-  - fail-soft JSON 解析：3 層策略（直接解析 → regex 提取 → best-effort）
-  - `previous_response_id` 正確傳遞
-  - 測試結果：27 passed
-
-**T1.5** 誠實策略守門 ✅ COMPLETED
-- 修改 `src/backend/prompt_templates.py`：加入「不虛構」規則
-- 修改 `src/backend/controller.py`：檢測「I don't know」類回應，記錄到 `notes_for_user`
-- **驗收**：
-  - 人工測試：對方問 SSOT 中沒有的問題，驗證代理是否誠實回應
-- **完成日期**：2026-01-26
-- **完成內容**：
-  - CONTROLLER_INSTRUCTION 已包含「NEVER fabricate facts」規則
-  - `detect_honesty_response()` 函數：檢測 17 種誠實表達短語
-  - 短語清單：i don't know, i'm not sure, let me check, let me find out, i'll need to verify, i can't confirm, i'm uncertain, i need to look into, i'll get back to you, that's outside my knowledge, i don't have that information 等
-  - 檢測後添加繁中提示到 notes_for_user：「提示：AI 表示不確定此資訊，請人工確認或提供更多資料」
-  - 8 個測試案例全部通過
-  - 測試結果：35 passed（含原有 27 + 新增 8）
-
-**T1.6** 停止條件處理 ✅ COMPLETED
-- 實作 `src/frontend/app.js` 中的停止邏輯：
-  - `handleHardStop()`：立即 cancel + clear（參考 `design.md` § 6）
-  - `handleSoftStop()`：注入 goodbye 指令，播放後結束
-- 實作衝突解決邏輯（參考 `design.md` § 6）：
-  - 用戶按「達標」但 Controller 判定「未達標」：以用戶為準，顯示警告
-  - Controller 判定「達標」但用戶未按按鈕：彈出提示，需用戶確認
-- **驗收**：
-  - 手動測試：按「立即停止」，驗證立即切斷
-  - 手動測試：按「是時候說再見」，驗證播放 goodbye 後結束
-  - 手動測試：衝突場景，驗證提示正確顯示
-- **完成日期**：2026-01-26
-- **完成內容**：
-  - `src/frontend/app.js` - VoiceProxyApp 類別（完整應用邏輯）
-    - WebRTC 連線整合（基於 spike）
-    - StateMachine 整合
-    - `handleHardStop()`: response.cancel + output_audio_buffer.clear + truncate
-    - `handleSoftStop()`: 注入 goodbye 後等待播放完成再斷線
-    - `_handleControllerDecision()`: 衝突解決邏輯
-    - `_checkControllerTrigger()`: 5 輪/70% token 觸發 Controller
-    - `_injectUtterance()`: 注入 Controller 建議的英文回應
-  - `src/tests/test_app.js` - 測試（初始化, 設定載入, 狀態機整合, Token 估算, Controller 觸發, 指令處理, Reset）
-  - 更新 `conversation_page.html` 整合 app.js
-  - 測試結果：55 passed
-
-**總體驗收（Milestone 1）**：
-* 連續完成 3 組「對方↔代理」往返（不少於 6 turns）
-* 用戶按按鈕能改變下一句策略方向
-* 達標/停止能可靠結束
-* 無按鈕時延遲 < 1s，按按鈕後延遲可接受 2–3s
-
-## Milestone 2 — Context Window 壓力與 UX
-
-🔎 交付 progress bar（估算 token 壓力）、摘要壓縮策略、session 60 分鐘限制提示與重連策略。
-
-**T2.1** Token 估算 + Progress Bar UI
-- 實作 `src/frontend/token_estimator.js`
-  - **v1 策略**：使用簡化估算公式（快速實作）
-    - 中文字：每個字 ≈ 2 tokens
-    - 英文詞：每個詞 ≈ 1.3 tokens（split by space）
-    - 標點符號：忽略
-  - **v2 升級**：使用 `tiktoken` WASM（精準但需額外依賴）
-    - CDN：`https://cdn.jsdelivr.net/npm/tiktoken`
-    - 或 npm：`npm install tiktoken`
-- 實作 `src/frontend/progress_bar.js`（可視化組件）
-- 修改 `src/frontend/conversation_page.html`：加入 progress bar UI
-- 顯示內容：
-  - Pinned Context tokens（固定）
-  - Rolling Summary tokens（會變）
-  - Recent turns tokens（滑動窗，最近 3 輪）
-  - 預留回應 buffer（10–20%）
-- 顯示警戒線（70%）與顏色變化：
-  - 綠色（< 50%）
-  - 黃色（50-70%）
-  - 紅色（> 70%）
-- 標示「估算值」（音訊 token 未精準計算，簡化公式有誤差）
-- **驗收**：
-  - 對話過程中 progress bar 即時更新
-  - 超過 70% 時顏色變為紅色
-  - 估算誤差在 ±20% 以內（手動抽檢 5 段對話）
-
-**T2.2** Rolling Summary 壓縮節奏
-- 修改 `src/backend/controller.py`：在 `update_memory()` 中檢查 token 超過 70% 時觸發壓縮
-- 實作壓縮策略：保留已承諾/未承諾、對方條件、未解問題、下一步策略
-- 創建集成測試：`src/tests/test_compression.py`（模擬 20 輪對話）
-- **驗收**：
-  - 執行測試：`python src/tests/test_compression.py`
-  - 驗證摘要壓縮後不失焦（核心目標仍保留）
-
-**T2.3** Session 60 分鐘限制與 Token 續期
-- 實作 `src/frontend/session_manager.js`（參考 `design.md` § 8、§ 9）
-- 實作雙層計時器：
-  - **Token 續期**（10 分鐘 TTL）：
-    - 8 分鐘時：背景請求新 token（預留 2 分鐘緩衝）
-    - 更新 WebRTC session（無縫續接，用戶無感知）
-  - **Session 重連**（60 分鐘上限）：
-    - 55 分鐘時：UI 提示「對話即將超時，系統將在 5 分鐘後自動重連」
-    - 58 分鐘時：注入 system message「Please wrap up current topic in 1-2 sentences.」
-- 實作重連流程：
-  1. 保存上下文（Pinned + Rolling + 最近 3 輪）
-  2. 關閉舊 session（注入提示、cancel + close WebRTC）
-  3. 建立新 session（請求新 token、注入上下文）
-  4. 用戶通知（「✅ 重連成功，對話繼續」）
-- 實作失敗回退（3 次重試後下載對話記錄 JSON/Markdown）
-- **驗收**：
-  - 手動測試：修改計時器為 30 秒（token）/ 2 分鐘（session）加速測試
-  - 驗證 8 分鐘時自動續期 token，對話不中斷
-  - 驗證 55/58 分鐘時提示顯示
-  - 驗證 60 分鐘時重連成功
-  - 驗證重連失敗時下載對話記錄
-
-**T2.4** Voice 鎖定檢查
-- 修改 `src/frontend/setup_page.html`：voice 選擇在表單階段
-- 修改 `src/frontend/app.js`：在 INIT 階段鎖定 voice，之後不可更改
-- 實作檢查：如果嘗試在輸出後改 voice，顯示錯誤
-- **驗收**：
-  - 手動測試：對話開始後嘗試改 voice，驗證錯誤提示
-
-**總體驗收（Milestone 2）**：
-* 超過警戒線會觸發壓縮，且不失焦
-* 接近 60 分鐘時能提示並可續接（至少完成一次重連演練）
-* Progress bar 顯示準確且即時更新
-
-## Milestone 3 — 測試、量化評分與可交付驗收包
-
-🔎 以「可重播測試腳本 + 指標表」量化成功率，支援是否進一步投入開發的決策。
-
-### T3.1 三方互動測試框架（3-Party Simulation Test）
-- 實作 `src/tests/simulation/run_simulation.js`（測試執行器）
-- 實作 `src/tests/simulation/simulator.js`（三方互動模擬器）
-- 實作 `src/tests/simulation/evaluator.js`（評估器）
-- 創建場景庫 `src/tests/simulation/scenarios/`：
-  - `gas_report.json` - 煤氣味報告（zh-TW）
-  - `discount_negotiation.json` - 折扣談判（en）
-  - `complaint.json` - 投訴（zh-CN）
-  - `interview.json` - 面試（ja）
-  - `service_provider.json` - 角色反轉（en）
-  - `unknown_info.json` - 誠實策略測試（zh-TW）
-- 實作後端 API：`POST /api/simulate`（參考 `design.md` § 9.6）
-- 實作命令行介面（參考 `design.md` § 9.7）
-- **驗收**：
-  - 執行測試：`node src/tests/simulation/run_simulation.js`
-  - 所有預設場景通過
-  - 輸出人類可讀報告
-  - 輸出 JSON 格式報告（可供後續分析）
-
-### T3.2 量化指標儀表板
-- 實作 `src/tests/simulation/metrics.js`（指標計算）
-- 計算指標：
-  - 身份正確率（Identity Accuracy）：≥ 95%
-  - 目標推進率（Goal Progress Rate）：≥ 80%
-  - 按鈕響應率（Button Responsiveness）：≥ 90%
-  - 任務完成率（Task Completion Rate）：≥ 70%
-  - 誠實率（Honesty Rate）：100%
-- 實作報告生成：`reports/simulation_report.json`、`reports/simulation_report.md`
-- **驗收**：
-  - 執行測試後生成指標報告
-  - 指標達標判定正確
-
-### 量化指標（v1 建議）
-
-* M1 打斷成功率：`#success_interrupt / #attempts`
-* M2 打斷反應時間（主觀等級）：1–5
-* M3 達標率（在固定腳本下）：`#goal_met / #runs`
-* M4 用戶可控性：按鈕介入後「策略方向符合」比例
-* M5 誠實率：未知問題場景中無捏造（人工抽檢）
-* **M6 身份正確率**：AI 保持 I 角色不混淆
-* **M7 目標推進率**：對話推進至 Goal 關鍵詞
-
-### 測試方法
-
-* ~~腳本式對話（由測試人員扮演對方）~~ **改為自動化三方 LLM 互動測試**
-* 每個場景包含：預設對話流程、用戶按鈕介入點、成功判定條件
-* 每次 run 輸出：對話記錄、每輪評估、指標統計、總評
-
-**驗收**：
-
-* 指標達到 Milestone 0/1/2 的門檻
-* 生成一份「是否值得做 v2」結論（以指標為依據）
-* **三方互動測試全場景通過**
+**新方向**：用戶主導 + AI 輔助的英文對話工具
+- 即時翻譯（對方英文 → 中文字幕）
+- 講稿生成（用戶中文 → 英文講稿）
+- Smart 建議（情境回應建議）
+- Panic Button（緊急求助）
 
 ---
+
+## 歷史 Milestones（已完成，保留參考）
+
+### Milestone 0 — Spike（可行性驗證）✅ COMPLETED
+- WebRTC 連線：1 秒內建立 ✅
+- 雙向音訊：正常 ✅
+- semantic_vad：正常 ✅
+- 打斷功能：AI 立即停止說話 ✅
+
+### Milestone 1 — 舊版核心流程 ✅ COMPLETED（已棄用）
+- 設定頁表單 ✅
+- 對話頁 UI ✅
+- 狀態機骨架 ✅
+- 文字控制器 ✅
+- 誠實策略守門 ✅
+- 停止條件處理 ✅
+
+**注意**：M1 代碼可部分重用，但需要大幅修改以適應新設計。
+
+---
+
+## Milestone 2 — ECA MVP（核心功能）
+
+🎯 **目標**：交付可用 MVP — 即時翻譯 + 講稿生成 + Panic Button + 快捷短語
+
+### Phase 2.1 — 系統音訊捕獲與即時翻譯
+
+**T2.1.0** ✅ **智能分段 + 並行翻譯系統**（COMPLETED 2026-02-02）
+- ✅ 實作 `src/frontend/segment_store.js`（Segment + SegmentStore + EnhancedSegmentStore 類）
+- ✅ 實作 `src/frontend/realtime_event_handler.js`（RealtimeEventHandler 類）
+- ✅ 實作 `src/frontend/segment_renderer.js`（SegmentRenderer 類）
+- ✅ 實作 `src/frontend/eca_parallel_test.html`（整合測試頁面）
+- **並行處理**：
+  - ✅ 雙向索引：item_id ↔ Segment, response_id → Segment
+  - ✅ FIFO 隊列處理 response.created（因為它不包含 item_id）
+  - ✅ 每個 Segment 獨立生命週期
+  - ✅ 超時保護（30 秒）
+  - ✅ 狀態機驗證（listening → transcribing → translating → done）
+- **驗收結果**（2026-02-02 Regression Test）：
+  - ✅ 3 段並行處理：新段落不阻塞舊段落翻譯
+  - ✅ 翻譯結果正確對應（0% 錯配）
+  - ✅ FIFO 隊列正確關聯 response_id → segment
+  - ✅ UI 渲染正常（最新在上，狀態指示）
+- **參考**：
+  - `spec/design_parallel_translation.md`（完整實現規格）
+  - `spec/design.md` 4.2-4.3 節（概念設計）
+  - `spec/research/speech_segmentation.md`（人類說話習慣研究）
+- **備註**：SmartSegmenter（分段邏輯）將在 T2.1.2 整合，目前使用 OpenAI semantic_vad 進行分段
+
+**T2.1.1** 系統音訊捕獲 POC
+- 實作 `src/frontend/audio_capture.js`
+- 使用 `getDisplayMedia()` + `audio: true` 捕獲系統音訊
+- 處理權限請求與錯誤情況
+- 備選方案：麥克風捕獲（擴音模式）
+- **驗收**：
+  - 可捕獲系統播放的音訊
+  - 權限被拒時顯示友善提示
+
+**T2.1.2** 雙軌音訊架構
+- 修改 `src/frontend/app.js`：實作雙軌架構
+- **Web Speech API**：英文即時預覽（~100ms 延遲）
+- **OpenAI Realtime**：最終轉錄 + 翻譯
+- 整合 SmartSegmenter 分段邏輯
+- 整合 SegmentStore 並行管理
+- **驗收**：
+  - 英文即時顯示（<100ms）
+  - 翻譯正確對應每個段落
+  - 延遲 < 1.5s（端到端）
+
+**T2.1.3** 翻譯 UI 組件
+- 實作 `src/frontend/components/TranscriptPanel.js`
+- 雙欄顯示：英文原文 + 中文翻譯
+- **段落狀態指示**：🎤聆聽中 → 📝轉錄中 → 🔄翻譯中 → ✅完成
+- 最新段落在上（prepend）
+- 自動滾動 + 歷史回看
+- **驗收**：
+  - 字幕清晰易讀
+  - 可回看歷史對話
+  - 段落狀態正確顯示
+
+### Phase 2.2 — 講稿生成
+
+**T2.2.1** 講稿生成 API
+- 實作 `src/backend/script_generator.py`
+- 實作 `POST /api/script` 端點
+- 使用 `gpt-5-mini` 生成英文講稿
+- 支援串流輸出（SSE）
+- **驗收**：
+  - 中文輸入 → 英文講稿
+  - 生成延遲 < 1.5s
+
+**T2.2.2** 講稿輸入 UI
+- 實作 `src/frontend/components/ScriptInput.js`
+- 中文輸入框 + 語音輸入按鈕
+- 場景選擇下拉框（bank/nhs/utilities）
+- **驗收**：
+  - 支援打字和語音輸入
+  - 場景切換影響生成風格
+
+**T2.2.3** Teleprompter 顯示
+- 實作 `src/frontend/components/Teleprompter.js`
+- 大字體顯示（28px）
+- 替代說法切換
+- 複製 / 重新生成按鈕
+- **驗收**：
+  - 講稿易讀、易唸
+  - 可快速切換替代說法
+
+### Phase 2.3 — Panic Button
+
+**T2.3.1** Panic Button 邏輯
+- 實作 `src/frontend/components/PanicButton.js`
+- 「買時間」短語庫（8 個選項）
+- 按下 → TTS 播放短語 + 生成建議
+- **驗收**：
+  - 按下即播放「Let me think...」
+  - 同時開始生成建議
+
+**T2.3.2** TTS 播放模組
+- 實作 `src/frontend/tts.js`
+- 使用 Web Speech API 或 Realtime API TTS
+- 支援中斷（用戶開始說話時停止）
+- **驗收**：
+  - 播放自然流暢
+  - 可被用戶打斷
+
+### Phase 2.4 — 快捷短語
+
+**T2.4.1** 快捷短語組件
+- 實作 `src/frontend/components/QuickPhrases.js`
+- 4 個預設短語：請再說一次、請慢點說、我確認一下、謝謝再見
+- 點擊 → 顯示在 Teleprompter + 可選 TTS
+- **驗收**：
+  - 一鍵即用
+  - 響應迅速
+
+### Phase 2.5 — MVP 整合與測試
+
+**T2.5.1** 主介面整合
+- 整合所有組件到 `src/frontend/main_page.html`
+- 響應式設計（桌面 + 手機）
+- 暗色主題
+- **驗收**：
+  - 所有功能正常運作
+  - 手機版可用
+
+**T2.5.2** 端到端測試
+- 實作 `src/tests/e2e/test_mvp.js`
+- 測試場景：
+  - 翻譯功能
+  - 講稿生成
+  - Panic Button
+  - 快捷短語
+- **驗收**：
+  - 所有測試通過
+  - 無明顯 bug
+
+**T2.5.3** 性能優化
+- 測量各功能延遲
+- 優化瓶頸（預載入、快取）
+- **驗收**：
+  - 翻譯延遲 < 500ms
+  - 講稿生成 < 1.5s
+
+### MVP 總體驗收
+
+| 指標 | 目標 | 驗收方式 |
+|------|------|---------|
+| **智能分段延遲** | <800ms | 從停止說話到分段觸發 |
+| **英文即時顯示** | <100ms | Web Speech API 本地處理 |
+| **翻譯端到端延遲** | <1.5s | 從句子結束到翻譯顯示 |
+| **並行翻譯正確率** | 100% | 翻譯結果正確對應段落 |
+| 翻譯準確度 | >85% 用戶滿意 | 人工測試 10 句 |
+| 講稿生成延遲 | <1.5s | 計時測量 |
+| Panic Button 響應 | <300ms | 計時測量 |
+| 手機版可用性 | 核心功能正常 | 手動測試 |
+
+---
+
+## Milestone 3 — ECA v1.5（增強功能）
+
+🎯 **目標**：Smart 建議 + 場景預設 + 對話記錄
+
+### Phase 3.1 — Smart 建議
+
+**T3.1.1** 建議生成 API
+- 實作 `src/backend/suggestion_generator.py`
+- 實作 `POST /api/suggest` 端點
+- Smart 觸發邏輯（問句、沉默等）
+- **驗收**：
+  - 情境相關的建議
+  - 最多 3 個選項
+
+**T3.1.2** 建議卡片 UI
+- 實作 `src/frontend/components/SuggestionCards.js`
+- 雙語顯示（英+中）
+- 5 秒自動隱藏
+- 點擊「用這個」→ 複製到 Teleprompter
+- **驗收**：
+  - 非侵入式顯示
+  - 響應迅速
+
+**T3.1.3** Smart 觸發整合
+- 整合觸發邏輯到主應用
+- 監聽轉錄內容，判斷是否顯示建議
+- **驗收**：
+  - 問句時自動顯示建議
+  - 沉默 3 秒後顯示建議
+
+### Phase 3.2 — 場景預設
+
+**T3.2.1** 場景模板數據
+- 實作 `src/frontend/scenario_presets.js`
+- 4 個核心場景：bank、nhs、utilities、insurance
+- 包含：常用詞彙、建議短語、語氣設定
+- **驗收**：
+  - 模板數據完整
+  - 符合英國實際場景
+
+**T3.2.2** 場景選擇 UI
+- 實作 `src/frontend/components/ScenarioSelector.js`
+- 卡片式選擇
+- 預覽場景內容
+- **驗收**：
+  - 選擇後影響建議生成
+  - 顯示場景專屬詞彙
+
+### Phase 3.3 — 對話記錄
+
+**T3.3.1** 記錄存儲
+- 實作 `src/frontend/conversation_history.js`
+- localStorage 存儲（MVP）
+- 記錄：時間戳、原文、翻譯、講稿
+- **驗收**：
+  - 對話自動保存
+  - 可查看歷史
+
+**T3.3.2** 記錄瀏覽 UI
+- 實作 `src/frontend/components/HistoryPanel.js`
+- 時間線顯示
+- 搜尋功能
+- 匯出 JSON/Markdown
+- **驗收**：
+  - 可回顧過去對話
+  - 匯出格式正確
+
+---
+
+## Milestone 4 — ECA v2.0（進階功能）
+
+🎯 **目標**：桌面應用 + 信心指示 + 學習功能
+
+### Phase 4.1 — 桌面應用 (Tauri)
+
+**T4.1.1** Tauri 專案設置
+- 初始化 Tauri v2 專案
+- 整合現有前端代碼
+- 系統音訊捕獲優化（桌面 API）
+- **驗收**：
+  - 桌面應用可運行
+  - 系統音訊捕獲穩定
+
+**T4.1.2** 桌面特有功能
+- 全域快捷鍵（Panic Button）
+- 系統托盤
+- 開機啟動選項
+- **驗收**：
+  - 快捷鍵在任何應用中可用
+  - 托盤常駐
+
+### Phase 4.2 — 信心指示
+
+**T4.2.1** 信心計算
+- 修改翻譯 API，返回信心分數
+- 基於：語音清晰度、詞彙識別率、語法完整度
+- **驗收**：
+  - 信心分數合理
+  - 低信心時正確標記
+
+**T4.2.2** 信心 UI
+- 🟢 高信心（>0.8）
+- 🟡 中信心（0.5-0.8）
+- 🔴 低信心（<0.5）
+- 低信心時顯示原文
+- **驗收**：
+  - 指示清晰易懂
+  - 幫助用戶判斷可信度
+
+### Phase 4.3 — 學習功能
+
+**T4.3.1** 詞彙高亮
+- 識別對話中的新詞彙
+- 高亮顯示 + 解釋
+- **驗收**：
+  - 新詞彙被正確識別
+  - 解釋有幫助
+
+**T4.3.2** Flashcard 匯出
+- 將新詞彙匯出為 Anki 格式
+- 包含：詞彙、例句、翻譯
+- **驗收**：
+  - Anki 可成功匯入
+  - 卡片格式正確
+
+---
+
+## 技術債務與優化
+
+### 待清理項目
+
+| 項目 | 位置 | 優先級 | 說明 |
+|------|------|--------|------|
+| 舊版 Controller | `src/backend/controller.py` | 中 | 重構為 script/suggest API |
+| 舊版狀態機 | `src/frontend/state_machine.js` | 低 | 簡化為翻譯模式 |
+| 舊版測試 | `src/tests/` | 中 | 更新為新功能測試 |
+| 過時文件 | `spec/role_templates_v2.md` | 低 | 已標記 DEPRECATED |
+
+### 性能優化目標
+
+| 指標 | 當前 | 目標 | 方案 |
+|------|------|------|------|
+| 首次載入 | ~3s | <2s | 懶載入 |
+| **分段延遲** | >1.5s | <800ms | SmartSegmenter 混合策略 |
+| **英文即時顯示** | N/A | <100ms | Web Speech API |
+| **翻譯端到端** | TBD | <1.5s | 並行處理 + 串流 |
+| 講稿生成 | TBD | <1.5s | 快取常用 |
+| 記憶體使用 | TBD | <200MB | 定期清理 |
+
+---
+
+## 量化指標
+
+### MVP 指標
+
+| 指標 | 目標 |
+|------|------|
+| 翻譯準確度 | >85% 用戶滿意 |
+| 翻譯延遲 | <500ms |
+| 講稿生成延遲 | <1.5s |
+| Panic Button 響應 | <300ms |
+
+### v1.0 指標
+
+| 指標 | 目標 |
+|------|------|
+| 翻譯準確度 | >90% 用戶滿意 |
+| 講稿採用率 | >60% |
+| NPS | >50 |
+
+### 商業指標（12 個月）
+
+| 指標 | 目標 |
+|------|------|
+| 註冊用戶 | 20,000 |
+| 付費轉換率 | 10% |
+| 月活躍用戶 | 10,000 |
+| MRR | £25,000 |
+
+---
+
+## 開發順序建議
+
+```
+Phase 2.1 (系統音訊 + 即時翻譯) ─────── 核心價值驗證
+        ↓
+Phase 2.2 (講稿生成) ────────────────── 差異化功能
+        ↓
+Phase 2.3 + 2.4 (Panic Button + 快捷) ── 安全感功能
+        ↓
+Phase 2.5 (整合測試) ────────────────── MVP 發布
+        ↓
+Phase 3.x (Smart 建議 + 場景) ────────── v1.5 增強
+        ↓
+Phase 4.x (桌面應用 + 學習) ─────────── v2.0 進階
+```
+
+---
+
+*最後更新：2026-02-03*
+*版本：2.2*
+
+### 更新日誌
+
+| 版本 | 日期 | 變更 |
+|------|------|------|
+| 2.2 | 2026-02-03 | 完成 Test 21 修復：gpt-4.1-nano 翻譯、SmartSegmenter 5 預設模式、動態穩定性檢測 |
+| 2.1 | 2026-02-01 | 新增 T2.1.0（智能分段 + 並行翻譯系統），更新 T2.1.2（雙軌音訊架構），更新驗收標準 |
+| 2.0 | 2026-01-29 | 初始 ECA 任務清單 |

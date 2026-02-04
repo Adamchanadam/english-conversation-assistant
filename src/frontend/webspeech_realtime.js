@@ -97,12 +97,16 @@ class WebSpeechRealtime {
      * 停止識別
      */
     stop() {
-        if (!this.recognition || !this.isRunning) {
+        if (!this.recognition) {
             return;
         }
 
+        // 🐛 Bug fix: 先設置 isRunning = false，防止 _handleEnd 中的自動重啟
+        this.isRunning = false;
+
         try {
             this.recognition.stop();
+            console.log('[WebSpeech] Stop called, isRunning set to false');
         } catch (error) {
             console.error('[WebSpeech] Stop error:', error);
         }
