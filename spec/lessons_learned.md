@@ -990,10 +990,260 @@ function updateEntryText(entryId, field, text) {
 
 ---
 
+## §5. 方案 A 架構問題
+
+### 5.1 孤兒 Segment 問題（2026-02-04）
+
+**問題描述**：
+測試時出現只有英文、沒有翻譯的「孤兒 segment」，顯示狀態停留在「📝 識別中...」或「📝 轉錄中...」。
+
+**根因**：
+在「方案 A」架構中，有**兩個獨立的來源**在創建 UI segments：
+
+| 來源 | 觸發時機 | 創建 Segment | 觸發翻譯 |
+|------|---------|-------------|---------|
+| **SmartSegmenter** | 停頓偵測 (500-900ms) | ✅ | ✅ `translateViaBackend()` |
+| **RealtimeEventHandler** | OpenAI `transcription.completed` | ✅ | ❌ 無 |
+
+當 OpenAI 轉錄事件在 SmartSegmenter 停頓偵測之前觸發時，`RealtimeEventHandler` 會創建一個 segment，但這個 segment 沒有觸發翻譯 API，導致孤兒 segment。
+
+**解決方案**：
+```javascript
+// ⚠️ 方案 A 架構：UI 渲染由 SmartSegmenter 的 translateViaBackend() 控制
+// RealtimeEventHandler 只記錄日誌，不渲染 UI segments
+eventHandler.onSegmentUpdate = (segment) => {
+    // 不渲染 OpenAI 的 segments
+    // renderer.queueUpdate(segment);
+    // updateStats();
+};
+```
+
+**關鍵教訓**：
+- 在方案 A 中，**SmartSegmenter 是唯一的 segment 創建者**
+- `RealtimeEventHandler` 只用於日誌和後備，不應渲染 UI
+- 避免多個來源創建相同的 UI 元素
+
+### 5.2 gpt-5-mini 是 Reasoning 模型，參數限制不同（2026-02-04）
+
+**問題描述**：
+講稿生成 API 調用 `gpt-5-mini` 時返回 400 錯誤：
+```
+Unsupported parameter: 'max_tokens' is not supported with this model. Use 'max_completion_tokens' instead.
+```
+
+**根因**：
+`gpt-5-mini` 是 reasoning 模型（類似 o3-mini、o4-mini），與一般 chat 模型（gpt-4o、gpt-4.1-nano）的 API 參數不同。
+
+**不支援的參數**：
+| ❌ 不支援 | ✅ 替代方案 |
+|-----------|------------|
+| `temperature` | 無（reasoning 模型不支援溫度控制）|
+| `top_p` | 無 |
+| `max_tokens` | `max_completion_tokens`（Chat Completions API）|
+| `presence_penalty` | 無 |
+| `frequency_penalty` | 無 |
+
+**支援的特殊參數**：
+- `reasoning_effort`: `"none"` / `"minimal"` / `"low"` / `"medium"` / `"high"`
+  - 控制 reasoning tokens 數量，影響速度和品質
+  - 講稿生成建議用 `"low"`（速度優先）
+- `response_format`: `{"type": "json_object"}` 或 `{"type": "json_schema", ...}` — 支援
+- `max_completion_tokens`: 上限 4096（包含 reasoning tokens + output tokens）
+
+**正確用法**：
+```python
+# ✅ gpt-5-mini 正確調用
+response = client.chat.completions.create(
+    model="gpt-5-mini",
+    messages=[...],
+    max_completion_tokens=500,
+    reasoning_effort="low",
+    response_format={"type": "json_object"}
+)
+
+# ❌ 錯誤：不支援 temperature 和 max_tokens
+response = client.chat.completions.create(
+    model="gpt-5-mini",
+    messages=[...],
+    temperature=0.7,      # ❌ 不支援
+    max_tokens=500,        # ❌ 用 max_completion_tokens
+)
+```
+
+**影響文件**：`src/backend/script_generator.py`（3 處 API 調用已修復）
+
+**預防措施**：
+1. **Reasoning 模型與 Chat 模型參數不同** — 開發前確認模型類型
+2. **查閱 SKILL.md 或官方文檔** — 不要憑記憶假設參數
+3. **gpt-5-mini 用於文字生成時** — 設 `reasoning_effort="low"` 減少 reasoning 開銷
+
+### 5.3 T2.2 講稿生成 UX 重新設計（2026-02-05）
+
+| 項目 | 內容 |
+|------|------|
+| **日期** | 2026-02-05 |
+| **問題** | T2.2 原設計「通話中打字輸入 → 生成講稿 → 用戶照唸」在真實使用場景下不可行 |
+| **症狀** | 通話中打字需要 5-10 秒沉默，對方會以為斷線；生成的講稿缺少對話上下文，可能答非所問 |
+
+**根因分析（2 個致命問題）**：
+
+| 問題 | 嚴重性 | 說明 |
+|------|--------|------|
+| 通話中打字不實用 | 致命 | 打字需要 5-10 秒沉默，對方會問「Are you still there?」 |
+| 無對話上下文 | 致命 | 用戶輸入中文時，系統不知道對方剛說了什麼，生成結果可能完全不相關 |
+
+**後端 API 評估**：
+- `script_generator.py` + `POST /api/script/stream` — 後端品質良好，支持場景/語調/歷史
+- 問題完全在前端交互模型，不在後端
+
+**解決方案**：重新定位為「通話前準備 + 通話中一鍵調用」
+
+```
+原設計（不實用）：
+  通話中 → 打字輸入中文 → 等待生成 → 讀講稿
+  問題：5-10秒沉默、無上下文、壓力下難以打字
+
+新設計（實用）：
+  通話前 → 從容輸入中文 → 生成講稿 → 保存為卡片
+  通話中 → 一鍵點擊卡片 → Teleprompter 大字顯示
+  問題全部解決：不需打字、有時間準備、零延遲調用
+```
+
+**影響範圍**：
+
+| 組件 | 決定 | 原因 |
+|------|------|------|
+| `script_generator.py` | **保留不變** | 後端 API 品質良好 |
+| 前端 textarea（通話中） | **移除** | 不再支持通話中打字輸入 |
+| 前端新增：通話前準備畫面 | **新增** | 場景選擇 + 詞彙預覽 + 講稿生成 + 保存 |
+| 前端新增：Quick Response Bar | **新增** | 取代 textarea，整合已準備講稿 + 快捷短語 + Panic Button |
+| 前端新增：Teleprompter | **新增** | 統一大字顯示組件 |
+| T2.3 Panic Button | **整合到 Quick Response Bar** | 不再獨立浮動，成為底部欄一部分 |
+| T2.4 快捷短語 | **整合到 Quick Response Bar** | 與講稿卡片和 Panic Button 並列 |
+| T2.3.2 TTS | **移至 Phase 3** | MVP 優先文字顯示 |
+
+**關鍵教訓**：
+
+> **在建構功能之前，必須驗證交互模型在真實使用約束下是否可行。**
+> 如果用戶在高壓環境下（如通話中）需要使用某功能，
+> 該功能的交互延遲必須 < 1 秒（不包含打字時間）。
+> 任何需要用戶停下來思考 + 打字的交互，都應該放在低壓環境（通話前）完成。
+
+| **預防措施** | 1. 設計前先做「壓力測試」— 模擬真實使用場景的時間壓力 |
+|           | 2. 如果功能需要用戶打字，確認用戶有時間打字（通話前 vs 通話中） |
+|           | 3. 通話中的操作只能是「一鍵」或「零操作」（自動觸發） |
+|           | 4. 後端 API 與前端 UX 是獨立的 — 後端好不代表 UX 好 |
+
+---
+
+## ✅ MVP 功能驗收記錄（2026-02-06）
+
+### 測試方法
+使用 Chrome DevTools MCP 進行自動化 UI 測試，驗證所有 MVP 功能。
+
+### 測試結果
+
+| 功能 | 狀態 | 備註 |
+|------|------|------|
+| 場景選擇 | ✅ 通過 | 5 個場景卡片正常顯示 |
+| 講稿生成 | ✅ 通過 | API 調用 + SSE 串流正常 |
+| 講稿儲存 | ✅ 通過 | localStorage 持久化正常 |
+| 模式切換 | ✅ 通過 | 準備模式 ↔ 通話模式 |
+| Quick Response Bar | ✅ 通過 | 講稿卡片 + 快捷短語顯示正常 |
+| Panic Button | ✅ 通過 | 拖延語顯示 + 講稿提示 |
+| Teleprompter Overlay | ✅ 通過 | 大字顯示、中英對照 |
+| 結束通話 | ✅ 通過 | 返回準備模式，狀態正確 |
+
+### 待測試項目
+- [ ] 真實語音翻譯（需要麥克風輸入）
+- [ ] 手機版響應式 UI
+- [ ] 長時間 session 穩定性
+
+---
+
+## 翻譯品質改良記錄（2026-02-07）
+
+### 6.1 數字保持阿拉伯數字規則
+
+**問題**：翻譯結果中的數字、金額、日期如果轉換成中文（如「五百英鎊」），會：
+1. 難以快速核對
+2. 增加驗證複雜度（需要解析中文數字）
+3. 可能因轉換錯誤導致誤解
+
+**解決方案**：在翻譯 prompt 中明確要求保持阿拉伯數字：
+
+```python
+CRITICAL - Keep ALL numbers in Arabic numerals, NEVER convert to Chinese:
+- Currency: £500, $1,000, 50p → keep as-is
+- Dates: 15th March → 3月15日 (NOT 三月十五日)
+- Times: 2:30pm → 下午2:30 (NOT 下午兩點半)
+- Percentages: 5% → 5% (NOT 百分之五)
+- Phone numbers: 020 7123 4567 → keep as-is
+- Reference numbers: ABC123 → keep as-is
+```
+
+**效果**：
+- ✅ 用戶可快速核對數字
+- ✅ 驗證器可準確比對
+- ✅ 避免中文數字解析錯誤
+
+### 6.2 場景詞庫整合策略
+
+**問題**：翻譯 API 不知道對話場景，可能誤譯領域術語（如 NHS "surgery" 譯為「手術」而非「診所」）
+
+**解決方案**：Prompt Injection 策略
+
+```python
+# 在翻譯 prompt 中注入詞庫提示
+glossary_hint = get_glossary_hint(text, scenario)  # "direct debit" = "直接付款授權"
+if glossary_hint:
+    system_prompt += f"\n\nKey terms: {glossary_hint}"
+```
+
+**效果**：
+- ✅ 領域術語翻譯更準確
+- ✅ 延遲增加極小（~50ms）
+- ✅ 不需要額外 API 調用
+
+### 6.3 翻譯驗證啟發式方法
+
+**問題**：翻譯可能出錯，但 gpt-4.1-nano 串流模式不提供 logprobs
+
+**解決方案**：前端啟發式驗證
+
+```javascript
+class TranslationValidator {
+    validate(sourceText, translatedText) {
+        // 1. 數字比對
+        const sourceNums = extractNumbers(sourceText);
+        const targetNums = extractNumbers(translatedText);
+        // 檢查是否有遺漏
+
+        // 2. 信心評分
+        // - 長度比例異常（<0.2 或 >4.0）
+        // - 未翻譯英文（Chinese 中有 English words）
+        // - AI 失敗語句（"我無法", "抱歉"）
+        // - 原文 = 譯文（沒有翻譯）
+    }
+}
+```
+
+**效果**：
+- ✅ 數字錯誤檢測率高
+- ✅ 低信心翻譯有警告
+- ✅ 零額外 API 成本
+
+---
+
 ## 更新日誌
 
 | 日期 | 更新內容 |
 |------|---------|
+| 2026-02-07 | 新增翻譯品質改良記錄（§6.1 數字規則、§6.2 詞庫整合、§6.3 驗證方法）|
+| 2026-02-06 | 新增 MVP 功能驗收記錄（Chrome DevTools MCP 測試通過）|
+| 2026-02-05 | 新增 §5.3 T2.2 講稿生成 UX 重新設計（通話前準備 + Quick Response Bar）|
+| 2026-02-04 | 新增 §5.2 gpt-5-mini reasoning 模型參數限制（max_tokens → max_completion_tokens）|
+| 2026-02-04 | 新增 §5.1 孤兒 Segment 問題（方案 A 雙來源衝突）|
 | 2026-02-03 | 新增 SmartSegmenter 動態穩定性檢測、5 種預設模式（預設為「快速」）|
 | 2026-02-02 | 新增 §1.10 翻譯模式需要 Few-Shot Priming（Q&A 對話模式問題）|
 | 2026-02-02 | 新增 §1.9 response.create 格式錯誤、§2.1 SmartSegmenter Buffer 累積錯誤、§2.2 頻繁觸發 API 錯誤 |

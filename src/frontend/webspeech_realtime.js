@@ -23,6 +23,7 @@ class WebSpeechRealtime {
         this.onFinalResult = null;    // 最終結果回調
         this.onError = null;
         this.onStateChange = null;
+        this.onAudioStart = null;     // 音訊開始收錄回調（可以開始說話了）
 
         // 內部狀態
         this.finalTranscript = '';
@@ -55,6 +56,7 @@ class WebSpeechRealtime {
         this.recognition.onerror = (event) => this._handleError(event);
         this.recognition.onend = () => this._handleEnd();
         this.recognition.onstart = () => this._handleStart();
+        this.recognition.onaudiostart = () => this._handleAudioStart();
         this.recognition.onspeechstart = () => console.log('[WebSpeech] Speech started');
         this.recognition.onspeechend = () => console.log('[WebSpeech] Speech ended');
 
@@ -191,6 +193,17 @@ class WebSpeechRealtime {
         console.log('[WebSpeech] Recognition started');
         if (this.onStateChange) {
             this.onStateChange('running');
+        }
+    }
+
+    /**
+     * 處理音訊開始（麥克風真正開始收音）
+     * 這是用戶可以開始說話的時刻
+     */
+    _handleAudioStart() {
+        console.log('[WebSpeech] Audio capture started - ready to speak!');
+        if (this.onAudioStart) {
+            this.onAudioStart();
         }
     }
 

@@ -225,7 +225,7 @@ class TranslateRequest(BaseModel):
 
     Reference: spec/lessons_learned.md (Test 21 - 方案 A)
 
-    This endpoint uses gpt-5-mini for text translation instead of
+    This endpoint uses gpt-4.1-nano for text translation instead of
     OpenAI Realtime API (which defaults to Q&A dialogue mode).
     """
     text: str = Field(
@@ -238,6 +238,10 @@ class TranslateRequest(BaseModel):
         default="Traditional Chinese",
         description="Target language for translation"
     )
+    scenario: Optional[str] = Field(
+        default=None,
+        description="Domain scenario for glossary hints: bank, nhs, utilities, insurance"
+    )
 
 
 class TranslateResponse(BaseModel):
@@ -245,3 +249,79 @@ class TranslateResponse(BaseModel):
     translation: str = Field(..., description="Translated text")
     source_text: str = Field(..., description="Original source text")
     error: Optional[str] = Field(default=None, description="Error message if failed")
+
+
+# =============================================================================
+# Script Generation API Models (design.md § 5)
+# =============================================================================
+
+class ConversationTurn(BaseModel):
+    """Single conversation turn for context."""
+    role: Literal["them", "me"] = Field(..., description="Speaker role")
+    text: str = Field(..., description="What was said")
+
+
+class ScriptContext(BaseModel):
+    """Context for script generation."""
+    scenario: Optional[str] = Field(
+        default=None,
+        description="Scenario type: bank, nhs, utilities, insurance, general"
+    )
+    conversation_history: List[ConversationTurn] = Field(
+        default_factory=list,
+        description="Recent conversation turns for context"
+    )
+    tone: Literal["polite", "formal", "casual", "assertive"] = Field(
+        default="polite",
+        description="Desired tone of the script"
+    )
+
+
+class ScriptRequest(BaseModel):
+    """
+    Request model for script generation API.
+
+    Reference: design.md § 5.2
+
+    Generates English script from Chinese input for user to read aloud.
+    """
+    chinese_input: str = Field(
+        ...,
+        description="Chinese text describing what user wants to say",
+        min_length=1,
+        max_length=500
+    )
+    context: Optional[ScriptContext] = Field(
+        default=None,
+        description="Optional context for better script generation"
+    )
+
+
+class PronunciationTip(BaseModel):
+    """Pronunciation tip for difficult words."""
+    word: str = Field(..., description="The word")
+    ipa: str = Field(..., description="IPA pronunciation")
+
+
+class ScriptResponse(BaseModel):
+    """
+    Response model for script generation API.
+
+    Reference: design.md § 5.2
+    """
+    english_script: str = Field(
+        ...,
+        description="Main English script for user to read"
+    )
+    alternatives: List[str] = Field(
+        default_factory=list,
+        description="Alternative ways to say the same thing (max 2)"
+    )
+    pronunciation_tips: List[PronunciationTip] = Field(
+        default_factory=list,
+        description="Pronunciation tips for difficult words"
+    )
+    error: Optional[str] = Field(
+        default=None,
+        description="Error message if generation failed"
+    )

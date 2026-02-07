@@ -1,8 +1,8 @@
 ---
 name: english-conversation-assistant-tasks
 description: English Conversation Assistant (ECA) 開發任務清單 — MVP 到 v2.0
-version: 2.2
-date: 2026-02-03
+version: 2.3
+date: 2026-02-05
 ---
 
 # English Conversation Assistant — Tasks v2.0
@@ -43,7 +43,7 @@ date: 2026-02-03
 
 ## Milestone 2 — ECA MVP（核心功能）
 
-🎯 **目標**：交付可用 MVP — 即時翻譯 + 講稿生成 + Panic Button + 快捷短語
+🎯 **目標**：交付可用 MVP — 即時翻譯 + 通話前準備 + Quick Response Bar（Panic Button + 快捷短語）
 
 ### Phase 2.1 — 系統音訊捕獲與即時翻譯
 
@@ -69,120 +69,198 @@ date: 2026-02-03
   - `spec/research/speech_segmentation.md`（人類說話習慣研究）
 - **備註**：SmartSegmenter（分段邏輯）將在 T2.1.2 整合，目前使用 OpenAI semantic_vad 進行分段
 
-**T2.1.1** 系統音訊捕獲 POC
-- 實作 `src/frontend/audio_capture.js`
-- 使用 `getDisplayMedia()` + `audio: true` 捕獲系統音訊
-- 處理權限請求與錯誤情況
-- 備選方案：麥克風捕獲（擴音模式）
-- **驗收**：
-  - 可捕獲系統播放的音訊
-  - 權限被拒時顯示友善提示
+**T2.1.1** ~~系統音訊捕獲 POC~~ ❌ REMOVED
+- **移除原因**：主要使用場景（手機打電話 + 電腦輔助）用不到系統音訊捕獲
+- **現有方案**：麥克風 + 擴音模式已足夠，且支援更廣泛（包括手機）
+- **日期**：2026-02-04
 
-**T2.1.2** 雙軌音訊架構
-- 修改 `src/frontend/app.js`：實作雙軌架構
-- **Web Speech API**：英文即時預覽（~100ms 延遲）
-- **OpenAI Realtime**：最終轉錄 + 翻譯
-- 整合 SmartSegmenter 分段邏輯
-- 整合 SegmentStore 並行管理
-- **驗收**：
-  - 英文即時顯示（<100ms）
-  - 翻譯正確對應每個段落
-  - 延遲 < 1.5s（端到端）
+**T2.1.2** ✅ **雙軌音訊架構**（COMPLETED 2026-02-06）
+- ✅ 實作於 `src/frontend/eca_parallel_test.html`（整合頁面）
+- ✅ **Web Speech API**：英文即時預覽（~100ms 延遲）
+- ✅ **後端 API 翻譯**：`/api/translate/stream`（gpt-4.1-nano，~700ms 首字）
+- ✅ 整合 SmartSegmenter 分段邏輯（5 種預設模式）
+- ✅ 整合 SegmentStore 並行管理
+- **驗收結果**（2026-02-06）：
+  - ✅ 英文即時顯示（Web Speech API）
+  - ✅ 翻譯正確對應每個段落
+  - ✅ 方案 A 架構運作正常
+- **備註**：實作於 `eca_parallel_test.html`，未遷移到 `app.js`（MVP 階段不需要）
 
-**T2.1.3** 翻譯 UI 組件
-- 實作 `src/frontend/components/TranscriptPanel.js`
-- 雙欄顯示：英文原文 + 中文翻譯
-- **段落狀態指示**：🎤聆聽中 → 📝轉錄中 → 🔄翻譯中 → ✅完成
-- 最新段落在上（prepend）
-- 自動滾動 + 歷史回看
-- **驗收**：
-  - 字幕清晰易讀
-  - 可回看歷史對話
-  - 段落狀態正確顯示
+**T2.1.3** ✅ **翻譯 UI 組件**（COMPLETED 2026-02-06）
+- ✅ 實作於 `src/frontend/eca_parallel_test.html`（整合頁面）
+- ✅ 雙欄顯示：英文原文 + 中文翻譯
+- ✅ **段落狀態指示**：🎤聆聽中 → 📝轉錄中 → 🔄翻譯中 → ✅完成
+- ✅ 最新段落在上（prepend）
+- ✅ 自動滾動 + 歷史回看
+- **驗收結果**（2026-02-06）：
+  - ✅ 字幕清晰易讀（暗色主題）
+  - ✅ 可回看歷史對話
+  - ✅ 段落狀態正確顯示
 
-### Phase 2.2 — 講稿生成
+### Phase 2.2 — 通話前準備模式（Pre-Call Preparation）
 
-**T2.2.1** 講稿生成 API
-- 實作 `src/backend/script_generator.py`
-- 實作 `POST /api/script` 端點
-- 使用 `gpt-5-mini` 生成英文講稿
-- 支援串流輸出（SSE）
-- **驗收**：
-  - 中文輸入 → 英文講稿
-  - 生成延遲 < 1.5s
+> **⚠️ 重新設計（2026-02-05）**：原 T2.2 「通話中打字輸入講稿」經分析不實用（5-10 秒沉默、無對話上下文），
+> 重新定位為「通話前準備 + 通話中一鍵調用」。後端 API（`script_generator.py`、`POST /api/script/stream`）保留不變。
+> 詳見 `spec/lessons_learned.md` §5.3。
 
-**T2.2.2** 講稿輸入 UI
-- 實作 `src/frontend/components/ScriptInput.js`
-- 中文輸入框 + 語音輸入按鈕
-- 場景選擇下拉框（bank/nhs/utilities）
-- **驗收**：
-  - 支援打字和語音輸入
-  - 場景切換影響生成風格
+**T2.2.1** ✅ 講稿生成 API（COMPLETED — 後端已完成，保留重用）
+- `src/backend/script_generator.py` — 已實作
+- `POST /api/script/stream` — 已實作（SSE 串流）
+- 使用 `gpt-5-mini`（reasoning_effort="low"）
+- **無需改動**
 
-**T2.2.3** Teleprompter 顯示
-- 實作 `src/frontend/components/Teleprompter.js`
-- 大字體顯示（28px）
-- 替代說法切換
-- 複製 / 重新生成按鈕
-- **驗收**：
-  - 講稿易讀、易唸
-  - 可快速切換替代說法
+**T2.2.2** ✅ **通話前準備畫面**（COMPLETED 2026-02-06）
+- ✅ 實作於 `src/frontend/eca_parallel_test.html`
+- ✅ **場景選擇**：Bank / NHS / Utilities / Insurance / General 五個場景卡片
+- ✅ **詞彙預覽**：選擇場景後顯示常用詞彙（靜態數據，`SCENARIOS` 物件）
+- ✅ **講稿生成**：中文輸入框 → 調用 `POST /api/script/stream` → 顯示英文講稿
+- ✅ **講稿保存**：生成的講稿可保存為「快捷卡片」（localStorage）
+- ✅ **進入通話**：點擊「開始聆聽」→ 帶著已準備的卡片進入通話模式
+- **驗收結果**（2026-02-06 DevTools 測試）：
+  - ✅ 場景選擇正常
+  - ✅ 中文輸入 → 英文講稿生成（SSE 串流）
+  - ✅ 講稿可保存、可刪除
+  - ✅ 保存的卡片在通話中可見
 
-### Phase 2.3 — Panic Button
+**T2.2.3** ✅ **Teleprompter 統一顯示組件**（COMPLETED 2026-02-06）
+- ✅ 實作於 `src/frontend/eca_parallel_test.html`（`teleprompterOverlay`）
+- ✅ 大字體顯示、高對比背景
+- ✅ **統一輸出**：已準備的講稿、快捷短語、Panic 拖延語都輸出到此組件
+- ✅ 點擊卡片/按鈕 → Teleprompter Overlay 大字顯示
+- ✅ 點擊關閉按鈕或 ESC 鍵關閉
+- **驗收結果**（2026-02-06 DevTools 測試）：
+  - ✅ 通話中只需看一個地方
+  - ✅ 英文 + 中文對照顯示
+  - ✅ 字體清晰、易讀
 
-**T2.3.1** Panic Button 邏輯
-- 實作 `src/frontend/components/PanicButton.js`
-- 「買時間」短語庫（8 個選項）
-- 按下 → TTS 播放短語 + 生成建議
-- **驗收**：
-  - 按下即播放「Let me think...」
-  - 同時開始生成建議
+### Phase 2.3 — Panic Button（整合到 Quick Response Bar）
 
-**T2.3.2** TTS 播放模組
-- 實作 `src/frontend/tts.js`
-- 使用 Web Speech API 或 Realtime API TTS
-- 支援中斷（用戶開始說話時停止）
-- **驗收**：
-  - 播放自然流暢
-  - 可被用戶打斷
+> **⚠️ 重新設計（2026-02-05）**：Panic Button 不再是獨立浮動按鈕，
+> 而是整合到 Quick Response Bar 的右下角。無 API 調用，純本地 < 300ms。
 
-### Phase 2.4 — 快捷短語
+**T2.3.1** ✅ **Panic Button 整合**（COMPLETED 2026-02-06）
+- ✅ 實作於 `src/frontend/eca_parallel_test.html`
+- ✅ 紅色 🆘「求助」按鈕，位於 Quick Response Bar 右下角
+- ✅ 點擊 → 立即在 Teleprompter 顯示一句拖延語（從 8 句中隨機選）
+- ✅ **拖延語庫**（靜態數據，`STALLING_PHRASES` 陣列）：
+  ```
+  "Let me think about that for a moment..."
+  "That's a good question. Give me a second..."
+  "Could you hold on for just a second?"
+  "I want to make sure I understand correctly..."
+  "Let me just check something quickly..."
+  "Hmm, let me consider that..."
+  "I need a moment to think about this..."
+  "That's interesting. Let me think..."
+  ```
+- ✅ 同時顯示用戶已準備的講稿供選擇
+- **驗收結果**（2026-02-06 DevTools 測試）：
+  - ✅ 點擊 → Teleprompter 顯示拖延語（< 300ms）
+  - ✅ 無 API 調用、無網路依賴
+  - ✅ 視覺顯眼（紅色）、位置易觸及
+  - ✅ 同時顯示已準備的講稿卡片
 
-**T2.4.1** 快捷短語組件
-- 實作 `src/frontend/components/QuickPhrases.js`
-- 4 個預設短語：請再說一次、請慢點說、我確認一下、謝謝再見
-- 點擊 → 顯示在 Teleprompter + 可選 TTS
-- **驗收**：
-  - 一鍵即用
-  - 響應迅速
+**T2.3.2** ~~TTS 播放模組~~ → 移至 Phase 3（v1.5）
+- **移後原因**：MVP 階段優先文字顯示，TTS 為增強功能
+- TTS 播放（Web Speech Synthesis）將在 Smart 建議階段（Phase 3）一併實作
+
+### Phase 2.4 — 快捷短語（整合到 Quick Response Bar）
+
+> **⚠️ 重新設計（2026-02-05）**：快捷短語不再是獨立組件，
+> 而是整合到 Quick Response Bar 中，與已準備的講稿和 Panic Button 並列。
+
+**T2.4.1** ✅ **Quick Response Bar**（COMPLETED 2026-02-06）
+- ✅ 實作於 `src/frontend/eca_parallel_test.html`（`quickResponseBar`）
+- ✅ **取代通話中的 textarea**，改為一排可點擊的按鈕
+- ✅ **上排**：用戶通話前準備的講稿卡片（來自 localStorage）
+- ✅ **下排**：4 個預設快捷短語（`QUICK_PHRASES` 陣列）：
+  | 中文 | 英文 |
+  |------|------|
+  | 請再說一次 | Could you repeat that, please? |
+  | 請慢點說 | Could you speak more slowly? |
+  | 我確認一下 | Let me confirm that... |
+  | 謝謝再見 | Thank you. Goodbye. |
+- ✅ **右下角**：🆘 Panic Button（見 T2.3.1）
+- ✅ 點擊任意按鈕 → 在 Teleprompter 大字顯示
+- **驗收結果**（2026-02-06 DevTools 測試）：
+  - ✅ 通話中底部欄取代 textarea
+  - ✅ 已準備的講稿正確顯示
+  - ✅ 快捷短語一鍵即用（< 300ms）
+  - ✅ 所有按鈕輸出到 Teleprompter
 
 ### Phase 2.5 — MVP 整合與測試
 
-**T2.5.1** 主介面整合
-- 整合所有組件到 `src/frontend/main_page.html`
-- 響應式設計（桌面 + 手機）
-- 暗色主題
-- **驗收**：
-  - 所有功能正常運作
-  - 手機版可用
+**T2.5.1** ✅ **主介面整合**（COMPLETED 2026-02-06）
+- ✅ 所有組件已整合到 `src/frontend/eca_parallel_test.html`
+- ✅ 響應式設計（桌面版）
+- ✅ 暗色主題
+- **驗收結果**（2026-02-06 DevTools 測試）：
+  - ✅ 所有功能正常運作（場景選擇、講稿生成、通話模式、Quick Response Bar、Panic Button）
+  - ⏳ 手機版待測試
+- **備註**：MVP 使用 `eca_parallel_test.html` 作為主入口，後端路由 `/` 和 `/eca` 已指向此頁面
 
-**T2.5.2** 端到端測試
-- 實作 `src/tests/e2e/test_mvp.js`
+**T2.5.2** 🔄 端到端測試（IN PROGRESS）
+- 2026-02-06 已用 Chrome DevTools MCP 完成基本功能測試
+- 待完成：真實語音翻譯測試（需要麥克風輸入）
 - 測試場景：
-  - 翻譯功能
-  - 講稿生成
-  - Panic Button
-  - 快捷短語
-- **驗收**：
-  - 所有測試通過
-  - 無明顯 bug
+  - ✅ 講稿生成（API 測試通過）
+  - ✅ Panic Button（本地功能測試通過）
+  - ✅ 快捷短語（本地功能測試通過）
+  - ⏳ 即時翻譯（需要真實語音測試）
 
 **T2.5.3** 性能優化
-- 測量各功能延遲
-- 優化瓶頸（預載入、快取）
-- **驗收**：
-  - 翻譯延遲 < 500ms
-  - 講稿生成 < 1.5s
+- 待測量各功能延遲
+- **預估性能**（基於開發測試）：
+  - 翻譯首字回應：~700ms（gpt-4.1-nano）
+  - 講稿生成首字回應：~1-2s（gpt-5-mini）
+  - Panic Button 響應：< 100ms（本地）
+
+### Phase 2.6 — 翻譯品質改良
+
+> **新增（2026-02-07）**：基於 Swarm Mode 研究成果，實施翻譯品質改良。
+> 參考：`spec/research/translation_quality_roadmap.md`
+
+**T2.6.1** ✅ **場景詞庫整合**（COMPLETED 2026-02-07）
+- ✅ 實作 `src/backend/glossary.py`（詞庫加載和查詢模組）
+- ✅ 使用 `src/backend/domain_glossaries.json`（4 場景詞庫）
+- ✅ 修改 `/api/translate/stream` 整合詞庫提示
+- ✅ 前端傳遞 `scenario` 參數到翻譯 API
+- **驗收結果**（2026-02-07）：
+  - ✅ Bank 場景：direct debit → 直接付款授權
+  - ✅ NHS 場景：surgery → 診所（非手術）
+  - ✅ 詞庫提示自動注入翻譯 prompt
+
+**T2.6.2** ✅ **翻譯驗證系統**（COMPLETED 2026-02-07）
+- ✅ 實作 `src/frontend/translation_validator.js`
+  - ✅ `NumberExtractor`：提取英文/中文數字
+  - ✅ `ConfidenceScorer`：啟發式信心評分
+  - ✅ `TranslationValidator`：綜合驗證
+- ✅ 整合到 `eca_parallel_test.html`
+- ✅ 翻譯完成後自動驗證
+- ✅ 警告 UI 顯示（黃色邊框 + 警告文字）
+- **驗收結果**（2026-02-07）：
+  - ✅ 數字錯誤（£500→£50）正確檢測
+  - ✅ 正確翻譯不觸發警告
+  - ✅ 警告訊息清晰（「請對照英文原文」）
+
+**T2.6.3** ✅ **數字保持規則**（COMPLETED 2026-02-07）
+- ✅ 更新翻譯 prompt：所有數字保持阿拉伯數字
+- ✅ 金額：£500 → £500（非五百英鎊）
+- ✅ 日期：15th March → 3月15日（非三月十五日）
+- ✅ 時間：2:30pm → 下午2:30
+- ✅ 百分比、電話、參考編號保持原樣
+- **驗收結果**（2026-02-07）：
+  - ✅ 翻譯結果數字易於核對
+  - ✅ 驗證器能準確比對
+
+**T2.6.4** ✅ **UI/UX 改良**（COMPLETED 2026-02-07）
+- ✅ 暫停/繼續/返回首頁按鈕（取代單一「結束通話」）
+- ✅ 計時器暫停/繼續功能
+- ✅ 實時英文預覽 Karaoke 效果（發光文字）
+- ✅ 實時預覽單行顯示（展開可查看全部）
+- ✅ 自動滾動至最新內容
+- ✅ 狀態正確更新（已暫停、翻譯中、已停止）
+- ✅ 第二次開始時清理舊數據
 
 ### MVP 總體驗收
 
@@ -380,31 +458,38 @@ date: 2026-02-03
 
 ---
 
-## 開發順序建議
+## 開發順序與進度
 
 ```
-Phase 2.1 (系統音訊 + 即時翻譯) ─────── 核心價值驗證
+Phase 2.1 (即時翻譯) ─────────────────── ✅ COMPLETED (2026-02-06)
         ↓
-Phase 2.2 (講稿生成) ────────────────── 差異化功能
+Phase 2.2 (通話前準備模式) ──────────── ✅ COMPLETED (2026-02-06)
         ↓
-Phase 2.3 + 2.4 (Panic Button + 快捷) ── 安全感功能
+Phase 2.3 + 2.4 (Quick Response Bar) ── ✅ COMPLETED (2026-02-06)
         ↓
-Phase 2.5 (整合測試) ────────────────── MVP 發布
+Phase 2.5 (整合測試) ────────────────── 🔄 IN PROGRESS（真實語音測試待完成）
         ↓
-Phase 3.x (Smart 建議 + 場景) ────────── v1.5 增強
+Phase 2.6 (翻譯品質改良) ────────────── ✅ COMPLETED (2026-02-07)
         ↓
-Phase 4.x (桌面應用 + 學習) ─────────── v2.0 進階
+Phase 3.x (Smart 建議 + 場景 + TTS) ── 待開發（v1.5 增強）
+        ↓
+Phase 4.x (桌面應用 + 學習) ─────────── 待開發（v2.0 進階）
 ```
+
+**MVP 完成度**: ~98%（剩餘：真實語音翻譯測試、手機版測試）
 
 ---
 
-*最後更新：2026-02-03*
-*版本：2.2*
+*最後更新：2026-02-07*
+*版本：2.5*
 
 ### 更新日誌
 
 | 版本 | 日期 | 變更 |
 |------|------|------|
+| 2.5 | 2026-02-07 | **翻譯品質改良**：新增 Phase 2.6（詞庫整合、翻譯驗證、數字規則、UI/UX 改良）；Swarm Mode 研究完成 |
+| 2.4 | 2026-02-06 | **MVP 功能完成**：標記 T2.1.2, T2.1.3, T2.2.2, T2.2.3, T2.3.1, T2.4.1, T2.5.1 為已完成；DevTools 驗收測試通過 |
+| 2.3 | 2026-02-05 | **T2.2 重新設計**：改為「通話前準備模式」；T2.3 Panic Button 整合到 Quick Response Bar；T2.4 快捷短語整合到 Quick Response Bar；TTS 移至 Phase 3 |
 | 2.2 | 2026-02-03 | 完成 Test 21 修復：gpt-4.1-nano 翻譯、SmartSegmenter 5 預設模式、動態穩定性檢測 |
 | 2.1 | 2026-02-01 | 新增 T2.1.0（智能分段 + 並行翻譯系統），更新 T2.1.2（雙軌音訊架構），更新驗收標準 |
 | 2.0 | 2026-01-29 | 初始 ECA 任務清單 |

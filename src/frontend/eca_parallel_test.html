@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ECA 並行翻譯測試 - Parallel Translation Test</title>
+    <title>英文對話助手 - English Conversation Assistant</title>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
         * {
@@ -29,7 +29,8 @@
             font-family: 'Noto Sans TC', 'Microsoft JhengHei', -apple-system, sans-serif;
             background: var(--bg-primary);
             color: var(--text-primary);
-            min-height: 100vh;
+            height: 100vh;
+            overflow: hidden;
             display: flex;
             flex-direction: column;
         }
@@ -83,6 +84,11 @@
             color: var(--accent-yellow);
         }
 
+        .status-badge.paused {
+            background: rgba(255, 170, 0, 0.15);
+            color: var(--accent-yellow);
+        }
+
         .status-dot {
             width: 8px;
             height: 8px;
@@ -90,9 +96,26 @@
             background: currentColor;
         }
 
+        /* Focus states for accessibility */
+        button:focus-visible,
+        .preset-btn:focus-visible,
+        .control-btn:focus-visible {
+            outline: 2px solid var(--accent-blue);
+            outline-offset: 2px;
+        }
+
+        /* Reduced motion support */
+        @media (prefers-reduced-motion: reduce) {
+            * {
+                animation-duration: 0.01ms !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+
         /* Main Content */
         .main-content {
             flex: 1;
+            min-height: 0;
             display: flex;
             flex-direction: column;
             padding: 20px;
@@ -100,6 +123,7 @@
             max-width: 1200px;
             margin: 0 auto;
             width: 100%;
+            overflow-y: auto;
         }
 
         /* Stats Bar */
@@ -130,13 +154,13 @@
         /* Transcript Panel */
         .transcript-panel {
             flex: 1;
+            min-height: 0;
             background: var(--bg-secondary);
             border-radius: 12px;
             border: 1px solid var(--border-color);
             overflow: hidden;
             display: flex;
             flex-direction: column;
-            min-height: 400px;
         }
 
         .transcript-header {
@@ -173,6 +197,213 @@
             gap: 12px;
         }
 
+        /* Script Generator Section */
+        .script-section {
+            background: var(--bg-secondary);
+            border-top: 1px solid var(--border-color);
+            padding: 16px;
+        }
+
+        .script-input-row {
+            display: flex;
+            gap: 12px;
+            align-items: flex-end;
+        }
+
+        .script-input-wrapper {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .script-input-label {
+            font-size: 13px;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .script-input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            font-size: 15px;
+            font-family: inherit;
+            resize: none;
+            min-height: 48px;
+        }
+
+        .script-input:focus {
+            outline: none;
+            border-color: var(--accent-blue);
+        }
+
+        .script-input::placeholder {
+            color: var(--text-secondary);
+        }
+
+        .script-generate-btn {
+            padding: 12px 24px;
+            min-height: 48px;
+            border: none;
+            border-radius: 8px;
+            background: var(--accent-blue);
+            color: #000;
+            font-size: 15px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            white-space: nowrap;
+        }
+
+        .script-generate-btn:hover:not(:disabled) {
+            background: #00b8e0;
+            transform: translateY(-1px);
+        }
+
+        .script-generate-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Teleprompter Display */
+        .teleprompter {
+            margin-top: 16px;
+            display: none;
+        }
+
+        .teleprompter.visible {
+            display: block;
+        }
+
+        .teleprompter-card {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px 24px;
+        }
+
+        .teleprompter-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .teleprompter-title {
+            font-size: 13px;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .teleprompter-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .teleprompter-action-btn {
+            padding: 6px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            background: transparent;
+            color: var(--text-secondary);
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .teleprompter-action-btn:hover {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+        }
+
+        .teleprompter-script {
+            font-size: 22px;
+            line-height: 1.6;
+            color: var(--text-primary);
+            font-weight: 500;
+            padding: 16px 0;
+        }
+
+        .teleprompter-alternatives {
+            border-top: 1px solid var(--border-color);
+            padding-top: 12px;
+            margin-top: 12px;
+        }
+
+        .alternatives-title {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+        }
+
+        .alternative-item {
+            font-size: 14px;
+            color: var(--text-secondary);
+            padding: 8px 0;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+
+        .alternative-item:hover {
+            color: var(--accent-blue);
+        }
+
+        .alternative-item::before {
+            content: "• ";
+            color: var(--accent-blue);
+        }
+
+        /* Streaming cursor */
+        .streaming-cursor {
+            display: inline-block;
+            width: 2px;
+            height: 1em;
+            background: var(--accent-blue);
+            margin-left: 2px;
+            animation: cursor-blink 1s infinite;
+        }
+
+        @keyframes cursor-blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0; }
+        }
+
+        /* Spin animation for loading */
+        .animate-spin {
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        /* Flash animation for ready indicator */
+        @keyframes flash-ready {
+            0%, 100% {
+                transform: scale(1);
+                box-shadow: none;
+            }
+            50% {
+                transform: scale(1.1);
+                box-shadow: 0 0 12px var(--accent-green);
+            }
+        }
+
         /* Control Bar */
         .control-bar {
             display: flex;
@@ -185,6 +416,7 @@
 
         .control-btn {
             padding: 14px 28px;
+            min-height: 48px;  /* 觸控目標 44px+ */
             border: none;
             border-radius: 8px;
             font-size: 15px;
@@ -193,35 +425,86 @@
             transition: all 0.2s;
             display: flex;
             align-items: center;
+            justify-content: center;
             gap: 8px;
         }
 
-        /* Realtime Preview (Web Speech) */
+        .control-btn:hover:not(:disabled) {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .control-btn:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        /* Realtime Preview (Web Speech) - Karaoke Style */
         .realtime-preview {
-            background: linear-gradient(135deg, rgba(0, 212, 255, 0.1), rgba(0, 255, 136, 0.1));
-            border: 2px solid var(--accent-blue);
-            border-radius: 12px;
-            padding: 16px;
-            margin-bottom: 16px;
+            background: linear-gradient(135deg, rgba(0, 212, 255, 0.05), rgba(0, 255, 136, 0.03));
+            border-bottom: 1px solid var(--border-color);
+            padding: 12px 16px;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            flex-shrink: 0;
         }
 
         .preview-label {
             font-size: 12px;
             color: var(--accent-blue);
-            margin-bottom: 8px;
             font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-shrink: 0;
+            cursor: pointer;
+            white-space: nowrap;
+            padding-top: 4px;
+        }
+
+        .preview-label:hover {
+            opacity: 0.8;
         }
 
         .preview-text {
-            font-size: 20px;
-            color: var(--text-primary);
-            min-height: 32px;
-            line-height: 1.5;
+            font-size: 18px;
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.7);
+            flex: 1;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            direction: rtl;
+            text-align: left;
+            line-height: 1.4;
         }
 
+        /* 內部文字保持 LTR 正常閱讀順序 */
+        .preview-text-inner {
+            direction: ltr;
+            unicode-bidi: embed;
+        }
+
+        /* 已確認的文字 - 較暗 */
+        .preview-text .final-text {
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        /* 正在說的文字 - Karaoke 高亮效果 */
         .preview-text .interim {
-            color: var(--accent-yellow);
-            border-bottom: 2px solid var(--accent-yellow);
+            color: #00ffcc;
+            text-shadow: 0 0 8px rgba(0, 255, 204, 0.6), 0 0 16px rgba(0, 255, 204, 0.3);
+            animation: karaoke-glow 1.5s ease-in-out infinite;
+        }
+
+        @keyframes karaoke-glow {
+            0%, 100% {
+                text-shadow: 0 0 8px rgba(0, 255, 204, 0.6), 0 0 16px rgba(0, 255, 204, 0.3);
+            }
+            50% {
+                text-shadow: 0 0 12px rgba(0, 255, 204, 0.8), 0 0 24px rgba(0, 255, 204, 0.5);
+            }
         }
 
         /* Toggle button for realtime preview */
@@ -230,32 +513,56 @@
             user-select: none;
             display: flex;
             align-items: center;
-            gap: 8px;
-        }
-
-        .preview-toggle:hover {
-            opacity: 0.8;
+            gap: 6px;
         }
 
         .preview-toggle .toggle-icon {
             transition: transform 0.2s;
+            font-size: 10px;
         }
 
-        .realtime-preview.collapsed .preview-toggle .toggle-icon {
+        /* 展開狀態：顯示完整多行文字 */
+        .realtime-preview.expanded .preview-toggle .toggle-icon {
+            transform: rotate(0deg);
+        }
+
+        .realtime-preview.expanded .preview-text {
+            font-size: 20px;
+            white-space: pre-wrap;
+            word-break: break-word;
+            direction: ltr;
+            text-align: left;
+            max-height: 180px;
+            overflow-y: auto;
+            line-height: 1.6;
+            padding: 8px 0;
+        }
+
+        .realtime-preview.expanded .preview-text-inner {
+            unicode-bidi: normal;
+        }
+
+        /* 收合狀態：單行顯示最後文字 */
+        .realtime-preview:not(.expanded) .preview-toggle .toggle-icon {
             transform: rotate(-90deg);
         }
 
-        .realtime-preview.collapsed .preview-text {
-            display: none;
-        }
-
         .realtime-preview.stopped {
-            border-color: var(--text-secondary);
-            background: rgba(160, 160, 160, 0.1);
+            background: var(--bg-tertiary);
         }
 
         .realtime-preview.stopped .preview-label {
             color: var(--text-secondary);
+        }
+
+        .realtime-preview.stopped .preview-text {
+            color: var(--text-secondary);
+        }
+
+        .realtime-preview.stopped .preview-text .interim {
+            color: var(--text-secondary);
+            text-shadow: none;
+            animation: none;
         }
 
         .control-btn:disabled {
@@ -278,15 +585,55 @@
             color: var(--text-primary);
         }
 
-        /* Log Panel */
+        /* Log Panel (可收合) */
+        .log-panel-wrapper {
+            margin-top: auto;
+        }
+
+        .log-toggle {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 12px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            color: var(--text-secondary);
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            width: 100%;
+        }
+
+        .log-toggle:hover {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+        }
+
+        .log-toggle .chevron {
+            margin-left: auto;
+            transition: transform 0.2s;
+        }
+
+        .log-toggle.expanded .chevron {
+            transform: rotate(180deg);
+        }
+
         .log-panel {
-            max-height: 200px;
+            max-height: 150px;
             overflow-y: auto;
             padding: 12px;
             background: var(--bg-tertiary);
-            border-radius: 8px;
+            border-radius: 0 0 8px 8px;
+            border: 1px solid var(--border-color);
+            border-top: none;
             font-family: monospace;
             font-size: 12px;
+            margin-top: -1px;
+        }
+
+        .log-panel.collapsed {
+            display: none;
         }
 
         .log-entry {
@@ -323,7 +670,8 @@
         }
 
         .preset-btn {
-            padding: 6px 12px;
+            padding: 8px 14px;
+            min-height: 36px;  /* 觸控友好 */
             border: 1px solid var(--border-color);
             border-radius: 6px;
             background: var(--bg-tertiary);
@@ -346,11 +694,694 @@
             font-weight: 500;
         }
 
-        .preset-info {
+        /* 響應式：手機上只顯示3個主要選項 */
+        @media (max-width: 480px) {
+            .preset-btn[data-preset="ultra-fast"],
+            .preset-btn[data-preset="conservative"] {
+                display: none;
+            }
+        }
+
+        /* ============================================
+         * Phase 1: Pre-Call Preparation Mode
+         * ============================================ */
+
+        .preparation-mode {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .preparation-mode.hidden {
+            display: none;
+        }
+
+        /* Call mode container (transcript + quick bar shown during call) */
+        .call-mode {
+            display: none;
+            flex-direction: column;
+            flex: 1;
+            min-height: 0;
+            gap: 20px;
+        }
+
+        .call-mode.active {
+            display: flex;
+        }
+
+        /* Scenario Cards Grid */
+        .scenario-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 12px;
+        }
+
+        .scenario-card {
+            background: var(--bg-secondary);
+            border: 2px solid var(--border-color);
+            border-radius: 12px;
+            padding: 16px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            min-height: 44px;
+        }
+
+        .scenario-card:hover {
+            border-color: var(--accent-blue);
+            background: var(--bg-tertiary);
+        }
+
+        .scenario-card:focus-visible {
+            outline: 2px solid var(--accent-blue);
+            outline-offset: 2px;
+        }
+
+        .scenario-card.selected {
+            border-color: var(--accent-blue);
+            background: rgba(0, 212, 255, 0.1);
+        }
+
+        .scenario-card-icon {
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            background: var(--bg-tertiary);
+        }
+
+        .scenario-card.selected .scenario-card-icon {
+            background: rgba(0, 212, 255, 0.2);
+        }
+
+        .scenario-card-name {
+            font-size: 15px;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .scenario-card-vocab {
             font-size: 12px;
             color: var(--text-secondary);
-            font-family: monospace;
+            line-height: 1.5;
+            word-break: break-word;
+        }
+
+        /* Section headers in preparation mode */
+        .prep-section-title {
+            font-size: 15px;
+            font-weight: 500;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 4px;
+        }
+
+        /* Saved Scripts List */
+        .saved-scripts-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .saved-script-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            transition: all 0.2s;
+        }
+
+        .saved-script-item:hover {
+            border-color: var(--accent-blue);
+        }
+
+        .saved-script-body {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .saved-script-english {
+            font-size: 14px;
+            color: var(--text-primary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .saved-script-chinese {
+            font-size: 13px;
+            color: var(--text-secondary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin-top: 2px;
+        }
+
+        .saved-script-meta {
+            font-size: 11px;
+            color: var(--text-secondary);
+            margin-top: 4px;
+            display: flex;
+            gap: 8px;
+        }
+
+        .saved-script-delete {
+            padding: 8px;
+            min-width: 36px;
+            min-height: 36px;
+            border: none;
+            border-radius: 6px;
+            background: transparent;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .saved-script-delete:hover {
+            background: rgba(255, 68, 68, 0.15);
+            color: var(--accent-red);
+        }
+
+        .saved-script-delete:focus-visible {
+            outline: 2px solid var(--accent-blue);
+            outline-offset: 2px;
+        }
+
+        .saved-scripts-empty {
+            text-align: center;
+            padding: 16px;
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        /* Save as Quick Card button (in prep teleprompter) */
+        .btn-save-card {
+            padding: 10px 20px;
+            min-height: 44px;
+            border: 1px solid var(--accent-green);
+            border-radius: 8px;
+            background: rgba(0, 255, 136, 0.1);
+            color: var(--accent-green);
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-save-card:hover {
+            background: rgba(0, 255, 136, 0.2);
+        }
+
+        .btn-save-card:focus-visible {
+            outline: 2px solid var(--accent-green);
+            outline-offset: 2px;
+        }
+
+        .btn-save-card:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Start Listening Button (in preparation mode) */
+        .btn-start-listening {
+            padding: 16px 32px;
+            min-height: 52px;
+            border: none;
+            border-radius: 12px;
+            background: var(--accent-blue);
+            color: #000;
+            font-size: 17px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            width: 100%;
+        }
+
+        .btn-start-listening:hover:not(:disabled) {
+            background: #00b8e0;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 16px rgba(0, 212, 255, 0.3);
+        }
+
+        .btn-start-listening:focus-visible {
+            outline: 2px solid var(--accent-blue);
+            outline-offset: 2px;
+        }
+
+        .btn-start-listening:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* ============================================
+         * Phase 1: Quick Response Bar (during call) - Single Row
+         * ============================================ */
+
+        .quick-response-bar {
+            flex-shrink: 0;
+            background: var(--bg-secondary);
+            border-top: 1px solid var(--border-color);
+            padding: 10px 16px;
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            align-items: center;
+            overflow-x: auto;
+        }
+
+        .quick-response-divider {
+            width: 1px;
+            height: 28px;
+            background: var(--border-color);
+            flex-shrink: 0;
+        }
+
+        /* Prepared script card (compact) */
+        .prepared-card {
+            padding: 8px 12px;
+            min-height: 40px;
+            border: 1px solid var(--accent-blue);
+            border-radius: 6px;
+            background: rgba(0, 212, 255, 0.08);
+            color: var(--text-primary);
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            max-width: 160px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+
+        .prepared-card:hover {
+            background: rgba(0, 212, 255, 0.15);
+        }
+
+        .prepared-card:focus-visible {
+            outline: 2px solid var(--accent-blue);
+            outline-offset: 2px;
+        }
+
+        .prepared-card-icon {
+            flex-shrink: 0;
+            color: var(--accent-blue);
+        }
+
+        /* Quick phrase buttons */
+        .quick-phrase-btn {
+            padding: 8px 12px;
+            min-height: 40px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .quick-phrase-btn:hover {
+            border-color: var(--accent-green);
+            background: rgba(0, 255, 136, 0.08);
+        }
+
+        .quick-phrase-btn:focus-visible {
+            outline: 2px solid var(--accent-green);
+            outline-offset: 2px;
+        }
+
+        /* Panic Button - Compact */
+        .panic-btn {
+            padding: 8px 14px;
+            min-height: 40px;
+            border: 2px solid var(--accent-red);
+            border-radius: 6px;
+            background: rgba(255, 68, 68, 0.1);
+            color: var(--accent-red);
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
             margin-left: auto;
+            flex-shrink: 0;
+        }
+
+        .panic-btn:hover {
+            background: rgba(255, 68, 68, 0.2);
+        }
+
+        .panic-btn:focus-visible {
+            outline: 2px solid var(--accent-red);
+            outline-offset: 2px;
+        }
+
+        .panic-btn:active {
+            transform: scale(0.98);
+        }
+
+        /* ============================================
+         * Phase 1: Teleprompter Overlay
+         * ============================================ */
+
+        .teleprompter-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            padding: 24px;
+        }
+
+        .teleprompter-overlay.visible {
+            display: flex;
+        }
+
+        .teleprompter-overlay-content {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 32px;
+            max-width: 600px;
+            width: 100%;
+            max-height: 80vh;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        .teleprompter-overlay-close {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            width: 36px;
+            height: 36px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background: var(--bg-tertiary);
+            color: var(--text-secondary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .teleprompter-overlay-close:hover {
+            background: var(--bg-primary);
+            color: var(--text-primary);
+        }
+
+        .teleprompter-overlay-close:focus-visible {
+            outline: 2px solid var(--accent-blue);
+            outline-offset: 2px;
+        }
+
+        .teleprompter-overlay-english {
+            font-size: 24px;
+            font-weight: 500;
+            color: var(--text-primary);
+            line-height: 1.6;
+            margin-bottom: 16px;
+        }
+
+        .teleprompter-overlay-chinese {
+            font-size: 18px;
+            color: var(--accent-blue);
+            line-height: 1.6;
+            padding-top: 16px;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .teleprompter-overlay-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Panic mode: show prepared scripts below stalling phrase */
+        .teleprompter-overlay-scripts {
+            margin-top: 20px;
+            padding-top: 16px;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .teleprompter-overlay-scripts-title {
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-bottom: 10px;
+        }
+
+        .teleprompter-overlay-script-item {
+            padding: 10px 14px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: var(--bg-tertiary);
+        }
+
+        .teleprompter-overlay-script-item:hover {
+            border-color: var(--accent-blue);
+        }
+
+        .teleprompter-overlay-script-item:focus-visible {
+            outline: 2px solid var(--accent-blue);
+            outline-offset: 2px;
+        }
+
+        .teleprompter-overlay-script-item-en {
+            font-size: 16px;
+            color: var(--text-primary);
+        }
+
+        .teleprompter-overlay-script-item-zh {
+            font-size: 14px;
+            color: var(--accent-blue);
+            margin-top: 4px;
+        }
+
+        /* Call Control Buttons (during call) */
+        .btn-call-control {
+            padding: 10px 18px;
+            min-height: 44px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-call-control:hover {
+            background: var(--bg-primary);
+            border-color: var(--accent-blue);
+        }
+
+        .btn-call-control:focus-visible {
+            outline: 2px solid var(--accent-blue);
+            outline-offset: 2px;
+        }
+
+        .btn-call-control.pause {
+            border-color: var(--accent-yellow);
+            color: var(--accent-yellow);
+        }
+
+        .btn-call-control.pause:hover {
+            background: rgba(255, 170, 0, 0.1);
+        }
+
+        .btn-call-control.resume {
+            border-color: var(--accent-green);
+            color: var(--accent-green);
+        }
+
+        .btn-call-control.resume:hover {
+            background: rgba(0, 255, 136, 0.1);
+        }
+
+        .btn-call-control.home {
+            border-color: var(--text-secondary);
+            color: var(--text-secondary);
+        }
+
+        .btn-call-control.home:hover {
+            border-color: var(--text-primary);
+            color: var(--text-primary);
+        }
+
+        /* Call header bar (during call) */
+        .call-header-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 16px;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-color);
+            flex-shrink: 0;
+        }
+
+        .call-header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .call-header-right {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .call-timer {
+            font-size: 14px;
+            color: var(--text-secondary);
+            font-variant-numeric: tabular-nums;
+        }
+
+        /* ============================================
+         * Responsive: Mobile
+         * ============================================ */
+
+        @media (max-width: 480px) {
+            .scenario-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .scenario-card {
+                padding: 12px;
+            }
+
+            .scenario-card-vocab {
+                display: none;
+            }
+
+            /* Call header compact on mobile */
+            .call-header-bar {
+                padding: 8px 12px;
+            }
+
+            .call-header-left {
+                gap: 10px;
+            }
+
+            .call-header-right {
+                gap: 6px;
+            }
+
+            .btn-call-control {
+                padding: 8px 12px;
+                min-height: 38px;
+                font-size: 12px;
+            }
+
+            .btn-call-control svg {
+                width: 12px;
+                height: 12px;
+            }
+
+            /* Realtime preview compact */
+            .realtime-preview {
+                padding: 10px 12px;
+            }
+
+            .preview-label {
+                font-size: 11px;
+            }
+
+            .preview-text {
+                font-size: 16px;
+            }
+
+            .realtime-preview.expanded .preview-text {
+                font-size: 18px;
+                max-height: 120px;
+            }
+
+            /* Quick response bar compact */
+            .quick-response-bar {
+                padding: 8px 10px;
+                gap: 6px;
+            }
+
+            .quick-phrase-btn {
+                font-size: 11px;
+                padding: 6px 8px;
+                min-height: 36px;
+            }
+
+            .panic-btn {
+                padding: 6px 10px;
+                font-size: 12px;
+                min-height: 36px;
+            }
+
+            .prepared-card {
+                max-width: 120px;
+                font-size: 11px;
+                padding: 6px 10px;
+                min-height: 36px;
+            }
+
+            .teleprompter-overlay {
+                padding: 12px;
+            }
+
+            .teleprompter-overlay-content {
+                padding: 20px;
+            }
+
+            .teleprompter-overlay-english {
+                font-size: 20px;
+            }
+
+            .teleprompter-overlay-chinese {
+                font-size: 16px;
+            }
         }
     </style>
 </head>
@@ -358,8 +1389,12 @@
     <!-- Header -->
     <header class="header">
         <div class="header-title">
-            <span>🧪</span>
-            <span>ECA 並行翻譯測試</span>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
+                <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                <line x1="12" x2="12" y1="19" y2="22"></line>
+            </svg>
+            <span>英文對話助手</span>
         </div>
         <div class="header-status">
             <div class="status-badge disconnected" id="statusBadge">
@@ -371,86 +1406,305 @@
 
     <!-- Main Content -->
     <main class="main-content">
-        <!-- Preset Selector -->
-        <div class="preset-selector">
-            <span class="preset-label">⚙️ 分段模式:</span>
-            <div class="preset-buttons" id="presetButtons">
-                <button class="preset-btn" data-preset="ultra-fast" title="暫停:400ms 穩定:80ms&#10;最快反應，可能切斷單詞">
-                    🚀 極速
-                </button>
-                <button class="preset-btn active" data-preset="fast" title="暫停:500ms 穩定:100ms&#10;快速反應（預設）">
-                    ⚡ 快速
-                </button>
-                <button class="preset-btn" data-preset="balanced" title="暫停:600ms 穩定:150ms&#10;平衡速度與穩定性">
-                    ⚖️ 平衡
-                </button>
-                <button class="preset-btn" data-preset="stable" title="暫停:750ms 穩定:200ms&#10;更穩定，較慢">
-                    🛡️ 穩定
-                </button>
-                <button class="preset-btn" data-preset="conservative" title="暫停:900ms 穩定:250ms&#10;最穩定，最慢">
-                    🔒 保守
-                </button>
-            </div>
-            <span class="preset-info" id="presetInfo">暫停:500ms 穩定:100ms</span>
-        </div>
+        <!-- ============================================
+             PREPARATION MODE (shown when NOT connected)
+             ============================================ -->
+        <div class="preparation-mode" id="preparationMode">
 
-        <!-- Stats Bar -->
-        <div class="stats-bar">
-            <div class="stat-item">
-                <span class="stat-label">段落數:</span>
-                <span class="stat-value" id="segmentCount">0</span>
-            </div>
-            <div class="stat-item">
-                <span class="stat-label">活躍中:</span>
-                <span class="stat-value" id="activeCount">0</span>
-            </div>
-            <div class="stat-item">
-                <span class="stat-label">已完成:</span>
-                <span class="stat-value" id="doneCount">0</span>
-            </div>
-            <div class="stat-item">
-                <span class="stat-label">等待隊列:</span>
-                <span class="stat-value" id="queueCount">0</span>
-            </div>
-        </div>
-
-        <!-- Transcript Panel -->
-        <div class="transcript-panel">
-            <div class="transcript-header">
-                <h3>
-                    <span>🔊</span>
-                    <span>即時翻譯（Segment-based 並行處理）</span>
-                </h3>
-            </div>
-            <div class="transcript-content" id="transcriptContent">
-                <div class="transcript-empty" id="transcriptEmpty">
-                    <div style="font-size:48px;opacity:0.5;">🎧</div>
-                    <div>準備好後點擊「開始測試」</div>
-                    <div style="font-size:13px;">測試新的 Segment-based 並行翻譯架構</div>
+            <!-- 1. Scenario Selector -->
+            <div>
+                <div class="prep-section-title">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+                        <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
+                    </svg>
+                    選擇場景
+                </div>
+                <div class="scenario-grid" id="scenarioGrid">
+                    <!-- Populated by JS -->
                 </div>
             </div>
+
+            <!-- 2. Script Generator (reused, moved into prep) -->
+            <div>
+                <div class="prep-section-title">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 20h9"></path>
+                        <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path>
+                    </svg>
+                    準備講稿
+                </div>
+                <div class="script-input-row">
+                    <div class="script-input-wrapper">
+                        <label class="script-input-label">
+                            我想說...（中文）
+                        </label>
+                        <textarea
+                            class="script-input"
+                            id="scriptInput"
+                            placeholder="輸入你想說的話，例如：我想問一下這筆費用是什麼"
+                            rows="1"
+                            onkeydown="handleScriptInputKeydown(event)"
+                        ></textarea>
+                    </div>
+                    <button class="script-generate-btn" id="btnGenerate" onclick="generateScript()">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="m5 12 7-7 7 7"></path>
+                            <path d="M12 19V5"></path>
+                        </svg>
+                        生成講稿
+                    </button>
+                </div>
+
+                <!-- Teleprompter Display (in prep mode) -->
+                <div class="teleprompter" id="teleprompter">
+                    <div class="teleprompter-card">
+                        <div class="teleprompter-header">
+                            <span class="teleprompter-title">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                                </svg>
+                                你的講稿
+                            </span>
+                            <div class="teleprompter-actions">
+                                <button class="teleprompter-action-btn" onclick="copyScript()">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect>
+                                        <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path>
+                                    </svg>
+                                    複製
+                                </button>
+                                <button class="teleprompter-action-btn" onclick="regenerateScript()">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+                                        <path d="M3 3v5h5"></path>
+                                        <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"></path>
+                                        <path d="M16 16h5v5"></path>
+                                    </svg>
+                                    重新生成
+                                </button>
+                                <button class="btn-save-card" id="btnSaveCard" onclick="saveAsQuickCard()">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                                        <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                                        <polyline points="7 3 7 8 15 8"></polyline>
+                                    </svg>
+                                    儲存為快捷卡片
+                                </button>
+                            </div>
+                        </div>
+                        <div class="teleprompter-script" id="scriptOutput">
+                            <!-- Generated script will appear here -->
+                        </div>
+                        <div class="teleprompter-alternatives" id="alternativesSection" style="display:none;">
+                            <div class="alternatives-title">其他說法：</div>
+                            <div id="alternativesList">
+                                <!-- Alternatives will appear here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. Saved Scripts List -->
+            <div>
+                <div class="prep-section-title">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                        <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                        <polyline points="7 3 7 8 15 8"></polyline>
+                    </svg>
+                    已儲存的講稿
+                </div>
+                <div class="saved-scripts-list" id="savedScriptsList">
+                    <div class="saved-scripts-empty" id="savedScriptsEmpty">尚未儲存任何講稿</div>
+                </div>
+            </div>
+
+            <!-- Preset Selector (in prep mode) -->
+            <div class="preset-selector">
+                <span class="preset-label">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle;">
+                        <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path>
+                        <circle cx="12" cy="12" r="3"></circle>
+                    </svg>
+                    翻譯速度:
+                </span>
+                <div class="preset-buttons" id="presetButtons">
+                    <button class="preset-btn" data-preset="ultra-fast" title="最快反應，可能切斷單詞">
+                        極速
+                    </button>
+                    <button class="preset-btn active" data-preset="fast" title="快速反應（推薦）">
+                        快速
+                    </button>
+                    <button class="preset-btn" data-preset="balanced" title="平衡速度與穩定性">
+                        平衡
+                    </button>
+                    <button class="preset-btn" data-preset="stable" title="更穩定，較慢">
+                        穩定
+                    </button>
+                    <button class="preset-btn" data-preset="conservative" title="最穩定，最慢">
+                        保守
+                    </button>
+                </div>
+            </div>
+
+            <!-- 4. Start Listening Button -->
+            <button class="btn-start-listening" id="btnStartListening" onclick="startListening()">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
+                    <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                    <line x1="12" x2="12" y1="19" y2="22"></line>
+                </svg>
+                開始聆聽
+            </button>
         </div>
 
-        <!-- Log Panel -->
-        <div class="log-panel" id="logPanel">
-            <div style="color:var(--text-secondary);">等待日誌...</div>
+        <!-- ============================================
+             CALL MODE (shown when connected)
+             ============================================ -->
+        <div class="call-mode" id="callMode">
+
+            <!-- Call header: stats + timer + controls -->
+            <div class="call-header-bar">
+                <div class="call-header-left">
+                    <div class="stat-item">
+                        <span class="stat-label">已翻譯:</span>
+                        <span class="stat-value" id="doneCount">0</span>
+                        <span class="stat-label">段</span>
+                    </div>
+                    <div class="call-timer" id="callTimer">00:00</div>
+                </div>
+                <div class="call-header-right">
+                    <button class="btn-call-control pause" id="btnPause" onclick="pauseListening()">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+                            <rect x="6" y="4" width="4" height="16" rx="1"></rect>
+                            <rect x="14" y="4" width="4" height="16" rx="1"></rect>
+                        </svg>
+                        暫停
+                    </button>
+                    <button class="btn-call-control resume" id="btnResume" onclick="resumeListening()" style="display:none;">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+                            <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                        </svg>
+                        繼續
+                    </button>
+                    <button class="btn-call-control home" id="btnHome" onclick="goToHome()">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                            <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                        </svg>
+                        首頁
+                    </button>
+                </div>
+            </div>
+
+            <!-- Hidden stats -->
+            <div style="display:none;">
+                <span id="segmentCount">0</span>
+                <span id="activeCount">0</span>
+                <span id="queueCount">0</span>
+            </div>
+
+            <!-- Realtime English Preview Container (single line, inserted dynamically) -->
+            <div id="realtimePreviewContainer"></div>
+
+            <!-- Transcript Panel -->
+            <div class="transcript-panel">
+                <div class="transcript-header">
+                    <h3>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                        </svg>
+                        <span>即時翻譯</span>
+                    </h3>
+                </div>
+                <div class="transcript-content" id="transcriptContent">
+                    <div class="transcript-empty" id="transcriptEmpty">
+                        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.4;">
+                            <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
+                            <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                            <line x1="12" x2="12" y1="19" y2="22"></line>
+                        </svg>
+                        <div style="font-size:16px;font-weight:500;margin-top:12px;">聆聽中...</div>
+                        <div style="font-size:14px;color:var(--text-secondary);max-width:300px;line-height:1.6;">
+                            將手機通話開啟擴音，<br>對方說的英文會即時翻譯成中文
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Hidden Log Panel for debugging (not visible in call mode) -->
+            <div class="log-panel collapsed" id="logPanel" style="display:none;">
+                <div style="color:var(--text-secondary);">等待日誌...</div>
+            </div>
         </div>
     </main>
 
-    <!-- Control Bar -->
-    <div class="control-bar">
-        <button class="control-btn btn-start" id="btnStart" onclick="startTest()">
-            <span>▶️</span>
-            <span>開始測試</span>
+    <!-- Quick Response Bar (shown DURING call) - Single Row Layout -->
+    <div class="quick-response-bar" id="quickResponseBar" style="display:none;">
+        <!-- Prepared script cards (from localStorage) -->
+        <div id="preparedCardsRow" style="display:contents;"></div>
+        <!-- Divider between cards and phrases (hidden if no cards) -->
+        <div class="quick-response-divider" id="quickResponseDivider" style="display:none;"></div>
+        <!-- Quick phrases -->
+        <button class="quick-phrase-btn" onclick="showQuickPhrase(0)" title="請再說一次">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+                <path d="M3 3v5h5"></path>
+            </svg>
+            再說一次
         </button>
-        <button class="control-btn btn-stop" id="btnStop" onclick="stopTest()" disabled>
-            <span>⏹️</span>
-            <span>停止</span>
+        <button class="quick-phrase-btn" onclick="showQuickPhrase(1)" title="請慢點說">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12 6 12 12 16 14"></polyline>
+            </svg>
+            慢點說
         </button>
-        <button class="control-btn btn-clear" onclick="clearAll()">
-            <span>🗑️</span>
-            <span>清除</span>
+        <button class="quick-phrase-btn" onclick="showQuickPhrase(2)" title="我確認一下">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+            確認一下
         </button>
+        <button class="quick-phrase-btn" onclick="showQuickPhrase(3)" title="謝謝再見">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4.5 21.5l6-6M9 10.5L4.5 15m0 0l6 6"></path>
+            </svg>
+            謝謝
+        </button>
+        <!-- Panic Button -->
+        <button class="panic-btn" id="panicBtn" onclick="triggerPanic()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                <line x1="12" y1="9" x2="12" y2="13"></line>
+                <line x1="12" y1="17" x2="12.01" y2="17"></line>
+            </svg>
+            求助
+        </button>
+    </div>
+
+    <!-- Teleprompter Overlay (for quick phrases, panic, prepared cards) -->
+    <div class="teleprompter-overlay" id="teleprompterOverlay" onclick="closeTeleprompterOverlay(event)">
+        <div class="teleprompter-overlay-content" onclick="event.stopPropagation()">
+            <button class="teleprompter-overlay-close" onclick="closeTeleprompterOverlay()" aria-label="關閉">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+            <div>
+                <div class="teleprompter-overlay-label" id="overlayLabel">English</div>
+                <div class="teleprompter-overlay-english" id="overlayEnglish"></div>
+            </div>
+            <div class="teleprompter-overlay-chinese" id="overlayChinese"></div>
+            <!-- Prepared scripts shown in panic mode -->
+            <div class="teleprompter-overlay-scripts" id="overlayScripts" style="display:none;">
+                <div class="teleprompter-overlay-scripts-title">你準備好的講稿：</div>
+                <div id="overlayScriptsList"></div>
+            </div>
+        </div>
     </div>
 
     <!-- Load modules -->
@@ -460,12 +1714,86 @@
     <script src="/static/audio_capture.js"></script>
     <script src="/static/webspeech_realtime.js"></script>
     <script src="/static/smart_segmenter.js"></script>
+    <script src="/static/translation_validator.js"></script>
 
     <script>
         // ============================================
         // ECA Parallel Translation Test
-        // Tests: segment_store.js, realtime_event_handler.js, segment_renderer.js
+        // Phase 1: Pre-Call Preparation + Quick Response Bar + Panic Button
         // ============================================
+
+        // ============================================
+        // Scenario Data (from script_generator.py)
+        // ============================================
+
+        const SCENARIOS = {
+            bank: {
+                name: '銀行',
+                icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>`,
+                vocab: ['account', 'balance', 'transaction', 'statement', 'charge', 'fee', 'transfer']
+            },
+            nhs: {
+                name: '醫療',
+                icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"></path></svg>`,
+                vocab: ['appointment', 'prescription', 'symptoms', 'referral', 'doctor', 'surgery']
+            },
+            utilities: {
+                name: '水電',
+                icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path></svg>`,
+                vocab: ['bill', 'meter reading', 'tariff', 'direct debit', 'account number']
+            },
+            insurance: {
+                name: '保險',
+                icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>`,
+                vocab: ['policy', 'claim', 'excess', 'cover', 'premium', 'renewal']
+            },
+            general: {
+                name: '一般',
+                icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>`,
+                vocab: ['enquiry', 'confirm', 'reference number', 'information', 'details']
+            }
+        };
+
+        // Quick Phrases (hardcoded, no API call)
+        const QUICK_PHRASES = [
+            { english: "Could you repeat that, please?", chinese: "請再說一次" },
+            { english: "Could you speak more slowly?", chinese: "請慢點說" },
+            { english: "Let me confirm that...", chinese: "我確認一下" },
+            { english: "Thank you. Goodbye.", chinese: "謝謝再見" }
+        ];
+
+        // Panic Button stalling phrases (rotate randomly)
+        const STALLING_PHRASES = [
+            { english: "Let me think about that for a moment...", chinese: "讓我想一下..." },
+            { english: "That's a good question. Give me a second...", chinese: "好問題，請給我一秒..." },
+            { english: "Could you hold on for just a second?", chinese: "請稍等一下好嗎？" },
+            { english: "I want to make sure I understand correctly...", chinese: "我想確認我理解正確..." },
+            { english: "Let me just check something quickly...", chinese: "讓我快速確認一下..." },
+            { english: "Hmm, let me consider that...", chinese: "嗯，讓我考慮一下..." },
+            { english: "I need a moment to think about this...", chinese: "我需要一點時間想想..." },
+            { english: "That's interesting. Let me think...", chinese: "這很有趣，讓我想想..." }
+        ];
+
+        let lastStallingIndex = -1;
+
+        // ============================================
+        // localStorage key for saved scripts
+        // ============================================
+
+        const STORAGE_KEY = 'eca_prepared_scripts';
+
+        // ============================================
+        // Selected scenario state
+        // ============================================
+
+        let selectedScenario = 'general';
+
+        // ============================================
+        // Call timer
+        // ============================================
+
+        let callTimerInterval = null;
+        let callStartTime = null;
 
         // State
         let audioCapture = null;
@@ -551,8 +1879,6 @@
             document.querySelectorAll('.preset-btn').forEach(btn => {
                 btn.classList.toggle('active', btn.dataset.preset === presetKey);
             });
-            document.getElementById('presetInfo').textContent =
-                `暫停:${preset.pauseThreshold}ms 穩定:${preset.stabilityDelay}ms`;
 
             // Apply to SmartSegmenter if it exists
             if (smartSegmenter) {
@@ -561,8 +1887,635 @@
                 smartSegmenter.softLimit = preset.softLimit;
                 smartSegmenter.hardLimit = preset.hardLimit;
                 smartSegmenter.minSegmentWords = preset.minSegmentWords;
-                log(`Preset applied: ${preset.name} (暫停:${preset.pauseThreshold}ms, 穩定:${preset.stabilityDelay}ms)`, 'success');
+                log(`Preset: ${preset.name}`, 'success');
             }
+        }
+
+        // Toggle log panel visibility
+        function toggleLogPanel() {
+            const logPanel = document.getElementById('logPanel');
+            const logToggle = document.getElementById('logToggle');
+            const isCollapsed = logPanel.classList.contains('collapsed');
+
+            logPanel.classList.toggle('collapsed');
+            logToggle.classList.toggle('expanded');
+
+            // Update button text
+            const textSpan = logToggle.querySelector('span');
+            textSpan.textContent = isCollapsed ? '隱藏日誌' : '顯示日誌';
+        }
+
+        // =============================================
+        // Phase 1: Scenario Selector
+        // =============================================
+
+        function renderScenarioGrid() {
+            const grid = document.getElementById('scenarioGrid');
+            grid.innerHTML = '';
+            for (const [key, scenario] of Object.entries(SCENARIOS)) {
+                const card = document.createElement('button');
+                card.className = 'scenario-card' + (key === selectedScenario ? ' selected' : '');
+                card.setAttribute('tabindex', '0');
+                card.setAttribute('aria-label', scenario.name);
+                card.onclick = () => selectScenario(key);
+                card.innerHTML = `
+                    <div class="scenario-card-icon">${scenario.icon}</div>
+                    <div class="scenario-card-name">${scenario.name}</div>
+                    <div class="scenario-card-vocab">${scenario.vocab.join(', ')}</div>
+                `;
+                grid.appendChild(card);
+            }
+        }
+
+        function selectScenario(key) {
+            selectedScenario = key;
+            document.querySelectorAll('.scenario-card').forEach(card => {
+                card.classList.remove('selected');
+            });
+            // Find the clicked card via scenario-card-name text matching
+            document.querySelectorAll('.scenario-card').forEach(card => {
+                const nameEl = card.querySelector('.scenario-card-name');
+                if (nameEl && nameEl.textContent === SCENARIOS[key].name) {
+                    card.classList.add('selected');
+                }
+            });
+        }
+
+        // =============================================
+        // Phase 1: Saved Scripts (localStorage)
+        // =============================================
+
+        function getSavedScripts() {
+            try {
+                const data = localStorage.getItem(STORAGE_KEY);
+                return data ? JSON.parse(data) : [];
+            } catch (e) {
+                console.error('Error reading saved scripts:', e);
+                return [];
+            }
+        }
+
+        function saveSavedScripts(scripts) {
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(scripts));
+            } catch (e) {
+                console.error('Error saving scripts:', e);
+            }
+        }
+
+        function saveAsQuickCard() {
+            if (!currentScript) return;
+
+            const scripts = getSavedScripts();
+            const newCard = {
+                id: 'prep-' + Date.now(),
+                chinese: document.getElementById('scriptInput').value.trim(),
+                english: currentScript,
+                scenario: selectedScenario,
+                createdAt: Date.now()
+            };
+            scripts.push(newCard);
+            saveSavedScripts(scripts);
+            renderSavedScripts();
+
+            // Visual feedback on button
+            const btn = document.getElementById('btnSaveCard');
+            const originalHTML = btn.innerHTML;
+            btn.innerHTML = `
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+                已儲存
+            `;
+            btn.disabled = true;
+            setTimeout(() => {
+                btn.innerHTML = originalHTML;
+                btn.disabled = false;
+            }, 1500);
+
+            log(`[講稿] 已儲存為快捷卡片: "${currentScript.substring(0, 30)}..."`, 'success');
+        }
+
+        function deleteSavedScript(id) {
+            let scripts = getSavedScripts();
+            scripts = scripts.filter(s => s.id !== id);
+            saveSavedScripts(scripts);
+            renderSavedScripts();
+        }
+
+        function renderSavedScripts() {
+            const container = document.getElementById('savedScriptsList');
+            const emptyEl = document.getElementById('savedScriptsEmpty');
+            const scripts = getSavedScripts();
+
+            // Clear existing items (but keep empty state el)
+            const existingItems = container.querySelectorAll('.saved-script-item');
+            existingItems.forEach(el => el.remove());
+
+            if (scripts.length === 0) {
+                emptyEl.style.display = 'block';
+                return;
+            }
+
+            emptyEl.style.display = 'none';
+
+            scripts.forEach(script => {
+                const item = document.createElement('div');
+                item.className = 'saved-script-item';
+                const scenarioName = SCENARIOS[script.scenario]?.name || script.scenario;
+                const date = new Date(script.createdAt).toLocaleDateString('zh-TW');
+                item.innerHTML = `
+                    <div class="saved-script-body">
+                        <div class="saved-script-english">${escapeHtml(script.english)}</div>
+                        <div class="saved-script-chinese">${escapeHtml(script.chinese)}</div>
+                        <div class="saved-script-meta">
+                            <span>${scenarioName}</span>
+                            <span>${date}</span>
+                        </div>
+                    </div>
+                    <button class="saved-script-delete" onclick="deleteSavedScript('${script.id}')" aria-label="刪除" title="刪除">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M3 6h18"></path>
+                            <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
+                            <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
+                        </svg>
+                    </button>
+                `;
+                container.appendChild(item);
+            });
+        }
+
+        // =============================================
+        // Phase 1: Mode Switching (Preparation <-> Call)
+        // =============================================
+
+        function switchToCallMode() {
+            document.getElementById('preparationMode').classList.add('hidden');
+            document.getElementById('callMode').classList.add('active');
+            document.getElementById('quickResponseBar').style.display = '';
+            renderPreparedCards();
+            startCallTimer();
+        }
+
+        function switchToPreparationMode() {
+            document.getElementById('preparationMode').classList.remove('hidden');
+            document.getElementById('callMode').classList.remove('active');
+            document.getElementById('quickResponseBar').style.display = 'none';
+            stopCallTimer();
+        }
+
+        // =============================================
+        // Phase 1: Pause / Resume / Go Home
+        // =============================================
+
+        let isPaused = false;
+
+        /**
+         * 暫停聆聽 - 停止麥克風但保留在通話頁面
+         */
+        function pauseListening() {
+            if (isPaused) return;
+            isPaused = true;
+
+            // Stop Web Speech
+            if (webSpeech) {
+                webSpeech.isRunning = false;
+                webSpeech.stop();
+                log('WebSpeech paused', 'info');
+            }
+
+            // Stop Smart Segmenter
+            if (smartSegmenter) {
+                smartSegmenter.stop();
+                log('SmartSegmenter paused', 'info');
+            }
+
+            // Mark realtime preview as stopped
+            const previewEl = document.getElementById('realtimePreview');
+            if (previewEl) {
+                previewEl.classList.add('stopped');
+                const labelEl = previewEl.querySelector('.preview-label span:last-child');
+                if (labelEl) {
+                    labelEl.textContent = '英文原文（已暫停）';
+                }
+            }
+
+            // Pause timer
+            pauseCallTimer();
+
+            // Update UI: show resume, hide pause
+            document.getElementById('btnPause').style.display = 'none';
+            document.getElementById('btnResume').style.display = '';
+
+            // Update status
+            updateStatus('paused', '已暫停');
+            log('Listening paused', 'success');
+        }
+
+        /**
+         * 繼續聆聽 - 恢復麥克風收音
+         */
+        function resumeListening() {
+            if (!isPaused) return;
+            isPaused = false;
+
+            // Restart Web Speech
+            if (webSpeech && webSpeech.isSupported()) {
+                webSpeech.start();
+                log('WebSpeech resumed', 'success');
+            }
+
+            // Restart Smart Segmenter
+            if (smartSegmenter) {
+                smartSegmenter.start();
+                log('SmartSegmenter resumed', 'success');
+            }
+
+            // Remove stopped state from preview
+            const previewEl = document.getElementById('realtimePreview');
+            if (previewEl) {
+                previewEl.classList.remove('stopped');
+                const labelEl = previewEl.querySelector('.preview-label span:last-child');
+                if (labelEl) {
+                    labelEl.textContent = '英文原文';
+                }
+            }
+
+            // Resume timer
+            resumeCallTimer();
+
+            // Update UI: show pause, hide resume
+            document.getElementById('btnPause').style.display = '';
+            document.getElementById('btnResume').style.display = 'none';
+
+            // Update status
+            updateStatus('connected', '翻譯中');
+            log('Listening resumed', 'success');
+        }
+
+        /**
+         * 返回首頁 - 帶確認對話框
+         */
+        function goToHome() {
+            const confirmed = confirm('確定要離開嗎？翻譯記錄將會清除。');
+            if (confirmed) {
+                stopTest();
+            }
+        }
+
+        // =============================================
+        // Phase 1: Call Timer
+        // =============================================
+
+        let pausedElapsedTime = 0;  // 暫停時記錄的已過時間
+
+        function startCallTimer() {
+            callStartTime = Date.now();
+            pausedElapsedTime = 0;
+            const timerEl = document.getElementById('callTimer');
+            callTimerInterval = setInterval(() => {
+                const elapsed = Math.floor((Date.now() - callStartTime) / 1000) + pausedElapsedTime;
+                const minutes = String(Math.floor(elapsed / 60)).padStart(2, '0');
+                const seconds = String(elapsed % 60).padStart(2, '0');
+                timerEl.textContent = `${minutes}:${seconds}`;
+            }, 1000);
+        }
+
+        function pauseCallTimer() {
+            if (callTimerInterval) {
+                // 記錄暫停時的已過時間
+                pausedElapsedTime += Math.floor((Date.now() - callStartTime) / 1000);
+                clearInterval(callTimerInterval);
+                callTimerInterval = null;
+            }
+        }
+
+        function resumeCallTimer() {
+            if (!callTimerInterval) {
+                // 重新開始計時，從暫停點繼續
+                callStartTime = Date.now();
+                const timerEl = document.getElementById('callTimer');
+                callTimerInterval = setInterval(() => {
+                    const elapsed = Math.floor((Date.now() - callStartTime) / 1000) + pausedElapsedTime;
+                    const minutes = String(Math.floor(elapsed / 60)).padStart(2, '0');
+                    const seconds = String(elapsed % 60).padStart(2, '0');
+                    timerEl.textContent = `${minutes}:${seconds}`;
+                }, 1000);
+            }
+        }
+
+        function stopCallTimer() {
+            if (callTimerInterval) {
+                clearInterval(callTimerInterval);
+                callTimerInterval = null;
+            }
+            pausedElapsedTime = 0;
+            const timerEl = document.getElementById('callTimer');
+            if (timerEl) timerEl.textContent = '00:00';
+        }
+
+        // =============================================
+        // Phase 1: Quick Response Bar — Prepared Cards
+        // =============================================
+
+        function renderPreparedCards() {
+            const row = document.getElementById('preparedCardsRow');
+            const divider = document.getElementById('quickResponseDivider');
+            const scripts = getSavedScripts();
+            row.innerHTML = '';
+
+            // Show max 3 cards (compact layout)
+            const toShow = scripts.slice(-3);
+
+            if (toShow.length > 0) {
+                toShow.forEach(script => {
+                    const card = document.createElement('button');
+                    card.className = 'prepared-card';
+                    card.setAttribute('tabindex', '0');
+                    const truncated = script.english.length > 20
+                        ? script.english.substring(0, 20) + '...'
+                        : script.english;
+                    card.innerHTML = `
+                        <span class="prepared-card-icon">
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path>
+                                <polyline points="14 2 14 8 20 8"></polyline>
+                            </svg>
+                        </span>
+                        ${escapeHtml(truncated)}
+                    `;
+                    card.onclick = () => showTeleprompterOverlay(script.english, script.chinese);
+                    row.appendChild(card);
+                });
+                // Show divider if we have cards
+                if (divider) divider.style.display = '';
+            } else {
+                // Hide divider if no cards
+                if (divider) divider.style.display = 'none';
+            }
+        }
+
+        // =============================================
+        // Phase 1: Quick Phrases
+        // =============================================
+
+        function showQuickPhrase(index) {
+            const phrase = QUICK_PHRASES[index];
+            if (!phrase) return;
+            showTeleprompterOverlay(phrase.english, phrase.chinese);
+        }
+
+        // =============================================
+        // Phase 1: Panic Button
+        // =============================================
+
+        function triggerPanic() {
+            // Pick a random stalling phrase (avoid repeating last one)
+            let idx;
+            do {
+                idx = Math.floor(Math.random() * STALLING_PHRASES.length);
+            } while (idx === lastStallingIndex && STALLING_PHRASES.length > 1);
+            lastStallingIndex = idx;
+
+            const phrase = STALLING_PHRASES[idx];
+            showTeleprompterOverlay(phrase.english, phrase.chinese, true);
+        }
+
+        // =============================================
+        // Phase 1: Teleprompter Overlay
+        // =============================================
+
+        function showTeleprompterOverlay(english, chinese, showScripts) {
+            const overlay = document.getElementById('teleprompterOverlay');
+            document.getElementById('overlayEnglish').textContent = english;
+            document.getElementById('overlayChinese').textContent = chinese || '';
+
+            // Show/hide Chinese section
+            const chineseEl = document.getElementById('overlayChinese');
+            chineseEl.style.display = chinese ? '' : 'none';
+
+            // Show prepared scripts in panic mode
+            const scriptsSection = document.getElementById('overlayScripts');
+            if (showScripts) {
+                const scripts = getSavedScripts();
+                const listEl = document.getElementById('overlayScriptsList');
+                listEl.innerHTML = '';
+
+                if (scripts.length > 0) {
+                    scripts.forEach(script => {
+                        const item = document.createElement('div');
+                        item.className = 'teleprompter-overlay-script-item';
+                        item.setAttribute('tabindex', '0');
+                        item.innerHTML = `
+                            <div class="teleprompter-overlay-script-item-en">${escapeHtml(script.english)}</div>
+                            <div class="teleprompter-overlay-script-item-zh">${escapeHtml(script.chinese)}</div>
+                        `;
+                        item.onclick = () => {
+                            document.getElementById('overlayEnglish').textContent = script.english;
+                            document.getElementById('overlayChinese').textContent = script.chinese;
+                            chineseEl.style.display = '';
+                            scriptsSection.style.display = 'none';
+                        };
+                        listEl.appendChild(item);
+                    });
+                    scriptsSection.style.display = '';
+                } else {
+                    scriptsSection.style.display = 'none';
+                }
+            } else {
+                scriptsSection.style.display = 'none';
+            }
+
+            overlay.classList.add('visible');
+        }
+
+        function closeTeleprompterOverlay(event) {
+            // If called from click on backdrop, check target
+            if (event && event.target !== document.getElementById('teleprompterOverlay')) return;
+            document.getElementById('teleprompterOverlay').classList.remove('visible');
+        }
+
+        // Close overlay on Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeTeleprompterOverlay();
+            }
+        });
+
+        // =============================================
+        // Phase 1: Start Listening (from preparation mode)
+        // =============================================
+
+        function startListening() {
+            // This bridges preparation → call mode via the existing startTest()
+            startTest();
+        }
+
+        // =============================================
+        // Script Generator Functions (design.md § 5)
+        // =============================================
+
+        let currentScript = '';
+        let currentAlternatives = [];
+        let isGenerating = false;
+
+        /**
+         * Handle Enter key in script input
+         */
+        function handleScriptInputKeydown(event) {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                generateScript();
+            }
+        }
+
+        /**
+         * Generate English script from Chinese input
+         * Uses streaming API for faster perceived response
+         */
+        async function generateScript() {
+            const input = document.getElementById('scriptInput').value.trim();
+            if (!input || isGenerating) return;
+
+            isGenerating = true;
+            const btn = document.getElementById('btnGenerate');
+            btn.disabled = true;
+            btn.innerHTML = `
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="animate-spin">
+                    <path d="M21 12a9 9 0 1 1-6.219-8.56"></path>
+                </svg>
+                生成中...
+            `;
+
+            // Show teleprompter
+            const teleprompter = document.getElementById('teleprompter');
+            const scriptOutput = document.getElementById('scriptOutput');
+            const alternativesSection = document.getElementById('alternativesSection');
+            const alternativesList = document.getElementById('alternativesList');
+
+            teleprompter.classList.add('visible');
+            scriptOutput.innerHTML = '<span class="streaming-cursor"></span>';
+            alternativesSection.style.display = 'none';
+
+            currentScript = '';
+            currentAlternatives = [];
+
+            try {
+                const response = await fetch('/api/script/stream', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        chinese_input: input,
+                        context: {
+                            scenario: selectedScenario,
+                            tone: 'polite'
+                        }
+                    })
+                });
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+
+                while (true) {
+                    const { value, done } = await reader.read();
+                    if (done) break;
+
+                    const chunk = decoder.decode(value);
+                    const lines = chunk.split('\n');
+
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            try {
+                                const data = JSON.parse(line.slice(6));
+
+                                if (data.type === 'script_delta') {
+                                    currentScript += data.text;
+                                    scriptOutput.innerHTML = currentScript + '<span class="streaming-cursor"></span>';
+                                } else if (data.type === 'script_done') {
+                                    currentScript = data.text;
+                                    scriptOutput.textContent = currentScript;
+                                } else if (data.type === 'alternatives') {
+                                    currentAlternatives = data.alternatives || [];
+                                    if (currentAlternatives.length > 0) {
+                                        alternativesSection.style.display = 'block';
+                                        alternativesList.innerHTML = currentAlternatives
+                                            .map(alt => `<div class="alternative-item" onclick="useAlternative('${escapeHtml(alt)}')">${alt}</div>`)
+                                            .join('');
+                                    }
+                                } else if (data.type === 'error') {
+                                    scriptOutput.innerHTML = `<span style="color:var(--accent-red);">生成失敗：${data.error}</span>`;
+                                }
+                            } catch (e) {
+                                // Ignore parse errors for incomplete JSON
+                            }
+                        }
+                    }
+                }
+
+                log(`[講稿] 生成完成: "${currentScript.substring(0, 50)}..."`, 'success');
+
+            } catch (error) {
+                console.error('Script generation error:', error);
+                scriptOutput.innerHTML = `<span style="color:var(--accent-red);">生成失敗：${error.message}</span>`;
+                log(`[講稿] 錯誤: ${error.message}`, 'error');
+            } finally {
+                isGenerating = false;
+                btn.disabled = false;
+                btn.innerHTML = `
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="m5 12 7-7 7 7"></path>
+                        <path d="M12 19V5"></path>
+                    </svg>
+                    生成講稿
+                `;
+            }
+        }
+
+        /**
+         * Copy current script to clipboard
+         */
+        async function copyScript() {
+            if (!currentScript) return;
+
+            try {
+                await navigator.clipboard.writeText(currentScript);
+                // Show brief feedback
+                const btn = event.target.closest('.teleprompter-action-btn');
+                const originalText = btn.innerHTML;
+                btn.innerHTML = `
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>
+                    已複製
+                `;
+                setTimeout(() => { btn.innerHTML = originalText; }, 1500);
+            } catch (error) {
+                console.error('Copy failed:', error);
+            }
+        }
+
+        /**
+         * Regenerate script with same input
+         */
+        function regenerateScript() {
+            generateScript();
+        }
+
+        /**
+         * Use an alternative script
+         */
+        function useAlternative(text) {
+            currentScript = text;
+            document.getElementById('scriptOutput').textContent = text;
+        }
+
+        /**
+         * Escape HTML for safe insertion
+         */
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML.replace(/'/g, "\\'");
         }
 
         // DOM Elements
@@ -570,11 +2523,9 @@
         const statusText = document.getElementById('statusText');
         const transcriptContent = document.getElementById('transcriptContent');
         const transcriptEmpty = document.getElementById('transcriptEmpty');
-        const btnStart = document.getElementById('btnStart');
-        const btnStop = document.getElementById('btnStop');
         const logPanel = document.getElementById('logPanel');
 
-        // Stats
+        // Stats (these are now in hidden div or call header)
         const segmentCountEl = document.getElementById('segmentCount');
         const activeCountEl = document.getElementById('activeCount');
         const doneCountEl = document.getElementById('doneCount');
@@ -586,12 +2537,15 @@
 
         function log(msg, level = 'info') {
             const time = new Date().toLocaleTimeString('zh-TW');
-            const entry = document.createElement('div');
-            entry.className = `log-entry ${level}`;
-            entry.textContent = `[${time}] ${msg}`;
-            logPanel.appendChild(entry);
-            logPanel.scrollTop = logPanel.scrollHeight;
             console.log(`[${level}] ${msg}`);
+            // Log panel is hidden but still exists for debugging
+            if (logPanel) {
+                const entry = document.createElement('div');
+                entry.className = `log-entry ${level}`;
+                entry.textContent = `[${time}] ${msg}`;
+                logPanel.appendChild(entry);
+                logPanel.scrollTop = logPanel.scrollHeight;
+            }
         }
 
         // ============================================
@@ -601,6 +2555,23 @@
         function updateStatus(status, text) {
             statusBadge.className = `status-badge ${status}`;
             statusText.textContent = text;
+        }
+
+        /**
+         * 閃爍提示用戶可以開始說話
+         */
+        function flashReadyIndicator() {
+            // 閃爍狀態指示器
+            statusBadge.style.animation = 'flash-ready 0.5s ease-in-out 3';
+            setTimeout(() => {
+                statusBadge.style.animation = '';
+            }, 1500);
+
+            // 更新英文原文區域提示 - 使用 Karaoke 高亮效果
+            const previewText = document.getElementById('previewText');
+            if (previewText) {
+                previewText.innerHTML = '<span class="preview-text-inner"><span class="interim">Ready! Start speaking...</span></span>';
+            }
         }
 
         function updateStats() {
@@ -649,9 +2620,13 @@
             }
 
             // Connect event handler to renderer
+            // ⚠️ 方案 A 架構：UI 渲染由 SmartSegmenter 的 translateViaBackend() 控制
+            // RealtimeEventHandler 只記錄日誌，不渲染 UI segments
+            // 這避免了「孤兒 segment」問題（OpenAI 轉錄創建的 segment 沒有翻譯）
             eventHandler.onSegmentUpdate = (segment) => {
-                renderer.queueUpdate(segment);
-                updateStats();
+                // 不渲染 OpenAI 的 segments，只記錄
+                // renderer.queueUpdate(segment);
+                // updateStats();
             };
 
             // Connect logging
@@ -723,6 +2698,14 @@
                         log(`WebSpeech error: ${error}`, 'warn');
                     };
 
+                    // 音訊開始收錄 - 這時用戶可以開始說話
+                    webSpeech.onAudioStart = () => {
+                        log('Audio capture ready - you can speak now!', 'success');
+                        updateStatus('connected', '翻譯中');
+                        // 閃爍提示用戶可以開始說話
+                        flashReadyIndicator();
+                    };
+
                     log('WebSpeech initialized for real-time English subtitles', 'success');
                 } else {
                     log('WebSpeech not supported in this browser', 'warn');
@@ -735,35 +2718,52 @@
             return true;
         }
 
-        // 更新實時英文預覽（邊說邊顯示）
+        // 更新實時英文預覽（Karaoke 風格）
         function updateRealtimePreview(fullText, interim) {
             let previewEl = document.getElementById('realtimePreview');
-            if (!previewEl) {
-                // 創建實時預覽區域
+            const container = document.getElementById('realtimePreviewContainer');
+
+            if (!previewEl && container) {
+                // 創建實時預覽區域（預設收合，單行顯示最後文字）
                 previewEl = document.createElement('div');
                 previewEl.id = 'realtimePreview';
                 previewEl.className = 'realtime-preview';
                 previewEl.innerHTML = `
                     <div class="preview-label preview-toggle" onclick="toggleRealtimePreview()">
                         <span class="toggle-icon">▼</span>
-                        <span>🎤 實時英文（Web Speech）</span>
+                        <span>英文原文</span>
                     </div>
-                    <div class="preview-text" id="previewText"></div>
+                    <div class="preview-text" id="previewText"><span class="preview-text-inner">等待語音...</span></div>
                 `;
-                transcriptContent.parentNode.insertBefore(previewEl, transcriptContent);
+                container.appendChild(previewEl);
             }
+
+            if (!previewEl) return;
 
             // 移除 stopped 狀態（如果有）
             previewEl.classList.remove('stopped');
 
             const textEl = document.getElementById('previewText');
             if (textEl) {
-                // 顯示完整文字，interim 部分加底線
+                const displayText = fullText || '等待語音...';
+
+                // Karaoke 效果：已確認文字較暗，正在說的文字高亮發光
                 if (interim) {
                     const finalPart = fullText.slice(0, fullText.length - interim.length);
-                    textEl.innerHTML = finalPart + '<span class="interim">' + interim + '</span>';
+                    textEl.innerHTML = '<span class="preview-text-inner">' +
+                        '<span class="final-text">' + escapeHtml(finalPart) + '</span>' +
+                        '<span class="interim">' + escapeHtml(interim) + '</span>' +
+                        '</span>';
                 } else {
-                    textEl.textContent = fullText || '等待語音...';
+                    // 沒有 interim 時，全部顯示為已確認
+                    textEl.innerHTML = '<span class="preview-text-inner">' +
+                        '<span class="final-text">' + escapeHtml(displayText) + '</span>' +
+                        '</span>';
+                }
+
+                // 展開狀態時，自動捲動到最新內容
+                if (previewEl.classList.contains('expanded')) {
+                    textEl.scrollTop = textEl.scrollHeight;
                 }
             }
         }
@@ -772,7 +2772,18 @@
         function toggleRealtimePreview() {
             const previewEl = document.getElementById('realtimePreview');
             if (previewEl) {
-                previewEl.classList.toggle('collapsed');
+                previewEl.classList.toggle('expanded');
+
+                // 展開時自動捲動到最新內容
+                if (previewEl.classList.contains('expanded')) {
+                    const textEl = document.getElementById('previewText');
+                    if (textEl) {
+                        // 使用 setTimeout 確保 DOM 更新後再捲動
+                        setTimeout(() => {
+                            textEl.scrollTop = textEl.scrollHeight;
+                        }, 50);
+                    }
+                }
             }
         }
 
@@ -794,9 +2805,41 @@
                 return;
             }
 
+            // ====== 問題 4 修復：清理舊數據 ======
+            // Clear previous segment data
+            if (eventHandler && eventHandler.getStore()) {
+                eventHandler.getStore().reset();
+                log('Cleared previous segment data', 'info');
+            }
+            currentRealtimeEnglish = '';
+
+            // Reset SmartSegmenter state
+            if (smartSegmenter) {
+                smartSegmenter.reset();
+            }
+
+            // Clear UI: remove old segment items
+            const oldSegmentItems = document.querySelectorAll('.segment-item');
+            oldSegmentItems.forEach(el => el.remove());
+
+            // Remove old realtime preview if exists
+            const oldPreview = document.getElementById('realtimePreview');
+            if (oldPreview) {
+                oldPreview.remove();
+            }
+
+            // Reset pause state
+            isPaused = false;
+            document.getElementById('btnPause').style.display = '';
+            document.getElementById('btnResume').style.display = 'none';
+
+            // Reset stats
+            updateStats();
+            // ====== 問題 4 修復結束 ======
+
             try {
                 updateStatus('connecting', '連線中...');
-                btnStart.disabled = true;
+                document.getElementById('btnStartListening').disabled = true;
 
                 // Step 1: Capture microphone
                 log('Requesting microphone access...');
@@ -833,14 +2876,15 @@
                     log('SmartSegmenter started (600ms threshold)', 'success');
                 }
 
-                // UI updates
-                btnStop.disabled = false;
+                // UI updates: switch to call mode
                 isConnected = true;
-                transcriptEmpty.style.display = 'none';
+                transcriptEmpty.style.display = 'flex';
+                switchToCallMode();
 
             } catch (error) {
                 log(`Start failed: ${error.message}`, 'error');
                 resetUI();
+                document.getElementById('btnStartListening').disabled = false;
             }
         }
 
@@ -872,7 +2916,8 @@
             peerConnection.oniceconnectionstatechange = () => {
                 log(`ICE state: ${peerConnection.iceConnectionState}`, 'event');
                 if (peerConnection.iceConnectionState === 'connected') {
-                    updateStatus('connected', '翻譯中');
+                    // 連線成功，但還要等 Web Speech 準備好才能開始說話
+                    updateStatus('connecting', '準備中...');
                 } else if (peerConnection.iceConnectionState === 'failed') {
                     stopTest();
                 }
@@ -1087,11 +3132,14 @@ FORMAT:
             log(`[串流] 開始翻譯: "${englishText.substring(0, 30)}..."`, 'event');
 
             try {
-                // 使用串流 API
+                // 使用串流 API（帶場景詞庫支援）
                 const response = await fetch('/api/translate/stream', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ text: englishText.trim() })
+                    body: JSON.stringify({
+                        text: englishText.trim(),
+                        scenario: selectedScenario  // 傳遞場景以啟用詞庫
+                    })
                 });
 
                 if (!response.ok) {
@@ -1131,6 +3179,20 @@ FORMAT:
                                     // 完成
                                     segment.status = 'done';
                                     segment.completedAt = Date.now();
+
+                                    // 驗證翻譯品質
+                                    if (window.TranslationValidator) {
+                                        const validator = new TranslationValidator();
+                                        segment.validation = validator.validate(
+                                            segment.englishText,
+                                            segment.chineseTranslation,
+                                            selectedScenario
+                                        );
+                                        if (segment.validation.showWarning) {
+                                            log(`[驗證] 警告: ${segment.validation.warnings.map(w => w.message).join(', ')}`, 'warning');
+                                        }
+                                    }
+
                                     renderSegment(segment);
                                     updateStats();
 
@@ -1211,10 +3273,44 @@ FORMAT:
                 'error': '錯誤'
             };
 
-            segmentEl.style.borderLeftColor = statusColors[segment.status] || 'var(--accent-blue)';
+            // 如果有驗證警告，改變邊框顏色
+            if (segment.validation && segment.validation.showWarning) {
+                segmentEl.style.borderLeftColor = 'var(--accent-yellow)';
+            } else {
+                segmentEl.style.borderLeftColor = statusColors[segment.status] || 'var(--accent-blue)';
+            }
 
             // 時間格式
             const time = new Date(segment.createdAt).toLocaleTimeString('zh-TW');
+
+            // 構建警告 HTML（如果有的話）
+            let warningHtml = '';
+            if (segment.validation && segment.validation.showWarning && segment.validation.warnings.length > 0) {
+                const warningMessages = segment.validation.warnings
+                    .filter(w => w.severity === 'high')
+                    .map(w => w.message)
+                    .slice(0, 2)  // 最多顯示 2 條警告
+                    .join('；');
+
+                if (warningMessages) {
+                    warningHtml = `
+                        <div style="
+                            display: flex;
+                            align-items: center;
+                            gap: 6px;
+                            padding: 6px 10px;
+                            background: rgba(255, 170, 0, 0.1);
+                            border-radius: 4px;
+                            font-size: 12px;
+                            color: var(--accent-yellow);
+                            margin-top: 8px;
+                        ">
+                            <span>⚠️</span>
+                            <span>${warningMessages}，請對照英文原文</span>
+                        </div>
+                    `;
+                }
+            }
 
             segmentEl.innerHTML = `
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
@@ -1223,6 +3319,7 @@ FORMAT:
                 <div style="font-size: 16px; color: var(--accent-blue); margin-bottom: 8px;">
                     ${segment.chineseTranslation || '<span style="color: var(--text-secondary);">翻譯中...</span>'}
                 </div>
+                ${warningHtml}
                 <div style="display: flex; justify-content: space-between; font-size: 12px; color: var(--text-secondary);">
                     <span>${time}</span>
                     <span style="color: ${statusColors[segment.status]}">${statusIcons[segment.status]} ${statusTexts[segment.status]}</span>
@@ -1301,8 +3398,10 @@ FORMAT:
 
             isConnected = false;
             currentRealtimeEnglish = '';  // 重置變數
+            isPaused = false;  // 重置暫停狀態
             resetUI();
             updateStatus('disconnected', '已停止');
+            switchToPreparationMode();
             log('Stopped', 'success');
         }
 
@@ -1317,14 +3416,13 @@ FORMAT:
                 // 更新標籤文字
                 const labelEl = previewEl.querySelector('.preview-label span:last-child');
                 if (labelEl) {
-                    labelEl.textContent = '🎤 英文原文（已停止）- 點擊展開/收合';
+                    labelEl.textContent = '英文原文（已停止）';
                 }
             }
         }
 
         function resetUI() {
-            btnStart.disabled = false;
-            btnStop.disabled = true;
+            document.getElementById('btnStartListening').disabled = false;
         }
 
         function clearAll() {
@@ -1343,6 +3441,10 @@ FORMAT:
             if (previewEl) {
                 previewEl.remove();
             }
+
+            // Clear segment items from transcript
+            const segmentItems = document.querySelectorAll('.segment-item');
+            segmentItems.forEach(el => el.remove());
 
             // Show empty state
             transcriptEmpty.style.display = 'flex';
@@ -1384,6 +3486,13 @@ FORMAT:
                     applyPreset(btn.dataset.preset);
                 });
             });
+
+            // Phase 1: Initialize scenario grid and saved scripts
+            renderScenarioGrid();
+            renderSavedScripts();
+
+            // Ensure we start in preparation mode
+            switchToPreparationMode();
 
             log('ECA Parallel Translation Test ready');
         });

@@ -1,0 +1,185 @@
+{
+  "_meta": {
+    "version": "1.0",
+    "description": "UK domain-specific glossaries for real-time translation",
+    "language": "Traditional Chinese (Hong Kong style)",
+    "updated": "2026-02-06"
+  },
+
+  "bank": {
+    "description": "Banking/financial services",
+    "terms": {
+      "direct debit": {"zh": "自動轉賬", "notes": "UK automatic recurring payment from bank account"},
+      "standing order": {"zh": "定期轉賬指示", "notes": "UK scheduled regular payment"},
+      "sort code": {"zh": "銀行代碼", "notes": "UK bank identifier, 6 digits (xx-xx-xx)"},
+      "account number": {"zh": "賬戶號碼", "notes": "UK account number, typically 8 digits"},
+      "BACS": {"zh": "銀行自動結算系統", "notes": "UK interbank payment system, 2-3 days"},
+      "CHAPS": {"zh": "即日轉賬系統", "notes": "UK same-day large value transfer"},
+      "Faster Payments": {"zh": "快速支付", "notes": "UK instant payment, usually within 2 hours"},
+      "overdraft": {"zh": "透支", "notes": "Borrowing from bank when balance is negative"},
+      "current account": {"zh": "活期賬戶", "notes": "UK everyday banking account"},
+      "savings account": {"zh": "儲蓄賬戶", "notes": "Account for saving money with interest"},
+      "ISA": {"zh": "個人儲蓄賬戶", "notes": "Individual Savings Account, tax-free UK savings"},
+      "PPI": {"zh": "付款保障保險", "notes": "Payment Protection Insurance"},
+      "APR": {"zh": "年利率", "notes": "Annual Percentage Rate"},
+      "interest rate": {"zh": "利率", "notes": ""},
+      "balance": {"zh": "餘額", "notes": "Current amount in account"},
+      "statement": {"zh": "月結單/賬單", "notes": "Account statement"},
+      "transaction": {"zh": "交易", "notes": ""},
+      "transfer": {"zh": "轉賬", "notes": ""},
+      "charge": {"zh": "收費", "notes": "Bank fee"},
+      "fee": {"zh": "手續費", "notes": ""},
+      "clear the balance": {"zh": "清還餘額", "notes": "Pay off the full amount owed"},
+      "set up a payment": {"zh": "設立付款", "notes": ""},
+      "card reader": {"zh": "讀卡器", "notes": "UK banks use card readers for online verification"},
+      "one-time password": {"zh": "一次性密碼", "notes": "OTP"},
+      "PIN": {"zh": "密碼/PIN碼", "notes": "Personal Identification Number"},
+      "contactless": {"zh": "感應式支付", "notes": "Tap to pay"}
+    },
+    "common_phrases": {
+      "I'd like to check my balance": "我想查詢餘額",
+      "Can you set up a direct debit?": "可以設立自動轉賬嗎？",
+      "What's my sort code?": "我的銀行代碼是什麼？",
+      "I need to dispute a transaction": "我需要查詢/爭議一筆交易",
+      "When will the payment clear?": "付款何時會到賬？"
+    }
+  },
+
+  "nhs": {
+    "description": "NHS/GP medical appointments",
+    "terms": {
+      "GP": {"zh": "家庭醫生/普通科醫生", "notes": "General Practitioner, UK primary care doctor"},
+      "A&E": {"zh": "急症室", "notes": "Accident & Emergency department"},
+      "NHS 111": {"zh": "NHS 111 非緊急醫療熱線", "notes": "Non-emergency medical helpline"},
+      "consultant": {"zh": "專科顧問醫生", "notes": "Senior specialist doctor"},
+      "registrar": {"zh": "註冊醫生", "notes": "Doctor in training, senior to junior doctor"},
+      "prescription": {"zh": "處方/藥方", "notes": "Doctor's order for medication"},
+      "repeat prescription": {"zh": "續方", "notes": "Refill of regular medication"},
+      "referral": {"zh": "轉介", "notes": "Referral to specialist"},
+      "referral letter": {"zh": "轉介信", "notes": "Letter from GP to specialist"},
+      "surgery": {"zh": "診所", "notes": "UK term for GP clinic (NOT operation)"},
+      "practice": {"zh": "診所", "notes": "GP practice = GP clinic"},
+      "appointment": {"zh": "預約", "notes": ""},
+      "sick note": {"zh": "病假紙/醫生紙", "notes": "Fit note from doctor for employer"},
+      "fit note": {"zh": "適合工作證明", "notes": "Official name for sick note"},
+      "walk-in centre": {"zh": "免預約診所", "notes": "No appointment needed clinic"},
+      "out of hours": {"zh": "非辦公時間", "notes": "Service outside normal GP hours"},
+      "triage": {"zh": "分流", "notes": "Assessment of urgency"},
+      "waiting list": {"zh": "輪候名單", "notes": ""},
+      "discharge": {"zh": "出院", "notes": "Released from hospital"},
+      "symptoms": {"zh": "症狀", "notes": ""},
+      "blood test": {"zh": "驗血", "notes": ""},
+      "X-ray": {"zh": "X光", "notes": ""},
+      "scan": {"zh": "掃描", "notes": "CT scan, MRI scan"},
+      "chemist": {"zh": "藥房", "notes": "UK term for pharmacy"},
+      "pharmacist": {"zh": "藥劑師", "notes": ""}
+    },
+    "common_phrases": {
+      "I'd like to book an appointment": "我想預約看診",
+      "I need a repeat prescription": "我需要續方",
+      "Can I speak to the duty doctor?": "可以找當值醫生嗎？",
+      "I need a sick note": "我需要病假紙",
+      "How long is the waiting list?": "輪候時間有多長？"
+    }
+  },
+
+  "utilities": {
+    "description": "Gas, electric, water services",
+    "terms": {
+      "meter reading": {"zh": "錶數", "notes": "Reading from gas/electric meter"},
+      "smart meter": {"zh": "智能電錶", "notes": "Digital meter that sends readings automatically"},
+      "tariff": {"zh": "收費計劃", "notes": "Pricing plan"},
+      "unit rate": {"zh": "單位價格", "notes": "Price per unit of energy"},
+      "standing charge": {"zh": "基本收費", "notes": "Daily fixed charge regardless of usage"},
+      "direct debit": {"zh": "自動轉賬", "notes": "Automatic payment"},
+      "estimated bill": {"zh": "估算賬單", "notes": "Bill based on estimated, not actual, usage"},
+      "actual bill": {"zh": "實際賬單", "notes": "Bill based on meter reading"},
+      "Ofgem": {"zh": "英國能源監管局", "notes": "Office of Gas and Electricity Markets"},
+      "energy cap": {"zh": "能源價格上限", "notes": "Government limit on energy prices"},
+      "price guarantee": {"zh": "價格保證", "notes": "Fixed price period"},
+      "fixed rate": {"zh": "固定價格", "notes": "Price locked for contract period"},
+      "variable rate": {"zh": "浮動價格", "notes": "Price can change"},
+      "dual fuel": {"zh": "雙燃料", "notes": "Gas and electricity from same supplier"},
+      "kilowatt hour": {"zh": "千瓦時/度", "notes": "kWh, unit of energy"},
+      "supplier": {"zh": "供應商", "notes": ""},
+      "switch supplier": {"zh": "轉換供應商", "notes": ""},
+      "top up": {"zh": "增值", "notes": "Add credit to prepayment meter"},
+      "prepayment meter": {"zh": "預付電錶", "notes": "Pay before you use"},
+      "credit meter": {"zh": "後付電錶", "notes": "Pay after you use"},
+      "final bill": {"zh": "結算賬單", "notes": "Last bill when leaving"},
+      "opening meter reading": {"zh": "初始錶數", "notes": "Meter reading when moving in"}
+    },
+    "common_phrases": {
+      "I'd like to submit a meter reading": "我想提交錶數",
+      "Can you explain my bill?": "可以解釋一下我的賬單嗎？",
+      "I want to switch to a fixed rate": "我想轉用固定價格計劃",
+      "My smart meter isn't working": "我的智能電錶壞了",
+      "I'm moving house": "我要搬家"
+    }
+  },
+
+  "insurance": {
+    "description": "Insurance claims and inquiries",
+    "terms": {
+      "excess": {"zh": "墊底費", "notes": "Amount you pay before insurance pays (UK deductible)"},
+      "no-claims bonus": {"zh": "無索償折扣", "notes": "Discount for not claiming"},
+      "no-claims discount": {"zh": "無索償折扣", "notes": "Same as no-claims bonus"},
+      "NCD": {"zh": "無索償折扣", "notes": "Abbreviation for no-claims discount"},
+      "underwriter": {"zh": "承保人", "notes": "Company that assesses risk and sets premium"},
+      "third party": {"zh": "第三者", "notes": "Basic cover, only covers others"},
+      "third party fire and theft": {"zh": "第三者火災及盜竊", "notes": "Basic + fire + theft cover"},
+      "comprehensive": {"zh": "全保", "notes": "Full coverage"},
+      "fully comp": {"zh": "全保", "notes": "Colloquial for comprehensive"},
+      "premium": {"zh": "保費", "notes": "Amount paid for insurance"},
+      "renewal": {"zh": "續保", "notes": ""},
+      "cooling-off period": {"zh": "冷靜期", "notes": "14-day cancellation period in UK"},
+      "policy": {"zh": "保單", "notes": "Insurance contract"},
+      "policy number": {"zh": "保單號碼", "notes": ""},
+      "claim": {"zh": "索償", "notes": "Request for payment after loss"},
+      "make a claim": {"zh": "提出索償", "notes": ""},
+      "claim reference": {"zh": "索償編號", "notes": ""},
+      "cover": {"zh": "保障", "notes": "What the insurance protects against"},
+      "add-on": {"zh": "附加保障", "notes": "Extra coverage option"},
+      "protected no-claims": {"zh": "保障無索償折扣", "notes": "Pay extra to keep NCD after claim"},
+      "named driver": {"zh": "記名司機", "notes": "Additional driver on car policy"},
+      "certificate of insurance": {"zh": "保險證書", "notes": "Proof of insurance"},
+      "schedule": {"zh": "保單明細表", "notes": "Details of what's covered"},
+      "lapse": {"zh": "失效", "notes": "Policy expires due to non-payment"}
+    },
+    "common_phrases": {
+      "I'd like to make a claim": "我想提出索償",
+      "What's my excess?": "我的墊底費是多少？",
+      "Will this affect my no-claims?": "這會影響我的無索償折扣嗎？",
+      "I need to add a driver": "我需要加一個司機",
+      "When does my policy renew?": "我的保單什麼時候續保？"
+    }
+  },
+
+  "general": {
+    "description": "Common phone call terms",
+    "terms": {
+      "hold": {"zh": "等候", "notes": "Please hold the line"},
+      "transfer": {"zh": "轉接", "notes": "Transfer to another department"},
+      "reference number": {"zh": "參考編號", "notes": ""},
+      "customer service": {"zh": "客戶服務", "notes": ""},
+      "complaint": {"zh": "投訴", "notes": ""},
+      "callback": {"zh": "回電", "notes": ""},
+      "voicemail": {"zh": "留言信箱", "notes": ""},
+      "extension": {"zh": "分機號碼", "notes": ""},
+      "recorded message": {"zh": "錄音信息", "notes": ""},
+      "press 1": {"zh": "按1字", "notes": "IVR instruction"},
+      "automated system": {"zh": "自動系統", "notes": ""},
+      "speak to an advisor": {"zh": "與客服人員對話", "notes": ""},
+      "put through": {"zh": "接通", "notes": "I'll put you through = I'll transfer you"},
+      "bear with me": {"zh": "請稍等", "notes": "UK phrase for 'please wait'"},
+      "sort out": {"zh": "處理/解決", "notes": "UK phrase for 'resolve'"}
+    },
+    "common_phrases": {
+      "Can I speak to someone?": "可以找人接聽嗎？",
+      "I'll hold": "我會等",
+      "Can I have a reference number?": "可以給我參考編號嗎？",
+      "I'd like to make a complaint": "我想投訴",
+      "Can you call me back?": "可以回電給我嗎？"
+    }
+  }
+}

@@ -35,11 +35,21 @@ try:
         SimulateLLMResponse,
         TranslateRequest,
         TranslateResponse,
+        ScriptRequest,
+        ScriptResponse,
     )
     from .controller import (
         generate_controller_response,
         summarize_ssot,
         CONTROLLER_MODEL,
+    )
+    from .script_generator import (
+        generate_script,
+        generate_script_stream,
+    )
+    from .glossary import (
+        get_glossary_hint,
+        get_scenario_context,
     )
 except ImportError:
     from models import (
@@ -54,11 +64,21 @@ except ImportError:
         SimulateLLMResponse,
         TranslateRequest,
         TranslateResponse,
+        ScriptRequest,
+        ScriptResponse,
     )
     from controller import (
         generate_controller_response,
         summarize_ssot,
         CONTROLLER_MODEL,
+    )
+    from script_generator import (
+        generate_script,
+        generate_script_stream,
+    )
+    from glossary import (
+        get_glossary_hint,
+        get_scenario_context,
     )
 
 # Load environment variables
@@ -342,7 +362,12 @@ RULES:
 - No greetings, no explanations, no "好的", no "我明白".
 - Use Traditional Chinese (說話 not 说话).
 - Proper nouns: 中文 (English), e.g., "愛潑斯坦 (Epstein)"
-- Numbers: Keep digits, e.g., "$75,000", "2019年"."""
+
+CRITICAL - Keep ALL numbers in Arabic numerals:
+- Currency: £500, $1,000 → keep as-is
+- Dates: 15th March → 3月15日 (NOT 三月十五日)
+- Times: 2:30pm → 下午2:30
+- Percentages, phone numbers, reference numbers → keep as-is"""
 
         async with httpx.AsyncClient() as client:
             # 使用 Chat Completions API（更快，無 reasoning 開銷）
@@ -413,17 +438,40 @@ async def translate_text_stream(request: TranslateRequest):
     優點：
     - 首字回應時間約 0.3 秒
     - 用戶可以邊看邊讀，感覺更快
+    - 支援場景詞庫提升翻譯品質
 
     使用方式：
     前端用 EventSource 或 fetch + ReadableStream 接收
+
+    Reference: spec/research/glossary_integration_design.md
     """
     if not OPENAI_API_KEY:
         async def error_gen():
             yield f"data: {{\"error\": \"OPENAI_API_KEY not configured\"}}\n\n"
         return StreamingResponse(error_gen(), media_type="text/event-stream")
 
-    system_prompt = """You are a translation machine. Translate English to Traditional Chinese (Hong Kong style, 繁體中文).
-Output ONLY the Chinese translation. No greetings, no explanations. Use Traditional Chinese (說話 not 说话)."""
+    # Build system prompt with optional glossary hints
+    base_prompt = """You are a translation machine. Translate English to Traditional Chinese (Hong Kong style, 繁體中文).
+Output ONLY the Chinese translation. No greetings, no explanations. Use Traditional Chinese (說話 not 说话).
+
+CRITICAL - Keep ALL numbers in Arabic numerals, NEVER convert to Chinese:
+- Currency: £500, $1,000, 50p → keep as-is
+- Dates: 15th March → 3月15日 (NOT 三月十五日)
+- Times: 2:30pm → 下午2:30 (NOT 下午兩點半)
+- Percentages: 5% → 5% (NOT 百分之五)
+- Phone numbers: 020 7123 4567 → keep as-is
+- Reference numbers: ABC123 → keep as-is
+- Ordinals: 1st, 2nd, 3rd → 第1, 第2, 第3 (NOT 第一, 第二)"""
+
+    # Add glossary hints if scenario provided
+    glossary_hint = get_glossary_hint(request.text, request.scenario) if request.scenario else ""
+    scenario_context = get_scenario_context(request.scenario) if request.scenario else ""
+
+    if glossary_hint or scenario_context:
+        system_prompt = f"{base_prompt}\n\n{scenario_context}\n{glossary_hint}".strip()
+        logger.info(f"Translation with glossary: scenario={request.scenario}, hints={glossary_hint[:50]}...")
+    else:
+        system_prompt = base_prompt
 
     async def generate():
         try:
@@ -466,6 +514,105 @@ Output ONLY the Chinese translation. No greetings, no explanations. Use Traditio
         except Exception as e:
             logger.error(f"Streaming translation error: {e}")
             yield f"data: {{\"error\": \"{str(e)}\"}}\n\n"
+
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+        }
+    )
+
+
+# =============================================================================
+# Script Generation Endpoint (design.md § 5)
+# =============================================================================
+
+
+@app.post("/api/script", response_model=ScriptResponse)
+async def generate_script_endpoint(request: ScriptRequest):
+    """
+    Generate English script from Chinese input.
+
+    Reference: design.md § 5.2
+
+    This endpoint uses gpt-5-mini to convert Chinese text into
+    natural English scripts that users can read aloud during phone calls.
+
+    Returns:
+        - english_script: Main script to read
+        - alternatives: 2 alternative phrasings
+        - pronunciation_tips: IPA for difficult words
+    """
+    if not OPENAI_API_KEY:
+        return ScriptResponse(
+            english_script="",
+            alternatives=[],
+            pronunciation_tips=[],
+            error="OPENAI_API_KEY not configured"
+        )
+
+    logger.info(f"Script generation request: {request.chinese_input[:50]}...")
+
+    # Extract context
+    context = request.context
+    scenario = context.scenario if context else None
+    conversation_history = [
+        {"role": turn.role, "text": turn.text}
+        for turn in (context.conversation_history if context else [])
+    ]
+    tone = context.tone if context else "polite"
+
+    result = generate_script(
+        chinese_input=request.chinese_input,
+        scenario=scenario,
+        conversation_history=conversation_history,
+        tone=tone
+    )
+
+    return ScriptResponse(
+        english_script=result.get("english_script", ""),
+        alternatives=result.get("alternatives", []),
+        pronunciation_tips=[],  # Simplified for now
+        error=result.get("error")
+    )
+
+
+@app.post("/api/script/stream")
+async def generate_script_stream_endpoint(request: ScriptRequest):
+    """
+    Streaming script generation using SSE.
+
+    Reference: design.md § 5.2
+
+    Streams the English script in real-time for faster perceived response.
+    """
+    if not OPENAI_API_KEY:
+        async def error_gen():
+            yield f"data: {{\"type\": \"error\", \"error\": \"API key not configured\"}}\n\n"
+        return StreamingResponse(
+            error_gen(),
+            media_type="text/event-stream"
+        )
+
+    # Extract context
+    context = request.context
+    scenario = context.scenario if context else None
+    conversation_history = [
+        {"role": turn.role, "text": turn.text}
+        for turn in (context.conversation_history if context else [])
+    ]
+    tone = context.tone if context else "polite"
+
+    def generate():
+        for chunk in generate_script_stream(
+            chinese_input=request.chinese_input,
+            scenario=scenario,
+            conversation_history=conversation_history,
+            tone=tone
+        ):
+            yield chunk
 
     return StreamingResponse(
         generate(),
@@ -567,8 +714,8 @@ FRONTEND_DIR = os.path.join(PROJECT_ROOT, "src", "frontend")
 
 @app.get("/")
 async def serve_index():
-    """Serve the ECA main page (default)."""
-    eca_page = os.path.join(FRONTEND_DIR, "eca_main.html")
+    """Serve the ECA main page (default) - parallel translation version."""
+    eca_page = os.path.join(FRONTEND_DIR, "eca_parallel_test.html")
     if os.path.exists(eca_page):
         return FileResponse(eca_page)
     return {"message": "English Conversation Assistant API", "docs": "/docs"}
@@ -576,20 +723,20 @@ async def serve_index():
 
 @app.get("/eca")
 async def serve_eca():
-    """Serve the ECA main page."""
-    eca_page = os.path.join(FRONTEND_DIR, "eca_main.html")
+    """Serve the ECA main page - parallel translation version."""
+    eca_page = os.path.join(FRONTEND_DIR, "eca_parallel_test.html")
     if os.path.exists(eca_page):
         return FileResponse(eca_page)
     raise HTTPException(status_code=404, detail="ECA page not found")
 
 
-@app.get("/eca-test")
-async def serve_eca_test():
-    """Serve the ECA parallel translation test page."""
-    test_page = os.path.join(FRONTEND_DIR, "eca_parallel_test.html")
-    if os.path.exists(test_page):
-        return FileResponse(test_page)
-    raise HTTPException(status_code=404, detail="ECA test page not found")
+@app.get("/eca-legacy")
+async def serve_eca_legacy():
+    """Serve the legacy ECA page (basic version)."""
+    legacy_page = os.path.join(FRONTEND_DIR, "eca_main.html")
+    if os.path.exists(legacy_page):
+        return FileResponse(legacy_page)
+    raise HTTPException(status_code=404, detail="ECA legacy page not found")
 
 
 @app.get("/setup")
