@@ -1306,6 +1306,25 @@
             border-color: var(--accent-blue);
         }
 
+        .btn-call-control.ptt {
+            border-color: var(--accent-yellow);
+            color: var(--accent-yellow);
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+        }
+
+        .btn-call-control.ptt:hover {
+            background: rgba(255, 170, 0, 0.1);
+        }
+
+        .btn-call-control.ptt:active,
+        .btn-call-control.ptt.active {
+            background: rgba(255, 170, 0, 0.3);
+            border-color: var(--accent-yellow);
+            color: #fff;
+        }
+
         /* Call header bar (during call) */
         .call-header-bar {
             display: flex;
@@ -1641,6 +1660,16 @@
                     <div class="call-timer" id="callTimer">00:00</div>
                 </div>
                 <div class="call-header-right">
+                    <button class="btn-call-control ptt" id="btnPTT"
+                            onmousedown="pttStart()" onmouseup="pttEnd()" onmouseleave="pttEnd()"
+                            ontouchstart="pttStart()" ontouchend="pttEnd()">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
+                            <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                            <line x1="12" x2="12" y1="19" y2="22"></line>
+                        </svg>
+                        我在說話
+                    </button>
                     <button class="btn-call-control pause" id="btnPause" onclick="pauseListening()">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none">
                             <rect x="6" y="4" width="4" height="16" rx="1"></rect>
@@ -2218,6 +2247,85 @@
         }
 
         // =============================================
+        // Phase 1: PTT (Push-to-Talk / 我在說話)
+        // =============================================
+
+        let isPTTActive = false;
+
+        /**
+         * PTT 開始 - 用戶按住時暫停識別
+         * 用於避免用戶自己說話時被錯誤識別
+         */
+        function pttStart() {
+            if (isPTTActive || isPaused) return;
+            isPTTActive = true;
+
+            // 暫停 Web Speech（輕量級，不影響其他組件）
+            if (webSpeech) {
+                webSpeech.stop();
+            }
+
+            // 暫停 SmartSegmenter
+            if (smartSegmenter) {
+                smartSegmenter.stop();
+            }
+
+            // 更新 UI
+            const btn = document.getElementById('btnPTT');
+            if (btn) {
+                btn.classList.add('active');
+            }
+
+            // 更新預覽標籤
+            const previewEl = document.getElementById('realtimePreview');
+            if (previewEl) {
+                previewEl.classList.add('stopped');
+                const labelEl = previewEl.querySelector('.preview-label span:last-child');
+                if (labelEl) {
+                    labelEl.textContent = '英文原文（你在說話...）';
+                }
+            }
+
+            log('PTT: 暫停識別（你在說話）', 'info');
+        }
+
+        /**
+         * PTT 結束 - 用戶放開時恢復識別
+         */
+        function pttEnd() {
+            if (!isPTTActive || isPaused) return;
+            isPTTActive = false;
+
+            // 恢復 Web Speech
+            if (webSpeech && webSpeech.isSupported() && isConnected) {
+                webSpeech.start();
+            }
+
+            // 恢復 SmartSegmenter
+            if (smartSegmenter && isConnected) {
+                smartSegmenter.start();
+            }
+
+            // 更新 UI
+            const btn = document.getElementById('btnPTT');
+            if (btn) {
+                btn.classList.remove('active');
+            }
+
+            // 恢復預覽標籤
+            const previewEl = document.getElementById('realtimePreview');
+            if (previewEl) {
+                previewEl.classList.remove('stopped');
+                const labelEl = previewEl.querySelector('.preview-label span:last-child');
+                if (labelEl) {
+                    labelEl.textContent = '英文原文';
+                }
+            }
+
+            log('PTT: 恢復識別', 'info');
+        }
+
+        // =============================================
         // Phase 1: Pause / Resume / Go Home
         // =============================================
 
@@ -2229,6 +2337,13 @@
         function pauseListening() {
             if (isPaused) return;
             isPaused = true;
+
+            // 重置 PTT 狀態
+            isPTTActive = false;
+            const pttBtn = document.getElementById('btnPTT');
+            if (pttBtn) {
+                pttBtn.classList.remove('active');
+            }
 
             // Stop Web Speech
             if (webSpeech) {
