@@ -1,8 +1,8 @@
 ---
 name: english-conversation-assistant-tasks
 description: English Conversation Assistant (ECA) 開發任務清單 — MVP 到 v2.0
-version: 2.4
-date: 2026-02-07
+version: 2.5
+date: 2026-02-08
 ---
 
 # English Conversation Assistant — Tasks v2.0
@@ -275,6 +275,24 @@ date: 2026-02-07
   - ✅ 5 個場景各有 5 個預設選項
   - ✅ 一鍵生成講稿（無需輸入）
   - ✅ 用戶可快速上手
+
+**T2.6.6** ✅ **對話記錄匯出**（COMPLETED 2026-02-08）
+- ✅ 通話頁面新增「匯出」按鈕（藍色，位於首頁按鈕旁）
+- ✅ `exportTranscript()` 函數生成 Markdown 格式
+- ✅ 匯出內容包含：
+  - 匯出日期、時間
+  - 通話時長、已翻譯段數
+  - 使用場景
+  - 每段英文原文 + 中文翻譯（含時間戳）
+- ✅ 自動下載為 `.md` 檔案（檔名含日期時間）
+- **驗收結果**（2026-02-08）：
+  - ✅ 一鍵匯出完整對話記錄
+  - ✅ Markdown 格式便於閱讀和分享
+
+**T2.6.7** ✅ **UI/UX 修正**（COMPLETED 2026-02-08）
+- ✅ 已儲存的講稿最新置頂（reverse order）
+- ✅ 修正英文原文顯示多餘反斜線問題（分離 escapeHtml 函數）
+- ✅ Quick Response Bar 按鈕改顯示中文（前 8 字）
 
 ### MVP 總體驗收
 

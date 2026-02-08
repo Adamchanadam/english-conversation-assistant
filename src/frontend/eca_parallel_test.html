@@ -1296,6 +1296,16 @@
             color: var(--text-primary);
         }
 
+        .btn-call-control.export {
+            border-color: var(--accent-blue);
+            color: var(--accent-blue);
+        }
+
+        .btn-call-control.export:hover {
+            background: rgba(0, 170, 255, 0.1);
+            border-color: var(--accent-blue);
+        }
+
         /* Call header bar (during call) */
         .call-header-bar {
             display: flex;
@@ -1650,6 +1660,14 @@
                             <polyline points="9 22 9 12 15 12 15 22"></polyline>
                         </svg>
                         首頁
+                    </button>
+                    <button class="btn-call-control export" id="btnExport" onclick="exportTranscript()">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="7 10 12 15 17 10"></polyline>
+                            <line x1="12" x2="12" y1="15" y2="3"></line>
+                        </svg>
+                        匯出
                     </button>
                 </div>
             </div>
@@ -2296,6 +2314,119 @@
             if (confirmed) {
                 stopTest();
             }
+        }
+
+        /**
+         * 匯出對話記錄為 Markdown 格式
+         */
+        function exportTranscript() {
+            // 從 DOM 收集所有 segment 數據
+            const segmentEls = document.querySelectorAll('.segment-item');
+
+            if (segmentEls.length === 0) {
+                alert('目前沒有翻譯記錄可匯出');
+                return;
+            }
+
+            // 收集數據（DOM 順序是最新在前，需要反轉）
+            const segments = [];
+            segmentEls.forEach(el => {
+                const englishEl = el.querySelector('div[style*="font-size: 18px"]');
+                const chineseEl = el.querySelector('div[style*="color: var(--accent-blue)"]');
+                const timeEl = el.querySelector('div[style*="font-size: 12px"] span:first-child');
+
+                segments.push({
+                    english: englishEl ? englishEl.textContent.trim() : '',
+                    chinese: chineseEl ? chineseEl.textContent.trim() : '',
+                    time: timeEl ? timeEl.textContent.trim() : ''
+                });
+            });
+
+            // 反轉順序（最舊的在前）
+            segments.reverse();
+
+            // 取得場景名稱
+            const scenarioName = SCENARIOS[selectedScenario]?.name || selectedScenario;
+
+            // 取得通話時間
+            const timerEl = document.getElementById('callTimer');
+            const duration = timerEl ? timerEl.textContent : '00:00';
+
+            // 取得完成段數
+            const doneCount = document.getElementById('doneCount').textContent || '0';
+
+            // 生成當前日期時間
+            const now = new Date();
+            const dateStr = now.toLocaleDateString('zh-TW', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit'
+            });
+            const timeStr = now.toLocaleTimeString('zh-TW', {
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+
+            // 生成 Markdown 內容
+            let markdown = `# 英文對話助手 - 對話記錄
+
+## 基本資訊
+
+| 項目 | 內容 |
+|------|------|
+| 匯出日期 | ${dateStr} |
+| 匯出時間 | ${timeStr} |
+| 通話時長 | ${duration} |
+| 已翻譯段數 | ${doneCount} 段 |
+| 使用場景 | ${scenarioName} |
+
+---
+
+## 對話內容
+
+`;
+
+            // 添加每個段落
+            segments.forEach((seg, index) => {
+                markdown += `### 段落 ${index + 1}`;
+                if (seg.time) {
+                    markdown += ` (${seg.time})`;
+                }
+                markdown += `
+
+**英文原文：**
+> ${seg.english || '(無內容)'}
+
+**中文翻譯：**
+> ${seg.chinese || '(翻譯中...)'}
+
+---
+
+`;
+            });
+
+            // 添加頁尾
+            markdown += `
+---
+
+*由 English Conversation Assistant (ECA) 生成*
+`;
+
+            // 生成檔案名稱
+            const filename = `對話記錄_${dateStr.replace(/\//g, '-')}_${timeStr.replace(/:/g, '')}.md`;
+
+            // 創建下載
+            const blob = new Blob([markdown], { type: 'text/markdown;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            log(`已匯出對話記錄：${filename}`, 'success');
         }
 
         // =============================================

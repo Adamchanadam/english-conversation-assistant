@@ -2,8 +2,8 @@
 name: english-conversation-assistant-design
 description: 英文對話助手（ECA）技術設計 — 即時翻譯 + 通話前準備 + Quick Response Bar + Smart 建議 + 場景預設講稿
 status: approved
-version: 2.8
-date: 2026-02-07
+version: 2.9
+date: 2026-02-08
 ---
 
 # English Conversation Assistant — Design v2.0
@@ -112,9 +112,10 @@ date: 2026-02-07
 | **P0** | 講稿生成（中→英） | ✅ | ✅ | ✅ |
 | **P0** | Panic Button | ✅ | ✅ | ✅ |
 | **P1** | 快捷短語 | ✅ | ✅ | ✅ |
+| **P1** | 對話記錄匯出 | ✅ | ✅ | ✅ |
 | **P1** | Smart 回應建議 | - | ✅ | ✅ |
-| **P2** | 場景預設 | - | ✅ | ✅ |
-| **P2** | 對話記錄 | - | ✅ | ✅ |
+| **P2** | 場景預設 | ✅ | ✅ | ✅ |
+| **P2** | 對話歷史瀏覽 | - | ✅ | ✅ |
 | **P2** | 信心指示 | - | - | ✅ |
 | **P3** | Whisper Mode | - | - | ✅ |
 
