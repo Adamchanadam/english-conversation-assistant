@@ -75,6 +75,8 @@ except ImportError:
     from script_generator import (
         generate_script,
         generate_script_stream,
+        get_scenario_options,
+        DEFAULT_PROMPTS,
     )
     from glossary import (
         get_glossary_hint,
@@ -622,6 +624,46 @@ async def generate_script_stream_endpoint(request: ScriptRequest):
             "Connection": "keep-alive",
         }
     )
+
+
+@app.get("/api/script/scenarios")
+async def get_script_scenarios():
+    """
+    Get default prompt options for all scenarios.
+
+    Returns scenario-specific default prompts that users can quickly select
+    instead of typing their own input.
+    """
+    return {
+        "scenarios": {
+            key: {
+                "primary": data["primary"],
+                "options": data["options"]
+            }
+            for key, data in DEFAULT_PROMPTS.items()
+        }
+    }
+
+
+@app.get("/api/script/scenarios/{scenario}")
+async def get_scenario_prompts(scenario: str):
+    """
+    Get default prompt options for a specific scenario.
+
+    Args:
+        scenario: Scenario key (bank, nhs, utilities, insurance, general)
+
+    Returns default prompts that users can quickly select.
+    """
+    if scenario not in DEFAULT_PROMPTS:
+        return {"error": f"Unknown scenario: {scenario}", "options": []}
+
+    data = DEFAULT_PROMPTS[scenario]
+    return {
+        "scenario": scenario,
+        "primary": data["primary"],
+        "options": data["options"]
+    }
 
 
 # =============================================================================

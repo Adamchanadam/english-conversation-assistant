@@ -284,11 +284,11 @@ class ScriptRequest(BaseModel):
     Reference: design.md § 5.2
 
     Generates English script from Chinese input for user to read aloud.
+    If chinese_input is empty, a scenario-appropriate default will be used.
     """
     chinese_input: str = Field(
-        ...,
-        description="Chinese text describing what user wants to say",
-        min_length=1,
+        default="",
+        description="Chinese text describing what user wants to say. If empty, uses scenario default.",
         max_length=500
     )
     context: Optional[ScriptContext] = Field(

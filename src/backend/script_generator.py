@@ -50,6 +50,71 @@ SCENARIO_GUIDANCE = {
     }
 }
 
+# Default prompts for each scenario (used when user input is empty)
+# Each scenario has multiple common use cases
+DEFAULT_PROMPTS = {
+    "bank": {
+        "primary": "我想查詢帳戶餘額和最近的交易記錄",
+        "options": [
+            {"label": "查詢餘額", "prompt": "我想查詢帳戶餘額和最近的交易記錄"},
+            {"label": "不明收費", "prompt": "我想詢問帳戶上一筆不明的收費是什麼"},
+            {"label": "更新資料", "prompt": "我想更新我的地址和電話號碼"},
+            {"label": "開戶咨詢", "prompt": "我想了解開立新帳戶需要什麼文件"},
+            {"label": "轉帳問題", "prompt": "我想查詢一筆轉帳為什麼還沒到帳"}
+        ]
+    },
+    "nhs": {
+        "primary": "我想預約看 GP 的時間",
+        "options": [
+            {"label": "預約 GP", "prompt": "我想預約看 GP 的時間"},
+            {"label": "領處方簽", "prompt": "我想詢問我的處方簽是否可以領取"},
+            {"label": "轉診進度", "prompt": "我想查詢專科轉診的進度"},
+            {"label": "檢驗結果", "prompt": "我想詢問上次檢驗的結果出來了嗎"},
+            {"label": "取消預約", "prompt": "我想取消或更改我的預約時間"}
+        ]
+    },
+    "utilities": {
+        "primary": "我想查詢最新的帳單金額",
+        "options": [
+            {"label": "查帳單", "prompt": "我想查詢最新的帳單金額"},
+            {"label": "更新付款", "prompt": "我想更新 Direct Debit 的銀行資料"},
+            {"label": "報讀數", "prompt": "我想報告電錶/瓦斯表的讀數"},
+            {"label": "換方案", "prompt": "我想了解有沒有更優惠的方案"},
+            {"label": "搬家通知", "prompt": "我下個月要搬家，想通知更新地址"}
+        ]
+    },
+    "insurance": {
+        "primary": "我想了解我的保單涵蓋範圍",
+        "options": [
+            {"label": "保障範圍", "prompt": "我想了解我的保單涵蓋範圍"},
+            {"label": "提出理賠", "prompt": "我想提出一個理賠申請"},
+            {"label": "續約保費", "prompt": "我想詢問保費續約的金額"},
+            {"label": "更改資料", "prompt": "我想更改保單上的個人資料"},
+            {"label": "取消保單", "prompt": "我想了解取消保單的流程"}
+        ]
+    },
+    "general": {
+        "primary": "您好，我想詢問一些事情",
+        "options": [
+            {"label": "一般詢問", "prompt": "您好，我想詢問一些事情"},
+            {"label": "確認狀態", "prompt": "我想確認我的預約/訂單狀態"},
+            {"label": "客服轉接", "prompt": "請問可以幫我轉接客服部門嗎"},
+            {"label": "投訴反映", "prompt": "我想反映一個問題"},
+            {"label": "感謝結束", "prompt": "好的，謝謝你的幫忙，再見"}
+        ]
+    }
+}
+
+
+def get_default_prompt(scenario: str) -> str:
+    """Get the primary default prompt for a scenario."""
+    return DEFAULT_PROMPTS.get(scenario, DEFAULT_PROMPTS["general"])["primary"]
+
+
+def get_scenario_options(scenario: str) -> list:
+    """Get all default prompt options for a scenario."""
+    return DEFAULT_PROMPTS.get(scenario, DEFAULT_PROMPTS["general"])["options"]
+
 TONE_INSTRUCTIONS = {
     "polite": "Use polite expressions like 'Could you please...', 'I'd like to...', 'Would it be possible...'",
     "formal": "Use formal language suitable for official communications",
@@ -206,7 +271,7 @@ def generate_script_stream(
     Yields SSE-formatted events for real-time display.
 
     Args:
-        chinese_input: What the user wants to say in Chinese
+        chinese_input: What the user wants to say in Chinese (if empty, uses scenario default)
         scenario: Optional scenario type
         conversation_history: Optional conversation context
         tone: Desired tone
@@ -216,8 +281,15 @@ def generate_script_stream(
     """
     client = OpenAI()
 
+    # Use default prompt if input is empty
+    actual_input = chinese_input.strip() if chinese_input else ""
+    if not actual_input:
+        actual_input = get_default_prompt(scenario or "general")
+        # Notify frontend that we're using a default prompt
+        yield f"data: {json.dumps({'type': 'using_default', 'prompt': actual_input})}\n\n"
+
     prompt = build_script_prompt(
-        chinese_input=chinese_input,
+        chinese_input=actual_input,
         scenario=scenario,
         conversation_history=conversation_history,
         tone=tone
@@ -234,7 +306,7 @@ def generate_script_stream(
                 },
                 {
                     "role": "user",
-                    "content": f"Convert this to natural spoken English ({tone} tone):\n\n{chinese_input}"
+                    "content": f"Convert this to natural spoken English ({tone} tone):\n\n{actual_input}"
                 }
             ],
             max_completion_tokens=200,

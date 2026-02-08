@@ -1,8 +1,8 @@
 ---
 name: english-conversation-assistant-tasks
 description: English Conversation Assistant (ECA) 開發任務清單 — MVP 到 v2.0
-version: 2.3
-date: 2026-02-05
+version: 2.4
+date: 2026-02-07
 ---
 
 # English Conversation Assistant — Tasks v2.0
@@ -261,6 +261,20 @@ date: 2026-02-05
 - ✅ 自動滾動至最新內容
 - ✅ 狀態正確更新（已暫停、翻譯中、已停止）
 - ✅ 第二次開始時清理舊數據
+
+**T2.6.5** ✅ **場景預設講稿**（COMPLETED 2026-02-07）
+- ✅ 後端 `script_generator.py` 新增 `DEFAULT_PROMPTS` 字典
+  - 每個場景 5 個常用目的（查詢餘額、預約 GP、查帳單等）
+- ✅ 新增 API `GET /api/script/scenarios` 和 `GET /api/script/scenarios/{scenario}`
+- ✅ 前端「快速選擇常用目的」按鈕區
+  - 選擇場景後自動顯示該場景的預設選項
+  - 點擊按鈕 → 填入輸入框並自動生成講稿
+- ✅ 空輸入時直接點「生成講稿」→ 使用場景預設
+- ✅ Placeholder 根據場景動態更新
+- **驗收結果**（2026-02-07）：
+  - ✅ 5 個場景各有 5 個預設選項
+  - ✅ 一鍵生成講稿（無需輸入）
+  - ✅ 用戶可快速上手
 
 ### MVP 總體驗收
 
