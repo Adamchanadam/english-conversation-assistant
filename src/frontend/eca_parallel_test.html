@@ -89,6 +89,11 @@
             color: var(--accent-yellow);
         }
 
+        .status-badge.ptt {
+            background: rgba(0, 212, 255, 0.15);
+            color: var(--accent-blue);
+        }
+
         .status-dot {
             width: 8px;
             height: 8px;
@@ -1325,6 +1330,54 @@
             color: #fff;
         }
 
+        /* PTT 大面積覆蓋層 */
+        #pttOverlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.85);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.15s ease, visibility 0.15s ease;
+        }
+
+        #pttOverlay.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .ptt-overlay-content {
+            text-align: center;
+            color: var(--accent-yellow);
+        }
+
+        .ptt-overlay-content svg {
+            margin-bottom: 20px;
+            animation: ptt-pulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes ptt-pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.6; transform: scale(0.95); }
+        }
+
+        .ptt-overlay-title {
+            font-size: 28px;
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+
+        .ptt-overlay-hint {
+            font-size: 16px;
+            color: var(--text-secondary);
+        }
+
         /* Call header bar (during call) */
         .call-header-bar {
             display: flex;
@@ -1661,8 +1714,7 @@
                 </div>
                 <div class="call-header-right">
                     <button class="btn-call-control ptt" id="btnPTT"
-                            onmousedown="pttStart()" onmouseup="pttEnd()" onmouseleave="pttEnd()"
-                            ontouchstart="pttStart()" ontouchend="pttEnd()">
+                            onclick="pttToggle()">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
                             <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
@@ -2253,16 +2305,21 @@
         let isPTTActive = false;
 
         /**
-         * PTT 開始 - 用戶按住時暫停識別
-         * 用於避免用戶自己說話時被錯誤識別
+         * PTT 開始 - 用戶按住時靜音識別
+         * 🔧 核心機制：
+         * 1. 強制輸出 buffer 中的所有內容（不管字數，避免丟失）
+         * 2. 調用 webSpeech.mute() 停止累積新文字
          */
         function pttStart() {
-            if (isPTTActive || isPaused) return;
+            if (isPTTActive || isPaused || !isConnected) return;
             isPTTActive = true;
 
-            // 暫停 Web Speech（輕量級，不影響其他組件）
-            if (webSpeech) {
-                webSpeech.stop();
+            // 🔧 先強制輸出 SmartSegmenter buffer 中的所有內容
+            // 這確保 PTT 開始前收錄的對方說話內容不會丟失
+            if (smartSegmenter && smartSegmenter.buffer && smartSegmenter.buffer.trim()) {
+                // 強制輸出，不管字數（原本 stop() 只輸出 >= 3 字）
+                smartSegmenter._emitSegment('ptt_start');
+                console.log('[PTT] Force emitted buffer before muting');
             }
 
             // 暫停 SmartSegmenter
@@ -2270,11 +2327,20 @@
                 smartSegmenter.stop();
             }
 
-            // 更新 UI
+            // 🔧 關鍵：開啟 Web Speech 靜音模式
+            // 這會讓 _handleResult 完全跳過處理，不累積任何語音識別結果
+            if (webSpeech) {
+                webSpeech.mute();
+            }
+
+            // 更新按鈕 UI
             const btn = document.getElementById('btnPTT');
             if (btn) {
                 btn.classList.add('active');
             }
+
+            // 顯示大面積 PTT 覆蓋層
+            showPTTOverlay();
 
             // 更新預覽標籤
             const previewEl = document.getElementById('realtimePreview');
@@ -2282,35 +2348,54 @@
                 previewEl.classList.add('stopped');
                 const labelEl = previewEl.querySelector('.preview-label span:last-child');
                 if (labelEl) {
-                    labelEl.textContent = '英文原文（你在說話...）';
+                    labelEl.textContent = '英文原文（已暫停）';
                 }
             }
 
-            log('PTT: 暫停識別（你在說話）', 'info');
+            // 更新狀態指示器
+            updateStatus('ptt', '我在說話');
+
+            log('PTT: 靜音模式（你在說話）', 'info');
         }
 
         /**
          * PTT 結束 - 用戶放開時恢復識別
+         * 🔧 核心機制：
+         * 1. unmute() 恢復識別（不清空已收錄的文字）
+         * 2. 設置 processedLength 跳過 PTT 期間的內容
+         * 3. 已收錄但未翻譯的內容會繼續在背景處理
          */
         function pttEnd() {
             if (!isPTTActive || isPaused) return;
             isPTTActive = false;
 
-            // 恢復 Web Speech
-            if (webSpeech && webSpeech.isSupported() && isConnected) {
-                webSpeech.start();
+            // 🔧 關鍵：關閉靜音（不清空文字）
+            // unmute() 返回當前 fullText 長度
+            let pttEndLength = 0;
+            if (webSpeech) {
+                pttEndLength = webSpeech.unmute();
             }
 
             // 恢復 SmartSegmenter
             if (smartSegmenter && isConnected) {
                 smartSegmenter.start();
+
+                // 🔧 設置 processedLength 跳過 PTT 期間可能累積的內容
+                // 注意：因為 mute 期間 _handleResult 不會累積文字，
+                // 所以 pttEndLength 應該等於 PTT 開始時的長度
+                // 但為安全起見，我們用 PTT 結束時的長度
+                smartSegmenter.processedLength = pttEndLength;
+                console.log(`[PTT] Set processedLength to ${pttEndLength} to skip PTT period`);
             }
 
-            // 更新 UI
+            // 更新按鈕 UI
             const btn = document.getElementById('btnPTT');
             if (btn) {
                 btn.classList.remove('active');
             }
+
+            // 隱藏 PTT 覆蓋層
+            hidePTTOverlay();
 
             // 恢復預覽標籤
             const previewEl = document.getElementById('realtimePreview');
@@ -2322,8 +2407,68 @@
                 }
             }
 
+            // 恢復狀態指示器
+            updateStatus('connected', '翻譯中');
+
             log('PTT: 恢復識別', 'info');
         }
+
+        /**
+         * PTT 切換（用於 Spacebar）
+         */
+        function pttToggle() {
+            if (isPTTActive) {
+                pttEnd();
+            } else {
+                pttStart();
+            }
+        }
+
+        /**
+         * 顯示 PTT 大面積覆蓋提示
+         */
+        function showPTTOverlay() {
+            let overlay = document.getElementById('pttOverlay');
+            if (!overlay) {
+                overlay = document.createElement('div');
+                overlay.id = 'pttOverlay';
+                overlay.innerHTML = `
+                    <div class="ptt-overlay-content">
+                        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
+                            <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                            <line x1="12" x2="12" y1="19" y2="22"></line>
+                        </svg>
+                        <div class="ptt-overlay-title">語音轉錄已暫停</div>
+                        <div class="ptt-overlay-hint">再按空白鍵或按鈕繼續</div>
+                    </div>
+                `;
+                document.body.appendChild(overlay);
+            }
+            overlay.classList.add('visible');
+        }
+
+        /**
+         * 隱藏 PTT 覆蓋提示
+         */
+        function hidePTTOverlay() {
+            const overlay = document.getElementById('pttOverlay');
+            if (overlay) {
+                overlay.classList.remove('visible');
+            }
+        }
+
+        // Spacebar 控制 PTT（Toggle 模式：按一下開、再按一下關）
+        document.addEventListener('keydown', function(e) {
+            // 只在通話模式下生效，且不是在輸入框中
+            if (!isConnected || isPaused) return;
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+            if (e.code === 'Space' && !e.repeat) {
+                e.preventDefault();
+                pttToggle();  // 改為 toggle 模式
+            }
+        });
 
         // =============================================
         // Phase 1: Pause / Resume / Go Home
@@ -3079,6 +3224,12 @@
                 if (webSpeech.isSupported()) {
                     // 實時英文回調 - 邊說邊顯示 + 智能分段
                     webSpeech.onInterimResult = (fullText, interim) => {
+                        // 🔧 PTT 靜音模式：忽略結果但不停止識別
+                        // 這樣可以避免 stop/start 的 200-500ms 啟動延遲
+                        if (isPTTActive) {
+                            return; // 靜音：不處理，但 Web Speech 繼續運行
+                        }
+
                         currentRealtimeEnglish = fullText;
                         updateRealtimePreview(fullText, interim);
 

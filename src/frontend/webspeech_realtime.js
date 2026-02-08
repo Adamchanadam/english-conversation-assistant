@@ -28,6 +28,7 @@ class WebSpeechRealtime {
         // 內部狀態
         this.finalTranscript = '';
         this.interimTranscript = '';
+        this.isMuted = false;  // PTT 靜音模式
 
         this._init();
     }
@@ -124,8 +125,14 @@ class WebSpeechRealtime {
 
     /**
      * 處理識別結果
+     * 🔧 PTT 靜音模式：isMuted = true 時完全跳過處理，不累積文字
      */
     _handleResult(event) {
+        // PTT 靜音模式：完全跳過處理，不累積任何文字
+        if (this.isMuted) {
+            return;
+        }
+
         let interim = '';
         let finalAdded = '';
 
@@ -157,6 +164,27 @@ class WebSpeechRealtime {
         if (finalAdded && this.onFinalResult) {
             this.onFinalResult(finalAdded.trim());
         }
+    }
+
+    /**
+     * 開啟靜音模式（PTT 用）
+     * 靜音期間不累積任何語音識別結果
+     */
+    mute() {
+        this.isMuted = true;
+        console.log('[WebSpeech] Muted - ignoring all results');
+    }
+
+    /**
+     * 關閉靜音模式（PTT 結束用）
+     * 🔧 不清空已收錄的文字，讓背景翻譯繼續處理
+     * 返回當前 fullText 長度，供調用者設置 processedLength 跳過 PTT 期間的內容
+     */
+    unmute() {
+        this.isMuted = false;
+        const currentLength = (this.finalTranscript + this.interimTranscript).trim().length;
+        console.log(`[WebSpeech] Unmuted - keeping existing transcripts, length: ${currentLength}`);
+        return currentLength;
     }
 
     /**
