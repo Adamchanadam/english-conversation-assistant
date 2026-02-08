@@ -2058,7 +2058,7 @@
             }
 
             grid.innerHTML = scenario.defaultPrompts.map(item => `
-                <button class="quick-prompt-btn" onclick="useQuickPrompt('${escapeHtml(item.prompt)}')">
+                <button class="quick-prompt-btn" onclick="useQuickPrompt('${escapeHtmlForAttr(item.prompt)}')">
                     ${item.label}
                 </button>
             `).join('');
@@ -2153,7 +2153,8 @@
 
             emptyEl.style.display = 'none';
 
-            scripts.forEach(script => {
+            // 最新置頂：反轉順序顯示
+            scripts.slice().reverse().forEach(script => {
                 const item = document.createElement('div');
                 item.className = 'saved-script-item';
                 const scenarioName = SCENARIOS[script.scenario]?.name || script.scenario;
@@ -2358,17 +2359,19 @@
             const scripts = getSavedScripts();
             row.innerHTML = '';
 
-            // Show max 3 cards (compact layout)
-            const toShow = scripts.slice(-3);
+            // Show max 3 cards (compact layout), 最新的優先顯示
+            const toShow = scripts.slice(-3).reverse();
 
             if (toShow.length > 0) {
                 toShow.forEach(script => {
                     const card = document.createElement('button');
                     card.className = 'prepared-card';
                     card.setAttribute('tabindex', '0');
-                    const truncated = script.english.length > 20
-                        ? script.english.substring(0, 20) + '...'
-                        : script.english;
+                    // 顯示中文前幾個字，方便用戶辨識
+                    const displayText = script.chinese || script.english;
+                    const truncated = displayText.length > 8
+                        ? displayText.substring(0, 8) + '...'
+                        : displayText;
                     card.innerHTML = `
                         <span class="prepared-card-icon">
                             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -2583,7 +2586,7 @@
                                     if (currentAlternatives.length > 0) {
                                         alternativesSection.style.display = 'block';
                                         alternativesList.innerHTML = currentAlternatives
-                                            .map(alt => `<div class="alternative-item" onclick="useAlternative('${escapeHtml(alt)}')">${alt}</div>`)
+                                            .map(alt => `<div class="alternative-item" onclick="useAlternative('${escapeHtmlForAttr(alt)}')">${alt}</div>`)
                                             .join('');
                                     }
                                 } else if (data.type === 'error') {
@@ -2656,7 +2659,19 @@
         /**
          * Escape HTML for safe insertion
          */
+        /**
+         * Escape HTML for safe display (不處理單引號)
+         */
         function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        /**
+         * Escape HTML for use in onclick attributes (處理單引號)
+         */
+        function escapeHtmlForAttr(text) {
             const div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML.replace(/'/g, "\\'");
