@@ -297,6 +297,8 @@ def generate_script_stream(
 
     try:
         # First, generate the main script with streaming
+        # Note: gpt-5-mini is a reasoning model, max_completion_tokens includes
+        # both reasoning tokens + output tokens, so we need a higher budget
         stream = client.chat.completions.create(
             model=SCRIPT_MODEL,
             messages=[
@@ -309,7 +311,7 @@ def generate_script_stream(
                     "content": f"Convert this to natural spoken English ({tone} tone):\n\n{actual_input}"
                 }
             ],
-            max_completion_tokens=200,
+            max_completion_tokens=1000,
             reasoning_effort="low",
             stream=True
         )
@@ -325,6 +327,7 @@ def generate_script_stream(
         yield f"data: {json.dumps({'type': 'script_done', 'text': full_script})}\n\n"
 
         # Now generate alternatives (non-streaming for simplicity)
+        # Note: gpt-5-mini reasoning model needs higher token budget
         alt_response = client.chat.completions.create(
             model=SCRIPT_MODEL,
             messages=[
@@ -337,7 +340,7 @@ def generate_script_stream(
                     "content": f"Original: {full_script}\n\nGenerate 2 alternatives:"
                 }
             ],
-            max_completion_tokens=200,
+            max_completion_tokens=500,
             reasoning_effort="low",
             response_format={"type": "json_object"}
         )
