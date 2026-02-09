@@ -1,8 +1,8 @@
 ---
 name: english-conversation-assistant-tasks
 description: English Conversation Assistant (ECA) 開發任務清單 — MVP 到 v2.0
-version: 2.5
-date: 2026-02-08
+version: 2.6
+date: 2026-02-09
 ---
 
 # English Conversation Assistant — Tasks v2.0
@@ -294,6 +294,19 @@ date: 2026-02-08
 - ✅ 修正英文原文顯示多餘反斜線問題（分離 escapeHtml 函數）
 - ✅ Quick Response Bar 按鈕改顯示中文（前 8 字）
 
+**T2.6.8** ✅ **角色標記（Speaker Attribution）**（COMPLETED 2026-02-09）
+- ✅ Spacebar 改為 HOLD 模式（按住=我，放開=對方）
+- ✅ 新增 `currentSpeaker` 狀態變數（'them' | 'me'）
+- ✅ Segment 數據結構新增 `speaker` 欄位
+- ✅ 視覺區分：對方（綠色邊框）vs 我（藍色邊框）
+- ✅ 底部指示器即時顯示當前收音對象
+- ✅ 匯出 Markdown 包含說話者標記
+- ✅ 移除舊的全螢幕 PTT 覆蓋層
+- **驗收結果**（2026-02-09）：
+  - ✅ Spacebar HOLD 正常運作
+  - ✅ 段落正確標記說話者
+  - ✅ 匯出格式包含說話者標籤
+
 ### MVP 總體驗收
 
 | 指標 | 目標 | 驗收方式 |
@@ -508,17 +521,18 @@ Phase 3.x (Smart 建議 + 場景 + TTS) ── 待開發（v1.5 增強）
 Phase 4.x (桌面應用 + 學習) ─────────── 待開發（v2.0 進階）
 ```
 
-**MVP 完成度**: ~98%（剩餘：真實語音翻譯測試、手機版測試）
+**MVP 完成度**: ~99%（剩餘：真實語音翻譯測試、手機版測試）
 
 ---
 
-*最後更新：2026-02-07*
-*版本：2.5*
+*最後更新：2026-02-09*
+*版本：2.6*
 
 ### 更新日誌
 
 | 版本 | 日期 | 變更 |
 |------|------|------|
+| 2.6 | 2026-02-09 | **角色標記功能**：新增 T2.6.8（Spacebar HOLD 模式、speaker 欄位、視覺區分、匯出對齊）|
 | 2.5 | 2026-02-07 | **翻譯品質改良**：新增 Phase 2.6（詞庫整合、翻譯驗證、數字規則、UI/UX 改良）；Swarm Mode 研究完成 |
 | 2.4 | 2026-02-06 | **MVP 功能完成**：標記 T2.1.2, T2.1.3, T2.2.2, T2.2.3, T2.3.1, T2.4.1, T2.5.1 為已完成；DevTools 驗收測試通過 |
 | 2.3 | 2026-02-05 | **T2.2 重新設計**：改為「通話前準備模式」；T2.3 Panic Button 整合到 Quick Response Bar；T2.4 快捷短語整合到 Quick Response Bar；TTS 移至 Phase 3 |

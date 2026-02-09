@@ -1330,54 +1330,6 @@
             color: #fff;
         }
 
-        /* PTT 大面積覆蓋層 */
-        #pttOverlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.85);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 9999;
-            opacity: 0;
-            visibility: hidden;
-            transition: opacity 0.15s ease, visibility 0.15s ease;
-        }
-
-        #pttOverlay.visible {
-            opacity: 1;
-            visibility: visible;
-        }
-
-        .ptt-overlay-content {
-            text-align: center;
-            color: var(--accent-yellow);
-        }
-
-        .ptt-overlay-content svg {
-            margin-bottom: 20px;
-            animation: ptt-pulse 1.5s ease-in-out infinite;
-        }
-
-        @keyframes ptt-pulse {
-            0%, 100% { opacity: 1; transform: scale(1); }
-            50% { opacity: 0.6; transform: scale(0.95); }
-        }
-
-        .ptt-overlay-title {
-            font-size: 28px;
-            font-weight: 600;
-            margin-bottom: 12px;
-        }
-
-        .ptt-overlay-hint {
-            font-size: 16px;
-            color: var(--text-secondary);
-        }
-
         /* Call header bar (during call) */
         .call-header-bar {
             display: flex;
@@ -1714,7 +1666,8 @@
                 </div>
                 <div class="call-header-right">
                     <button class="btn-call-control ptt" id="btnPTT"
-                            onclick="pttToggle()">
+                            onmousedown="pttStart()" onmouseup="pttEnd()" onmouseleave="pttEnd()"
+                            ontouchstart="pttStart()" ontouchend="pttEnd()">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
                             <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
@@ -2299,39 +2252,37 @@
         }
 
         // =============================================
-        // Phase 1: PTT (Push-to-Talk / 我在說話)
+        // Phase 1: PTT (Push-to-Talk / 角色標記模式)
+        // 用途：區分「對方說話」和「我在說話」
+        // Spacebar HOLD 模式：按住=我，放開=對方
         // =============================================
 
         let isPTTActive = false;
+        let currentSpeaker = 'them';  // 'them' (預設) 或 'me' (按住 Spacebar 時)
 
         /**
-         * PTT 開始 - 用戶按住時靜音識別
-         * 🔧 核心機制：
-         * 1. 強制輸出 buffer 中的所有內容（不管字數，避免丟失）
-         * 2. 調用 webSpeech.mute() 停止累積新文字
+         * PTT 開始 - 切換為「我在說話」模式
+         * 🔧 角色標記機制（非靜音）：
+         * 1. 強制輸出 buffer 中的內容（標記為「對方」）
+         * 2. 切換 currentSpeaker = 'me'
+         * 3. Web Speech 和 SmartSegmenter 繼續運行
          */
         function pttStart() {
             if (isPTTActive || isPaused || !isConnected) return;
             isPTTActive = true;
 
-            // 🔧 先強制輸出 SmartSegmenter buffer 中的所有內容
-            // 這確保 PTT 開始前收錄的對方說話內容不會丟失
+            // 🔧 先強制輸出 SmartSegmenter buffer 中的所有內容（標記為「對方」）
+            // 這確保切換前的對方說話內容不會丟失
             if (smartSegmenter && smartSegmenter.buffer && smartSegmenter.buffer.trim()) {
-                // 強制輸出，不管字數（原本 stop() 只輸出 >= 3 字）
-                smartSegmenter._emitSegment('ptt_start');
-                console.log('[PTT] Force emitted buffer before muting');
+                smartSegmenter._emitSegment('speaker_change');
+                console.log('[PTT] Force emitted buffer before speaker change');
             }
 
-            // 暫停 SmartSegmenter
-            if (smartSegmenter) {
-                smartSegmenter.stop();
-            }
+            // 🔧 關鍵：切換說話者為「我」
+            currentSpeaker = 'me';
 
-            // 🔧 關鍵：開啟 Web Speech 靜音模式
-            // 這會讓 _handleResult 完全跳過處理，不累積任何語音識別結果
-            if (webSpeech) {
-                webSpeech.mute();
-            }
+            // 注意：不 mute、不 stop - Web Speech 和 SmartSegmenter 繼續運行
+            // 後續的 segment 會被標記為 speaker='me'
 
             // 更新按鈕 UI
             const btn = document.getElementById('btnPTT');
@@ -2339,54 +2290,33 @@
                 btn.classList.add('active');
             }
 
-            // 顯示大面積 PTT 覆蓋層
-            showPTTOverlay();
-
-            // 更新預覽標籤
-            const previewEl = document.getElementById('realtimePreview');
-            if (previewEl) {
-                previewEl.classList.add('stopped');
-                const labelEl = previewEl.querySelector('.preview-label span:last-child');
-                if (labelEl) {
-                    labelEl.textContent = '英文原文（已暫停）';
-                }
-            }
+            // 更新說話者指示器（取代全螢幕覆蓋層）
+            updateSpeakerIndicator('me');
 
             // 更新狀態指示器
             updateStatus('ptt', '我在說話');
 
-            log('PTT: 靜音模式（你在說話）', 'info');
+            log('PTT: 我在說話模式', 'info');
         }
 
         /**
-         * PTT 結束 - 用戶放開時恢復識別
-         * 🔧 核心機制：
-         * 1. unmute() 恢復識別（不清空已收錄的文字）
-         * 2. 設置 processedLength 跳過 PTT 期間的內容
-         * 3. 已收錄但未翻譯的內容會繼續在背景處理
+         * PTT 結束 - 切換回「對方說話」模式
+         * 🔧 角色標記機制：
+         * 1. 強制輸出 buffer 中的內容（標記為「我」）
+         * 2. 切換 currentSpeaker = 'them'
          */
         function pttEnd() {
             if (!isPTTActive || isPaused) return;
             isPTTActive = false;
 
-            // 🔧 關鍵：關閉靜音（不清空文字）
-            // unmute() 返回當前 fullText 長度
-            let pttEndLength = 0;
-            if (webSpeech) {
-                pttEndLength = webSpeech.unmute();
+            // 🔧 先強制輸出 SmartSegmenter buffer 中的所有內容（標記為「我」）
+            if (smartSegmenter && smartSegmenter.buffer && smartSegmenter.buffer.trim()) {
+                smartSegmenter._emitSegment('speaker_change');
+                console.log('[PTT] Force emitted buffer before speaker change back');
             }
 
-            // 恢復 SmartSegmenter
-            if (smartSegmenter && isConnected) {
-                smartSegmenter.start();
-
-                // 🔧 設置 processedLength 跳過 PTT 期間可能累積的內容
-                // 注意：因為 mute 期間 _handleResult 不會累積文字，
-                // 所以 pttEndLength 應該等於 PTT 開始時的長度
-                // 但為安全起見，我們用 PTT 結束時的長度
-                smartSegmenter.processedLength = pttEndLength;
-                console.log(`[PTT] Set processedLength to ${pttEndLength} to skip PTT period`);
-            }
+            // 🔧 關鍵：切換說話者回「對方」
+            currentSpeaker = 'them';
 
             // 更新按鈕 UI
             const btn = document.getElementById('btnPTT');
@@ -2394,71 +2324,67 @@
                 btn.classList.remove('active');
             }
 
-            // 隱藏 PTT 覆蓋層
-            hidePTTOverlay();
-
-            // 恢復預覽標籤
-            const previewEl = document.getElementById('realtimePreview');
-            if (previewEl) {
-                previewEl.classList.remove('stopped');
-                const labelEl = previewEl.querySelector('.preview-label span:last-child');
-                if (labelEl) {
-                    labelEl.textContent = '英文原文';
-                }
-            }
+            // 更新說話者指示器
+            updateSpeakerIndicator('them');
 
             // 恢復狀態指示器
             updateStatus('connected', '翻譯中');
 
-            log('PTT: 恢復識別', 'info');
+            log('PTT: 對方說話模式', 'info');
         }
 
         /**
-         * PTT 切換（用於 Spacebar）
+         * 更新說話者指示器（底部小 badge，取代全螢幕覆蓋層）
          */
-        function pttToggle() {
-            if (isPTTActive) {
-                pttEnd();
-            } else {
-                pttStart();
-            }
-        }
+        function updateSpeakerIndicator(speaker) {
+            let indicator = document.getElementById('speakerIndicator');
 
-        /**
-         * 顯示 PTT 大面積覆蓋提示
-         */
-        function showPTTOverlay() {
-            let overlay = document.getElementById('pttOverlay');
-            if (!overlay) {
-                overlay = document.createElement('div');
-                overlay.id = 'pttOverlay';
-                overlay.innerHTML = `
-                    <div class="ptt-overlay-content">
-                        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
-                            <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
-                            <line x1="12" x2="12" y1="19" y2="22"></line>
-                        </svg>
-                        <div class="ptt-overlay-title">語音轉錄已暫停</div>
-                        <div class="ptt-overlay-hint">再按空白鍵或按鈕繼續</div>
-                    </div>
+            if (!indicator) {
+                // 創建指示器元素
+                indicator = document.createElement('div');
+                indicator.id = 'speakerIndicator';
+                indicator.style.cssText = `
+                    position: fixed;
+                    bottom: 20px;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    padding: 10px 20px;
+                    border-radius: 25px;
+                    font-size: 14px;
+                    font-weight: 600;
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    z-index: 100;
+                    transition: all 0.2s ease;
+                    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
                 `;
-                document.body.appendChild(overlay);
+                document.body.appendChild(indicator);
             }
-            overlay.classList.add('visible');
+
+            if (speaker === 'me') {
+                indicator.innerHTML = '🙋 我在說話';
+                indicator.style.background = 'rgba(0, 212, 255, 0.95)';
+                indicator.style.color = '#000';
+            } else {
+                indicator.innerHTML = '👤 對方說話';
+                indicator.style.background = 'rgba(0, 255, 136, 0.25)';
+                indicator.style.color = 'var(--accent-green)';
+                indicator.style.border = '1px solid var(--accent-green)';
+            }
         }
 
         /**
-         * 隱藏 PTT 覆蓋提示
+         * 隱藏說話者指示器（離開通話時）
          */
-        function hidePTTOverlay() {
-            const overlay = document.getElementById('pttOverlay');
-            if (overlay) {
-                overlay.classList.remove('visible');
+        function hideSpeakerIndicator() {
+            const indicator = document.getElementById('speakerIndicator');
+            if (indicator) {
+                indicator.remove();
             }
         }
 
-        // Spacebar 控制 PTT（Toggle 模式：按一下開、再按一下關）
+        // Spacebar 控制 PTT（HOLD 模式：按住=我，放開=對方）
         document.addEventListener('keydown', function(e) {
             // 只在通話模式下生效，且不是在輸入框中
             if (!isConnected || isPaused) return;
@@ -2466,7 +2392,18 @@
 
             if (e.code === 'Space' && !e.repeat) {
                 e.preventDefault();
-                pttToggle();  // 改為 toggle 模式
+                pttStart();  // HOLD 模式：keydown 開始
+            }
+        });
+
+        document.addEventListener('keyup', function(e) {
+            // 只在通話模式下生效，且不是在輸入框中
+            if (!isConnected || isPaused) return;
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+            if (e.code === 'Space') {
+                e.preventDefault();
+                pttEnd();  // HOLD 模式：keyup 結束
             }
         });
 
@@ -2522,6 +2459,8 @@
 
             // Update status
             updateStatus('paused', '已暫停');
+            // 隱藏說話者指示器
+            hideSpeakerIndicator();
             log('Listening paused', 'success');
         }
 
@@ -2563,6 +2502,8 @@
 
             // Update status
             updateStatus('connected', '翻譯中');
+            // 恢復說話者指示器
+            updateSpeakerIndicator('them');
             log('Listening resumed', 'success');
         }
 
@@ -2591,11 +2532,17 @@
             // 收集數據（DOM 順序是最新在前，需要反轉）
             const segments = [];
             segmentEls.forEach(el => {
+                // 說話者標籤（font-weight: 600）
+                const speakerEl = el.querySelector('span[style*="font-weight: 600"]');
+                // 時間標籤（font-size: 11px）
+                const timeEl = el.querySelector('span[style*="font-size: 11px"]');
+                // 英文原文（font-size: 18px）
                 const englishEl = el.querySelector('div[style*="font-size: 18px"]');
-                const chineseEl = el.querySelector('div[style*="color: var(--accent-blue)"]');
-                const timeEl = el.querySelector('div[style*="font-size: 12px"] span:first-child');
+                // 中文翻譯（color: var(--accent-blue)）
+                const chineseEl = el.querySelector('div[style*="font-size: 16px"]');
 
                 segments.push({
+                    speaker: speakerEl ? speakerEl.textContent.trim() : '👤 對方',
                     english: englishEl ? englishEl.textContent.trim() : '',
                     chinese: chineseEl ? chineseEl.textContent.trim() : '',
                     time: timeEl ? timeEl.textContent.trim() : ''
@@ -2648,7 +2595,7 @@
 
             // 添加每個段落
             segments.forEach((seg, index) => {
-                markdown += `### 段落 ${index + 1}`;
+                markdown += `### ${seg.speaker}`;
                 if (seg.time) {
                     markdown += ` (${seg.time})`;
                 }
@@ -3204,12 +3151,13 @@
 
                 // When segment detected, translate via backend API (方案 A)
                 smartSegmenter.onSegment = (segment, info) => {
-                    log(`SmartSegmenter: "${segment.substring(0, 40)}..." (${info.wordCount}w, ${info.reason})`, 'event');
+                    const speaker = currentSpeaker;  // 捕獲當前說話者
+                    log(`SmartSegmenter: "${segment.substring(0, 40)}..." (${info.wordCount}w, ${info.reason}, speaker: ${speaker})`, 'event');
 
-                    // 🔧 方案 A: 兩階段架構
+                    // 🔧 方案 A: 兩階段架構 + 角色標記
                     // 不再使用 OpenAI Realtime API 翻譯（會變成 Q&A 對話）
-                    // 改用 gpt-4.1-nano 文字 API 翻譯
-                    translateViaBackend(segment);
+                    // 改用 gpt-4.1-nano 文字 API 翻譯，並傳入說話者標記
+                    translateViaBackend(segment, speaker);
                 };
 
                 log(`SmartSegmenter initialized (preset: ${preset.name}, 暫停:${preset.pauseThreshold}ms)`, 'success');
@@ -3223,13 +3171,8 @@
 
                 if (webSpeech.isSupported()) {
                     // 實時英文回調 - 邊說邊顯示 + 智能分段
+                    // 🔧 角色標記模式：不論誰在說話都處理，speaker 標記在 translateViaBackend 中設定
                     webSpeech.onInterimResult = (fullText, interim) => {
-                        // 🔧 PTT 靜音模式：忽略結果但不停止識別
-                        // 這樣可以避免 stop/start 的 200-500ms 啟動延遲
-                        if (isPTTActive) {
-                            return; // 靜音：不處理，但 Web Speech 繼續運行
-                        }
-
                         currentRealtimeEnglish = fullText;
                         updateRealtimePreview(fullText, interim);
 
@@ -3258,6 +3201,8 @@
                     webSpeech.onAudioStart = () => {
                         log('Audio capture ready - you can speak now!', 'success');
                         updateStatus('connected', '翻譯中');
+                        // 初始化說話者指示器（預設為「對方說話」）
+                        updateSpeakerIndicator('them');
                         // 閃爍提示用戶可以開始說話
                         flashReadyIndicator();
                     };
@@ -3663,18 +3608,19 @@ FORMAT:
          *
          * 優點：首字回應約 0.3 秒，用戶可以邊看邊讀
          */
-        async function translateViaBackend(englishText) {
+        async function translateViaBackend(englishText, speaker = 'them') {
             if (!englishText || englishText.trim().length === 0) {
                 return;
             }
 
-            // 創建 segment 用於 UI 顯示
+            // 創建 segment 用於 UI 顯示（包含說話者標記）
             const segmentId = `seg-${++segmentCounter}`;
             const segment = {
                 id: segmentId,
                 englishText: englishText.trim(),
                 chineseTranslation: '',
                 status: 'translating',
+                speaker: speaker,  // 'them' 或 'me'
                 createdAt: Date.now(),
                 completedAt: null,
                 error: null
@@ -3790,6 +3736,7 @@ FORMAT:
         /**
          * 渲染單個 segment 到 UI
          * 簡化版：直接操作 DOM，不依賴 SegmentRenderer
+         * 支援說話者標記（speaker: 'them' | 'me'）
          */
         function renderSegment(segment) {
             // 隱藏空狀態
@@ -3797,20 +3744,29 @@ FORMAT:
 
             let segmentEl = document.getElementById(segment.id);
 
+            // 說話者樣式
+            const isMe = segment.speaker === 'me';
+            const speakerLabel = isMe ? '🙋 我' : '👤 對方';
+            const speakerColor = isMe ? 'var(--accent-blue)' : 'var(--accent-green)';
+            const borderColor = isMe ? 'var(--accent-blue)' : 'var(--accent-green)';
+            const bgTint = isMe ? 'rgba(0, 212, 255, 0.08)' : 'rgba(0, 255, 136, 0.08)';
+
             if (!segmentEl) {
                 // 創建新的 segment 元素
                 segmentEl = document.createElement('div');
                 segmentEl.id = segment.id;
                 segmentEl.className = 'segment-item';
-                segmentEl.style.cssText = `
-                    background: var(--bg-tertiary);
-                    border-radius: 8px;
-                    padding: 12px 16px;
-                    margin-bottom: 12px;
-                    border-left: 3px solid var(--accent-blue);
-                `;
                 transcriptContent.insertBefore(segmentEl, transcriptContent.firstChild);
             }
+
+            // 應用說話者樣式
+            segmentEl.style.cssText = `
+                background: ${bgTint};
+                border-radius: 8px;
+                padding: 12px 16px;
+                margin-bottom: 12px;
+                border-left: 3px solid ${borderColor};
+            `;
 
             // 狀態顏色
             const statusColors = {
@@ -3829,11 +3785,9 @@ FORMAT:
                 'error': '錯誤'
             };
 
-            // 如果有驗證警告，改變邊框顏色
+            // 如果有驗證警告，改變邊框顏色（覆蓋說話者顏色）
             if (segment.validation && segment.validation.showWarning) {
                 segmentEl.style.borderLeftColor = 'var(--accent-yellow)';
-            } else {
-                segmentEl.style.borderLeftColor = statusColors[segment.status] || 'var(--accent-blue)';
             }
 
             // 時間格式
@@ -3869,15 +3823,16 @@ FORMAT:
             }
 
             segmentEl.innerHTML = `
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                    <div style="font-size: 18px; color: var(--text-primary);">${segment.englishText}</div>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                    <span style="font-size: 12px; color: ${speakerColor}; font-weight: 600;">${speakerLabel}</span>
+                    <span style="font-size: 11px; color: var(--text-secondary);">${time}</span>
                 </div>
+                <div style="font-size: 18px; color: var(--text-primary); margin-bottom: 8px;">${segment.englishText}</div>
                 <div style="font-size: 16px; color: var(--accent-blue); margin-bottom: 8px;">
                     ${segment.chineseTranslation || '<span style="color: var(--text-secondary);">翻譯中...</span>'}
                 </div>
                 ${warningHtml}
-                <div style="display: flex; justify-content: space-between; font-size: 12px; color: var(--text-secondary);">
-                    <span>${time}</span>
+                <div style="display: flex; justify-content: flex-end; font-size: 12px; color: var(--text-secondary);">
                     <span style="color: ${statusColors[segment.status]}">${statusIcons[segment.status]} ${statusTexts[segment.status]}</span>
                 </div>
             `;
@@ -3955,8 +3910,10 @@ FORMAT:
             isConnected = false;
             currentRealtimeEnglish = '';  // 重置變數
             isPaused = false;  // 重置暫停狀態
+            currentSpeaker = 'them';  // 重置說話者
             resetUI();
             updateStatus('disconnected', '已停止');
+            hideSpeakerIndicator();  // 隱藏說話者指示器
             switchToPreparationMode();
             log('Stopped', 'success');
         }

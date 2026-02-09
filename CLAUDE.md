@@ -33,6 +33,7 @@
   - `src/skills/openai-realtime-mini-voice/SKILL.md` — Use when implementing Realtime voice UX (`gpt-realtime-mini`), WebRTC, VAD/interruptions, cancel/clear/truncate handling.
   - `src/skills/windows-python/SKILL.md` — Use when setting up local dev, scripts, tests, and Windows-specific Python tooling.
   - `src/skills/chrome-devtools-mcp.skill` — Use when debugging WebRTC/audio/permissions/console via Chrome DevTools MCP.
+  - `.claude/skills/ui-ux-pro-max/SKILL.md` — Use when designing/building UI: styles, colors, typography, charts, UX guidelines. Supports 13 stacks (React, Vue, Tailwind, etc.). Run `python3 skills/ui-ux-pro-max/scripts/search.py` for design recommendations.
 
 ## Workflow
 - Plan first (read-only). Then implement tasks via **Workstream/Batch** approach (supports parallel execution).
@@ -101,6 +102,14 @@
 - **Entry ID 綁定**：必須建立 `response.id → entry_id` 映射（詳見 lessons_learned.md §1.3）
 - **狀態超時保護**：任何「等待」狀態必須有超時機制（詳見 lessons_learned.md §3.1）
 - **條目排序**：新條目只能 push 到末尾，不可中間插入（詳見 lessons_learned.md §4.1）
+- **gpt-5-mini 是 reasoning 模型**（詳見 lessons_learned.md §5.2）：
+  - 不支援 `temperature`、`top_p`、`max_tokens`
+  - 必須用 `max_completion_tokens`（Chat Completions API）
+  - 可用 `reasoning_effort="low"` 加速（講稿生成場景）
+- **角色標記功能**（詳見 lessons_learned.md §7）：
+  - Spacebar HOLD 模式（按住=我，放開=對方）
+  - Segment 結構包含 `speaker: 'them' | 'me'`
+  - 切換時先 emit buffer 再改 speaker
 
 ## Coding Standards
 - Prefer small diffs, clear naming, and deterministic logs for replayable tests.
