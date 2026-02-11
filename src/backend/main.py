@@ -138,17 +138,23 @@ OPENAI_CLIENT_SECRETS_URL = "https://api.openai.com/v1/realtime/client_secrets"
 # =============================================================================
 
 @app.post("/api/token", response_model=TokenResponse)
-async def get_ephemeral_token(request: TokenRequest):
+async def get_ephemeral_token(request: TokenRequest, req: Request):
     """
     Generate ephemeral token for WebRTC Realtime session.
 
     CRITICAL: Token TTL is 10 minutes (not 60 minutes).
     Reference: design.md § 9, SKILL openai-realtime-mini-voice
+
+    支援用戶透過 X-API-Key header 提供自己的 API Key（Cloud Run 部署場景）。
     """
-    if not OPENAI_API_KEY:
+    # 優先使用用戶提供的 API Key，否則使用伺服器預設
+    user_api_key = req.headers.get("X-API-Key")
+    api_key = user_api_key if user_api_key else OPENAI_API_KEY
+
+    if not api_key:
         raise HTTPException(
             status_code=500,
-            detail="OPENAI_API_KEY not configured"
+            detail="API Key not configured. Please set your OpenAI API Key in Settings."
         )
 
     # Validate voice selection
@@ -165,7 +171,7 @@ async def get_ephemeral_token(request: TokenRequest):
             response = await client.post(
                 OPENAI_CLIENT_SECRETS_URL,
                 headers={
-                    "Authorization": f"Bearer {OPENAI_API_KEY}",
+                    "Authorization": f"Bearer {api_key}",
                     "Content-Type": "application/json",
                 },
                 json={

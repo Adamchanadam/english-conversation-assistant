@@ -4170,9 +4170,14 @@
 
                 // Step 2: Get ephemeral token (runs in parallel with Web Speech)
                 log('Getting ephemeral token...');
+                const tokenHeaders = { 'Content-Type': 'application/json' };
+                const userApiKey = getApiKey();
+                if (userApiKey) {
+                    tokenHeaders['X-API-Key'] = userApiKey;
+                }
                 const tokenResponse = await fetch('/api/token', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: tokenHeaders,
                     body: JSON.stringify({ voice: 'marin' })
                 });
 
