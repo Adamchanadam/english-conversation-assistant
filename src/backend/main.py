@@ -15,7 +15,7 @@ Reference:
 import os
 import logging
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, StreamingResponse
 from dotenv import load_dotenv
@@ -46,6 +46,8 @@ try:
     from .script_generator import (
         generate_script,
         generate_script_stream,
+        get_scenario_options,
+        DEFAULT_PROMPTS,
     )
     from .glossary import (
         get_glossary_hint,
@@ -117,7 +119,7 @@ app.add_middleware(
     ],
     allow_credentials=False,  # v1 不使用 cookies
     allow_methods=["GET", "POST", "OPTIONS"],
-    allow_headers=["Content-Type", "Authorization"],
+    allow_headers=["Content-Type", "Authorization", "X-API-Key"],  # X-API-Key for user-provided OpenAI key
     expose_headers=["Content-Length"],
     max_age=86400,  # 24 小時預檢緩存
 )
@@ -332,7 +334,7 @@ TRANSLATION_MODEL = "gpt-4.1-nano"
 
 
 @app.post("/api/translate", response_model=TranslateResponse)
-async def translate_text(request: TranslateRequest):
+async def translate_text(request: TranslateRequest, req: Request):
     """
     Translate English text to Traditional Chinese using gpt-4o-mini.
 
@@ -343,15 +345,26 @@ async def translate_text(request: TranslateRequest):
     注意：翻譯不是「文字控制器」功能，使用 gpt-4o-mini 以獲得更快回應。
     Controller API (/api/controller) 仍使用 gpt-5-mini。
 
+    API Key 支援：
+    - 用戶可透過 X-API-Key header 提供自己的 OpenAI API Key
+    - 若未提供，則使用伺服器預設的 OPENAI_API_KEY
+
     Reference:
     - spec/lessons_learned.md (Test 21 - 方案 A)
     """
-    if not OPENAI_API_KEY:
+    # 優先使用用戶提供的 API Key
+    user_api_key = req.headers.get("X-API-Key")
+    api_key = user_api_key if user_api_key else OPENAI_API_KEY
+
+    if not api_key:
         return TranslateResponse(
             translation="",
             source_text=request.text,
-            error="OPENAI_API_KEY not configured"
+            error="API Key not configured. Please provide your OpenAI API Key in settings."
         )
+
+    if user_api_key:
+        logger.info("Using user-provided API Key for translation")
 
     logger.info(f"Translate request: {len(request.text)} chars")
 
@@ -376,7 +389,7 @@ CRITICAL - Keep ALL numbers in Arabic numerals:
             response = await client.post(
                 OPENAI_CHAT_URL,
                 headers={
-                    "Authorization": f"Bearer {OPENAI_API_KEY}",
+                    "Authorization": f"Bearer {api_key}",
                     "Content-Type": "application/json",
                 },
                 json={
@@ -433,7 +446,7 @@ CRITICAL - Keep ALL numbers in Arabic numerals:
 # =============================================================================
 
 @app.post("/api/translate/stream")
-async def translate_text_stream(request: TranslateRequest):
+async def translate_text_stream(request: TranslateRequest, req: Request):
     """
     Streaming translation using SSE (Server-Sent Events).
 
@@ -445,18 +458,37 @@ async def translate_text_stream(request: TranslateRequest):
     使用方式：
     前端用 EventSource 或 fetch + ReadableStream 接收
 
+    API Key 支援：
+    - 用戶可透過 X-API-Key header 提供自己的 OpenAI API Key
+    - 若未提供，則使用伺服器預設的 OPENAI_API_KEY
+    - 這允許 Cloud Run 部署時由用戶自行提供 API Key
+
     Reference: spec/research/glossary_integration_design.md
     """
-    if not OPENAI_API_KEY:
+    # 優先使用用戶提供的 API Key，否則使用伺服器預設的
+    user_api_key = req.headers.get("X-API-Key")
+    api_key = user_api_key if user_api_key else OPENAI_API_KEY
+
+    if not api_key:
         async def error_gen():
-            yield f"data: {{\"error\": \"OPENAI_API_KEY not configured\"}}\n\n"
+            yield f"data: {{\"error\": \"API Key not configured. Please provide your OpenAI API Key in settings.\"}}\n\n"
         return StreamingResponse(error_gen(), media_type="text/event-stream")
+
+    if user_api_key:
+        logger.info("Using user-provided API Key for translation")
 
     # Build system prompt with optional glossary hints
     base_prompt = """You are a translation machine. Translate English to Traditional Chinese (Hong Kong style, 繁體中文).
 Output ONLY the Chinese translation. No greetings, no explanations. Use Traditional Chinese (說話 not 说话).
 
-CRITICAL - Keep ALL numbers in Arabic numerals, NEVER convert to Chinese:
+PROPER NOUNS - Keep these UNTRANSLATED:
+- Brand names: Google, Microsoft, Apple, OpenAI, ChatGPT, Claude, etc.
+- Product/App names: Keep CamelCase words as-is (e.g., "YouTube", "WhatsApp", "TikTok")
+- Company names: Keep as-is, do NOT translate meaning
+- Technical terms that are commonly used in English: API, LLM, AI, SDK, etc.
+- If unsure whether something is a proper noun, keep it in English
+
+NUMBERS - Keep ALL in Arabic numerals, NEVER convert to Chinese:
 - Currency: £500, $1,000, 50p → keep as-is
 - Dates: 15th March → 3月15日 (NOT 三月十五日)
 - Times: 2:30pm → 下午2:30 (NOT 下午兩點半)
@@ -476,13 +508,18 @@ CRITICAL - Keep ALL numbers in Arabic numerals, NEVER convert to Chinese:
         system_prompt = base_prompt
 
     async def generate():
+        import json as json_module
+        logger.info(f"[Translate] Starting stream translation for: {request.text[:50]}...")
+        logger.info(f"[Translate] Using API key: {api_key[:15]}... (user-provided: {bool(user_api_key)})")
+
         try:
             async with httpx.AsyncClient() as client:
+                logger.info(f"[Translate] Calling OpenAI API with model: {TRANSLATION_MODEL}")
                 async with client.stream(
                     "POST",
                     OPENAI_CHAT_URL,
                     headers={
-                        "Authorization": f"Bearer {OPENAI_API_KEY}",
+                        "Authorization": f"Bearer {api_key}",
                         "Content-Type": "application/json",
                     },
                     json={
@@ -493,28 +530,41 @@ CRITICAL - Keep ALL numbers in Arabic numerals, NEVER convert to Chinese:
                         ],
                         "max_tokens": 500,
                         "temperature": 0.3,
-                        "stream": True,  # 啟用串流
+                        "stream": True,
                     },
                     timeout=15.0,
                 ) as response:
+                    logger.info(f"[Translate] OpenAI response status: {response.status_code}")
+
+                    # 檢查 OpenAI API 回應狀態
+                    if response.status_code != 200:
+                        error_body = await response.aread()
+                        error_msg = error_body.decode('utf-8')
+                        logger.error(f"[Translate] OpenAI API error {response.status_code}: {error_msg}")
+                        yield f"data: {{\"error\": \"OpenAI API error {response.status_code}: {error_msg[:100]}\"}}\n\n"
+                        return
+
+                    chunk_count = 0
                     async for line in response.aiter_lines():
+                        logger.debug(f"[Translate] Raw line: {line[:100] if line else '(empty)'}")
                         if line.startswith("data: "):
-                            data = line[6:]  # Remove "data: " prefix
+                            data = line[6:]
                             if data == "[DONE]":
+                                logger.info(f"[Translate] Stream done after {chunk_count} chunks")
                                 yield f"data: {{\"done\": true}}\n\n"
                                 break
                             try:
-                                import json
-                                chunk = json.loads(data)
+                                chunk = json_module.loads(data)
                                 delta = chunk.get("choices", [{}])[0].get("delta", {})
                                 content = delta.get("content", "")
                                 if content:
-                                    # 發送翻譯片段
-                                    yield f"data: {{\"text\": {json.dumps(content)}}}\n\n"
-                            except:
-                                pass
+                                    chunk_count += 1
+                                    logger.debug(f"[Translate] Chunk {chunk_count}: {content}")
+                                    yield f"data: {{\"text\": {json_module.dumps(content)}}}\n\n"
+                            except Exception as parse_err:
+                                logger.warning(f"[Translate] JSON parse error: {parse_err}, data: {data[:50]}")
         except Exception as e:
-            logger.error(f"Streaming translation error: {e}")
+            logger.error(f"[Translate] Streaming error: {e}")
             yield f"data: {{\"error\": \"{str(e)}\"}}\n\n"
 
     return StreamingResponse(
@@ -756,8 +806,8 @@ FRONTEND_DIR = os.path.join(PROJECT_ROOT, "src", "frontend")
 
 @app.get("/")
 async def serve_index():
-    """Serve the ECA main page (default) - parallel translation version."""
-    eca_page = os.path.join(FRONTEND_DIR, "eca_parallel_test.html")
+    """Serve the ECA main page."""
+    eca_page = os.path.join(FRONTEND_DIR, "eca.html")
     if os.path.exists(eca_page):
         return FileResponse(eca_page)
     return {"message": "English Conversation Assistant API", "docs": "/docs"}
@@ -765,38 +815,11 @@ async def serve_index():
 
 @app.get("/eca")
 async def serve_eca():
-    """Serve the ECA main page - parallel translation version."""
-    eca_page = os.path.join(FRONTEND_DIR, "eca_parallel_test.html")
+    """Serve the ECA main page."""
+    eca_page = os.path.join(FRONTEND_DIR, "eca.html")
     if os.path.exists(eca_page):
         return FileResponse(eca_page)
     raise HTTPException(status_code=404, detail="ECA page not found")
-
-
-@app.get("/eca-legacy")
-async def serve_eca_legacy():
-    """Serve the legacy ECA page (basic version)."""
-    legacy_page = os.path.join(FRONTEND_DIR, "eca_main.html")
-    if os.path.exists(legacy_page):
-        return FileResponse(legacy_page)
-    raise HTTPException(status_code=404, detail="ECA legacy page not found")
-
-
-@app.get("/setup")
-async def serve_setup():
-    """Serve the legacy setup page."""
-    setup_page = os.path.join(FRONTEND_DIR, "setup_page.html")
-    if os.path.exists(setup_page):
-        return FileResponse(setup_page)
-    raise HTTPException(status_code=404, detail="Setup page not found")
-
-
-@app.get("/conversation")
-async def serve_conversation():
-    """Serve the legacy conversation page."""
-    conversation_page = os.path.join(FRONTEND_DIR, "conversation_page.html")
-    if os.path.exists(conversation_page):
-        return FileResponse(conversation_page)
-    raise HTTPException(status_code=404, detail="Conversation page not found")
 
 
 @app.get("/static/{filename:path}")
@@ -826,9 +849,9 @@ if __name__ == "__main__":
     print(f"API docs: http://{host}:{port}/docs")
     print(f"Frontend dir: {FRONTEND_DIR}")
 
+    # 直接傳入 app 物件，避免模組路徑問題
     uvicorn.run(
-        "main:app",
+        app,
         host=host,
         port=port,
-        reload=debug,
     )
