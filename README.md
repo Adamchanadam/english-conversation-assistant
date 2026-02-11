@@ -6,6 +6,8 @@
 ![ECA UI 1](/spec/eca_ui_1.png)
 ![ECA UI 2](/spec/eca_ui_2.png)
 
+🚀 **[點擊這裡試用 Demo](https://english-conversation-assistant-686112121757.europe-west2.run.app/)**
+
 ## 設計理念
 
 ### 核心問題
@@ -196,10 +198,10 @@ ECA 支援部署到 Google Cloud Run，用戶可使用自己的 OpenAI API Key�
 3. 選擇「Continuously deploy from a repository (source or function)」
 4. 點擊「Set up with Cloud Build」→ 連接你的 GitHub 帳號
 5. 選擇此 Repository
-6. Build Type 選擇「Go, Node.js, Python...」（Buildpacks）
+6. Build Type 選擇「Dockerfile」
 7. 設定：
    - Region: 選擇靠近用戶的區域
-   - Allow unauthenticated invocations: ✅ 勾選
+   - Authentication: 選擇「Allow public access」
 8. 點擊「Create」
 
 部署完成後，每次推送到 main 分支都會自動重新部署。
