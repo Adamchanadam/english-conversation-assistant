@@ -3066,7 +3066,11 @@
          * 3. Web Speech 和 SmartSegmenter 繼續運行
          */
         function pttStart() {
-            if (isPTTActive || isPaused || !isConnected) return;
+            console.log('[PTT] pttStart called:', { isPTTActive, isPaused, isConnected });
+            if (isPTTActive || isPaused || !isConnected) {
+                console.log('[PTT] pttStart blocked:', { isPTTActive, isPaused, isConnected });
+                return;
+            }
             isPTTActive = true;
 
             // 🔧 先強制輸出 SmartSegmenter buffer 中的所有內容（標記為「對方」）
@@ -4207,8 +4211,10 @@
                 // UI updates: switch to call mode (regardless of WebRTC status)
                 // Core functionality (Web Speech + Translation API) works without WebRTC
                 isConnected = true;
+                console.log('[startTest] isConnected set to true');
                 transcriptEmpty.style.display = 'flex';
                 switchToCallMode();
+                console.log('[startTest] switchToCallMode completed');
 
                 if (!webrtcConnected) {
                     log('Running in Web Speech + Translation API mode', 'info');
