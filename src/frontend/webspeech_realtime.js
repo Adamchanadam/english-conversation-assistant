@@ -30,6 +30,10 @@ class WebSpeechRealtime {
         this.interimTranscript = '';
         this.isMuted = false;  // PTT 靜音模式
 
+        // 🔧 語言切換狀態機（修復快速連續切換問題）
+        this._pendingLanguage = null;  // 待切換的目標語言
+        this._isRestarting = false;    // 是否正在重啟中
+
         this._init();
     }
 
@@ -49,8 +53,9 @@ class WebSpeechRealtime {
         // 配置
         this.recognition.continuous = true;      // 持續識別
         this.recognition.interimResults = true;  // 啟用即時結果
-        this.recognition.lang = 'en-US';         // 英文識別
+        this.recognition.lang = 'en-US';         // 英文識別（預設，可動態切換）
         this.recognition.maxAlternatives = 1;
+        this.currentLang = 'en-US';              // 追蹤當前語言
 
         // 事件處理
         this.recognition.onresult = (event) => this._handleResult(event);
@@ -62,6 +67,65 @@ class WebSpeechRealtime {
         this.recognition.onspeechend = () => console.log('[WebSpeech] Speech ended');
 
         console.log('[WebSpeech] Initialized');
+    }
+
+    /**
+     * 動態切換識別語言
+     * 🔧 修復版：處理快速連續切換（如 Spacebar 快速按放）
+     *
+     * @param {string} lang - BCP 47 語言代碼（如 'en-US', 'en-GB', 'en-IN'）
+     * @param {boolean} restart - 是否重啟識別（切換語言需要重啟）
+     */
+    setLanguage(lang, restart = true) {
+        if (!this.recognition) {
+            console.warn('[WebSpeech] Not initialized');
+            return false;
+        }
+
+        // 🔧 關鍵：如果已經在重啟中，只更新目標語言，不重複 stop()
+        if (this._isRestarting) {
+            console.log(`[WebSpeech] Already restarting, queuing language: ${lang}`);
+            this._pendingLanguage = lang;
+            this.recognition.lang = lang;
+            this.currentLang = lang;
+            return true;
+        }
+
+        if (this.currentLang === lang) {
+            console.log(`[WebSpeech] Already using ${lang}`);
+            return true;
+        }
+
+        const wasRunning = this.isRunning;
+        console.log(`[WebSpeech] Switching language: ${this.currentLang} → ${lang}`);
+
+        // 更新語言設定
+        this.recognition.lang = lang;
+        this.currentLang = lang;
+
+        // 如果正在運行，需要停止後重啟
+        if (wasRunning && restart) {
+            this._isRestarting = true;  // 進入重啟狀態
+            this._pendingLanguage = lang;
+            try {
+                this.recognition.stop();
+                console.log(`[WebSpeech] Stopping for language change to ${lang}`);
+            } catch (e) {
+                // stop 失敗，清除重啟狀態
+                console.warn('[WebSpeech] Stop failed during language change:', e.message);
+                this._isRestarting = false;
+                this._pendingLanguage = null;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * 獲取當前語言設定
+     */
+    getLanguage() {
+        return this.currentLang;
     }
 
     /**
@@ -97,21 +161,23 @@ class WebSpeechRealtime {
     }
 
     /**
-     * 停止識別
+     * 停止識別（完全停止，非語言切換）
      */
     stop() {
         if (!this.recognition) {
             return;
         }
 
-        // 🐛 Bug fix: 先設置 isRunning = false，防止 _handleEnd 中的自動重啟
+        // 🔧 完全停止：清除所有狀態
         this.isRunning = false;
+        this._isRestarting = false;
+        this._pendingLanguage = null;
 
         try {
             this.recognition.stop();
-            console.log('[WebSpeech] Stop called, isRunning set to false');
+            console.log('[WebSpeech] Stop called - full stop');
         } catch (error) {
-            console.error('[WebSpeech] Stop error:', error);
+            console.error('[WebSpeech] Stop error:', error.message);
         }
     }
 
@@ -189,24 +255,22 @@ class WebSpeechRealtime {
 
     /**
      * 處理錯誤
+     * 🔧 修復：不在這裡重啟，讓 _handleEnd 統一處理
+     * 因為 Web Speech API 會在錯誤後自動觸發 onend
      */
     _handleError(event) {
         console.error('[WebSpeech] Error:', event.error, event.message);
 
-        // 某些錯誤後需要重啟
-        const recoverable = ['no-speech', 'audio-capture', 'network'];
-        if (recoverable.includes(event.error) && this.isRunning) {
-            console.log('[WebSpeech] Attempting restart after error...');
-            setTimeout(() => {
-                if (this.isRunning) {
-                    try {
-                        this.recognition.start();
-                    } catch (e) {
-                        console.error('[WebSpeech] Restart failed:', e);
-                    }
-                }
-            }, 1000);
+        // 錯誤時清除重啟狀態
+        if (this._isRestarting) {
+            console.log('[WebSpeech] Error during restart, clearing restart state');
+            this._isRestarting = false;
+            this._pendingLanguage = null;
         }
+
+        // 🔧 不在這裡重啟！Web Speech API 錯誤後會自動觸發 onend
+        // _handleEnd 會處理 continuous 模式的自動重啟
+        // 這避免了與 _handleEnd 的競態條件
 
         if (this.onError) {
             this.onError(event.error, event.message);
@@ -215,10 +279,12 @@ class WebSpeechRealtime {
 
     /**
      * 處理開始
+     * 🔧 清除重啟狀態，確保狀態機正確
      */
     _handleStart() {
         this.isRunning = true;
-        console.log('[WebSpeech] Recognition started');
+        this._isRestarting = false;  // 重啟完成，清除標誌
+        console.log('[WebSpeech] Recognition started, language:', this.currentLang);
         if (this.onStateChange) {
             this.onStateChange('running');
         }
@@ -237,31 +303,117 @@ class WebSpeechRealtime {
 
     /**
      * 處理結束
+     * 🔧 修復版：統一處理語言切換和常規自動重啟，帶重試機制
      */
     _handleEnd() {
-        console.log('[WebSpeech] Recognition ended');
+        console.log('[WebSpeech] Recognition ended, isRestarting:', this._isRestarting, 'isRunning:', this.isRunning);
 
-        // continuous 模式下自動重啟
+        // 情況 1：語言切換重啟
+        if (this._isRestarting) {
+            const targetLang = this._pendingLanguage || this.currentLang;
+            console.log(`[WebSpeech] Restarting with language: ${targetLang}`);
+
+            // 確保使用最新的語言設定
+            this.recognition.lang = targetLang;
+            this.currentLang = targetLang;
+
+            // 清除待定語言（但保持 _isRestarting 直到成功）
+            this._pendingLanguage = null;
+
+            // 帶重試的重啟
+            this._restartWithRetry(targetLang, 3);  // 最多重試 3 次
+            return;
+        }
+
+        // 情況 2：continuous 模式下自動重啟（非語言切換）
         if (this.isRunning) {
-            console.log('[WebSpeech] Auto-restarting...');
+            console.log('[WebSpeech] Auto-restarting (continuous mode)...');
             setTimeout(() => {
-                if (this.isRunning) {
+                if (this.isRunning && !this._isRestarting) {
                     try {
                         this.recognition.start();
                     } catch (e) {
-                        console.error('[WebSpeech] Auto-restart failed:', e);
-                        this.isRunning = false;
-                        if (this.onStateChange) {
-                            this.onStateChange('stopped');
-                        }
+                        console.error('[WebSpeech] Auto-restart failed:', e.message);
+                        // 🔧 不要設置 isRunning = false，嘗試再次重啟
+                        this._scheduleRetry();
                     }
                 }
             }, 100);
         } else {
+            // 情況 3：正常停止
             if (this.onStateChange) {
                 this.onStateChange('stopped');
             }
         }
+    }
+
+    /**
+     * 帶重試的重啟機制
+     * 🔧 修復：每次重試時檢查 _pendingLanguage，使用最新的目標語言
+     * @param {string} targetLang - 目標語言（可能被 _pendingLanguage 覆蓋）
+     * @param {number} retriesLeft - 剩餘重試次數
+     */
+    _restartWithRetry(targetLang, retriesLeft) {
+        const delay = retriesLeft === 3 ? 100 : 200;  // 第一次 100ms，之後 200ms
+
+        setTimeout(() => {
+            // 🔧 關鍵修復：檢查是否有更新的目標語言
+            const actualLang = this._pendingLanguage || targetLang;
+            if (this._pendingLanguage) {
+                console.log(`[WebSpeech] Using queued language: ${this._pendingLanguage} (was: ${targetLang})`);
+                this.recognition.lang = actualLang;
+                this.currentLang = actualLang;
+                this._pendingLanguage = null;
+            }
+
+            try {
+                this.recognition.start();
+                console.log(`[WebSpeech] Restart succeeded (language: ${actualLang})`);
+                // _isRestarting 會在 _handleStart 中清除
+            } catch (e) {
+                console.error(`[WebSpeech] Restart failed (${retriesLeft} retries left):`, e.message);
+
+                if (retriesLeft > 0) {
+                    // 重試
+                    console.log('[WebSpeech] Retrying restart...');
+                    this._restartWithRetry(actualLang, retriesLeft - 1);
+                } else {
+                    // 重試耗盡，清除狀態但保持 isRunning = true 以便自動恢復
+                    console.error('[WebSpeech] All retries exhausted, will try again on next onend');
+                    this._isRestarting = false;
+                    // 🔧 關鍵：不設置 isRunning = false，讓 continuous 模式的自動重啟有機會恢復
+                }
+            }
+        }, delay);
+    }
+
+    /**
+     * 安排重試（用於自動重啟失敗時）
+     * @param {number} attempt - 當前嘗試次數（防止無限循環）
+     */
+    _scheduleRetry(attempt = 0) {
+        if (attempt >= 5) {
+            console.error('[WebSpeech] Max retry attempts reached, giving up');
+            this.isRunning = false;
+            if (this.onStateChange) {
+                this.onStateChange('stopped');
+            }
+            return;
+        }
+
+        const delay = Math.min(500 * Math.pow(1.5, attempt), 3000);  // 指數退避，最多 3 秒
+
+        setTimeout(() => {
+            if (this.isRunning && !this._isRestarting) {
+                console.log(`[WebSpeech] Scheduled retry (attempt ${attempt + 1})...`);
+                try {
+                    this.recognition.start();
+                } catch (e) {
+                    console.error('[WebSpeech] Scheduled retry failed:', e.message);
+                    this._scheduleRetry(attempt + 1);
+                }
+            }
+        }, delay);
     }
 
     /**

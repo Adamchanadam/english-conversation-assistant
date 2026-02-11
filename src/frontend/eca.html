@@ -4011,8 +4011,11 @@
                     webSpeech.onAudioStart = () => {
                         log('Audio capture ready - you can speak now!', 'success');
                         updateStatus('connected', '翻譯中');
-                        // 初始化說話者指示器（預設為「對方說話」）
-                        updateSpeakerIndicator('them');
+                        // 🔧 修復：只在非 PTT 模式時才重設為「對方說話」
+                        // PTT 模式下 indicator 已經由 pttStart/pttEnd 控制
+                        if (!isPTTActive) {
+                            updateSpeakerIndicator('them');
+                        }
                         // 閃爍提示用戶可以開始說話
                         flashReadyIndicator();
                     };
