@@ -183,32 +183,50 @@ http://localhost:8000
 
 ## Cloud Run 部署
 
-ECA 支援部署到 Google Cloud Run，用戶可使用自己的 OpenAI API Key：
+ECA 支援部署到 Google Cloud Run，用戶可使用自己的 OpenAI API Key。
 
-### 部署步驟
+### 方法一：GitHub 自動部署（推薦）
+
+在 Google Cloud Console 中直接連接 GitHub，實現推送即部署：
+
+1. 開啟 [Cloud Run Console](https://console.cloud.google.com/run)
+2. 點擊「Create Service」
+3. 選擇「Continuously deploy from a repository (source or function)」
+4. 點擊「Set up with Cloud Build」→ 連接你的 GitHub 帳號
+5. 選擇此 Repository
+6. Build Type 選擇「Go, Node.js, Python...」（Buildpacks）
+7. 設定：
+   - Region: 選擇靠近用戶的區域
+   - Allow unauthenticated invocations: ✅ 勾選
+8. 點擊「Create」
+
+部署完成後，每次推送到 main 分支都會自動重新部署。
+
+### 方法二：手動部署（gcloud CLI）
+
 ```bash
-# 建立 Docker 映像
-docker build -t eca-app .
-
-# 推送到 Google Container Registry
-docker tag eca-app gcr.io/YOUR_PROJECT/eca-app
-docker push gcr.io/YOUR_PROJECT/eca-app
-
-# 部署到 Cloud Run（不需設定伺服器 API Key）
+# 從源碼直接部署（無需 Docker）
 gcloud run deploy eca-app \
-  --image gcr.io/YOUR_PROJECT/eca-app \
+  --source . \
   --platform managed \
+  --region asia-east1 \
   --allow-unauthenticated
 ```
 
 ### 用戶使用方式
-1. 開啟部署好的 Cloud Run 網址
+
+部署完成後，用戶需要設定自己的 OpenAI API Key：
+
+1. 開啟 Cloud Run 提供的網址
 2. 展開「設定」選單
 3. 在「API Key 設定」輸入自己的 OpenAI API Key
-4. 點擊「儲存」（API Key 只存於瀏覽器，伺服器不會儲存）
+4. 點擊「儲存」
 5. 開始使用
 
-> 🔒 **安全說明**：API Key 透過 HTTPS 傳送，只在翻譯請求時使用，伺服器不會記錄或儲存。
+> 🔒 **安全說明**：
+> - API Key 只存於用戶瀏覽器的 localStorage
+> - 伺服器不會儲存或記錄 API Key
+> - 所有請求透過 HTTPS 加密傳輸
 
 ## 技術架構
 
