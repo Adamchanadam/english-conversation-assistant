@@ -2190,7 +2190,7 @@
                 accentRecognition: '英語口音識別：',
                 otherPartyAccent: '對方口音',
                 myAccent: '我的口音',
-                accentHint: '（按住 Spacebar 時自動切換）',
+                accentHint: '（通話開始時套用）',
                 translationSpeed: '翻譯速度：',
                 accentUS: '美式 (US)',
                 accentUK: '英式 (UK)',
@@ -2270,7 +2270,7 @@
                 accentRecognition: '英语口音识别：',
                 otherPartyAccent: '对方口音',
                 myAccent: '我的口音',
-                accentHint: '（按住 Spacebar 时自动切换）',
+                accentHint: '（通话开始时套用）',
                 translationSpeed: '翻译速度：',
                 accentUS: '美式 (US)',
                 accentUK: '英式 (UK)',
@@ -2350,7 +2350,7 @@
                 accentRecognition: 'English Accent Recognition:',
                 otherPartyAccent: "Other Party's Accent",
                 myAccent: 'My Accent',
-                accentHint: '(Spacebar toggles accent)',
+                accentHint: '(Applied at call start)',
                 translationSpeed: 'Translation Speed:',
                 accentUS: 'American (US)',
                 accentUK: 'British (UK)',
@@ -3083,8 +3083,10 @@
             // 🔧 關鍵：切換說話者為「我」
             currentSpeaker = 'me';
 
-            // 🔧 切換口音識別（我的口音）
-            switchAccent('me');
+            // 🔧 2024-02-11 修復：移除口音切換，避免 WebSpeech restart 導致音訊丟失
+            // 原本：switchAccent('me') 會觸發 100-500ms 的延遲
+            // 現在：只更新 speaker 標記，不切換語言，零延遲
+            // 口音設定在通話開始時已設定（對方口音），通話中保持不變
 
             // 注意：不 mute、不 stop - Web Speech 和 SmartSegmenter 繼續運行
             // 後續的 segment 會被標記為 speaker='me'
@@ -3123,8 +3125,8 @@
             // 🔧 關鍵：切換說話者回「對方」
             currentSpeaker = 'them';
 
-            // 🔧 切換口音識別（對方口音）
-            switchAccent('them');
+            // 🔧 2024-02-11 修復：移除口音切換，避免 WebSpeech restart 導致音訊丟失
+            // 保持使用通話開始時設定的口音，不中斷識別
 
             // 更新按鈕 UI
             const btn = document.getElementById('btnPTT');
