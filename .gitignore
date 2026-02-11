@@ -62,3 +62,9 @@ reports/*.md
 *.tmp
 *.bak
 *.swp
+
+# Claude Code project files (not for version control)
+CLAUDE.md
+prompt_1_plan.md
+prompt_2_implement.md
+prompt_3_test.md
