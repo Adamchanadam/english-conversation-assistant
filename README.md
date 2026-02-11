@@ -3,7 +3,9 @@
 即時英文對話助手 — 讓英文電話不再焦慮的即時輔助工具。
 
 ---
-![ECA UI](/spec/eca_ui_1.png)
+![ECA UI 1](/spec/eca_ui_1.png)
+![ECA UI 2](/spec/eca_ui_2.png)
+
 ## 設計理念
 
 ### 核心問題
