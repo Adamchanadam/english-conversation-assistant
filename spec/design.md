@@ -1,9 +1,9 @@
 ---
 name: english-conversation-assistant-design
-description: 英文對話助手（ECA）技術設計 — 即時翻譯 + 通話前準備 + Quick Response Bar + Smart 建議 + 場景預設講稿 + 角色標記
+description: 英文對話助手（ECA）技術設計 — 即時翻譯 + 通話前準備 + Quick Response Bar + Smart 建議 + 場景預設講稿 + 角色標記 + 多語言介面 + 用戶 API Key
 status: approved
-version: 2.9
-date: 2026-02-09
+version: 3.0
+date: 2026-02-10
 ---
 
 # English Conversation Assistant — Design v2.0
@@ -185,7 +185,7 @@ date: 2026-02-09
 
 > ✅ **實現狀態（2026-02-02）**：
 > - `src/frontend/smart_segmenter.js` - SmartSegmenter + AdaptiveSegmenter 類
-> - 整合至 `eca_parallel_test.html`
+> - 整合至 `eca.html`
 > - 禁用 OpenAI `create_response: true`，改由前端控制分段
 > - 使用 `input_audio_buffer.commit` + `response.create` 強制翻譯
 
@@ -249,7 +249,7 @@ const SEGMENTER_PRESETS = {
     hardLimit: 20,
     minSegmentWords: 2
   }
-  // ... 其他預設見 eca_parallel_test.html
+  // ... 其他預設見 eca.html
 };
 
 const GRAMMAR_TRIGGERS = {
@@ -613,13 +613,162 @@ function pttStart() {
 
 ---
 
-### 4.6 翻譯品質改良（2026-02-07 新增）
+### 4.6 口音識別配置（2026-02-10 新增）
 
-> **注意**：以下章節原為 §4.5，因新增角色標記系統（§4.5）而重新編號。
+> **目標**：支援不同英語口音，提升語音識別準確度。
+
+#### 4.6.1 口音選項
+
+| 選項 | BCP 47 代碼 | 適用場景 |
+|------|------------|---------|
+| 英式英語 | en-GB | UK 本地人（預設對方口音）|
+| 美式英語 | en-US | 美國口音 |
+| 印度英語 | en-IN | 印度口音客服 |
+| 澳洲英語 | en-AU | 澳洲口音 |
+| 亞洲口音 | en-IN | 亞洲口音（預設我的口音）|
+
+#### 4.6.2 實現細節
+
+```javascript
+// 口音設定儲存於 localStorage
+const ACCENT_STORAGE_KEY = 'eca_accent_settings';
+
+// 預設配置
+const defaultAccents = {
+    them: 'en-GB',  // 對方口音（英式）
+    me: 'en-IN'     // 我的口音（亞洲口音）
+};
+
+// Spacebar HOLD 時自動切換口音
+function pttStart() {
+    webSpeechRealtime.setLanguage(accentSettings.me);
+}
+
+function pttEnd() {
+    webSpeechRealtime.setLanguage(accentSettings.them);
+}
+```
+
+#### 4.6.3 UI 設計
+
+- 設定區顯示「對方口音」和「我的口音」兩個下拉選單
+- 提示文字說明 Spacebar HOLD 時會自動切換
+- 設定自動儲存於 localStorage
+
+---
+
+### 4.7 多語言介面（2026-02-10 新增）
+
+> **目標**：支援香港、台灣、中國大陸用戶，提供本地化介面。
+
+#### 4.7.1 支援語言
+
+| 語言代碼 | 名稱 | 詞彙風格 |
+|---------|------|---------|
+| zh-HK | 繁體中文（香港）| 粵語用詞（預設）|
+| zh-TW | 繁體中文（台灣）| 台灣用詞 |
+| zh-CN | 简体中文（中国）| 大陸用詞 |
+| en | English | 英文介面 |
+
+#### 4.7.2 本地化範圍
+
+- 所有 UI 文字（按鈕、標籤、提示）
+- 錯誤訊息
+- 場景名稱
+- 狀態文字
+- 安全提示
+
+#### 4.7.3 實現方式
+
+```javascript
+const TRANSLATIONS = {
+    'zh-HK': {
+        appTitle: '英文對話助手',
+        statusSpeaking: '我講緊嘢',
+        accentHint: '按住「我講緊嘢」時會自動切換口音識別',
+        // ... 70+ 翻譯鍵值
+    },
+    // ... 其他語言
+};
+
+function t(key) {
+    return (TRANSLATIONS[currentLanguage] || TRANSLATIONS['zh-HK'])[key] || key;
+}
+```
+
+#### 4.7.4 語言選擇器
+
+- 位置：頁面 Header 右上角
+- 自動儲存於 localStorage
+- 切換後即時更新所有 UI
+
+---
+
+### 4.8 用戶 API Key 管理（2026-02-10 新增）
+
+> **目標**：支援 Cloud Run 部署，用戶可自行提供 OpenAI API Key。
+
+#### 4.8.1 設計原則
+
+- API Key 只存於瀏覽器 localStorage
+- 伺服器不儲存、不記錄用戶 API Key
+- HTTPS 傳輸確保安全
+- 清晰的安全提示讓用戶放心
+
+#### 4.8.2 前端實現
+
+```javascript
+const API_KEY_STORAGE_KEY = 'eca_openai_api_key';
+
+function saveApiKey() {
+    const key = document.getElementById('apiKeyInput').value.trim();
+    if (!key.startsWith('sk-')) {
+        alert(t('apiKeyInvalidFormat'));
+        return;
+    }
+    localStorage.setItem(API_KEY_STORAGE_KEY, key);
+}
+
+function getApiKey() {
+    return localStorage.getItem(API_KEY_STORAGE_KEY);
+}
+
+// 翻譯請求帶上 API Key
+fetch('/api/translate/stream', {
+    headers: {
+        'X-API-Key': getApiKey()
+    }
+});
+```
+
+#### 4.8.3 後端實現
+
+```python
+@app.post("/api/translate/stream")
+async def translate_text_stream(request: TranslateRequest, req: Request):
+    # 優先使用用戶提供的 API Key
+    user_api_key = req.headers.get("X-API-Key")
+    api_key = user_api_key if user_api_key else OPENAI_API_KEY
+
+    if not api_key:
+        # 返回錯誤提示用戶設定 API Key
+        ...
+```
+
+#### 4.8.4 UI 設計
+
+- API Key 設定區位於「通話前準備」頁面頂部
+- 顯示狀態：「已設定」/「未設定」
+- 輸入框（密碼類型）、儲存、清除按鈕
+- 安全提示說明 API Key 只存於本機
+
+---
+
+### 4.9 翻譯品質改良（2026-02-07 新增）
 
 > **目標**：提升翻譯準確度，特別是領域術語和數字/金額。
 
-#### 4.5.1 場景詞庫整合
+#### 4.9.1 場景詞庫整合
 
 **問題**：翻譯 API 不知道對話場景，可能誤譯領域術語。
 
@@ -641,7 +790,7 @@ def get_glossary_hint(text: str, scenario: str) -> str:
 | Utilities | 30 | standing charge → 每日固定收費, meter reading → 錶讀數 |
 | Insurance | 39 | excess → 自負額/墊底費, no claims bonus → 無索償折扣 |
 
-#### 4.5.2 數字保持規則
+#### 4.9.2 數字保持規則
 
 **規則**：所有數字保持阿拉伯數字，不轉換成中文。
 
@@ -658,7 +807,7 @@ def get_glossary_hint(text: str, scenario: str) -> str:
 - 避免轉換錯誤
 - 簡化驗證邏輯
 
-#### 4.5.3 翻譯驗證系統
+#### 4.9.3 翻譯驗證系統
 
 **實現**：`src/frontend/translation_validator.js`
 
@@ -1514,35 +1663,34 @@ const scenarioPresets = {
 - [VirtualSpeech Speaking Rate](https://virtualspeech.com/blog/average-speaking-rate-words-per-minute) - 語速研究
 - [BYU Pause Duration Study](https://scholarsarchive.byu.edu/cgi/viewcontent.cgi?article=11044&context=etd) - 停頓時長研究
 
-### 16.4 過時文件（僅供參考，位於 `spec/_archive/`）
-- `_archive/role_templates_v2.md` - [DEPRECATED] 舊版 Role Templates
-- `_archive/pivot_design_v2.md` - 舊版轉型設計（已整合到本文件）
-- `_archive/critical_requirements_v3.md` - 關鍵需求定義（已整合到 4.2-4.3 節）
-
 ---
 
-*最後更新：2026-02-09*
-*版本：2.9*
+*最後更新：2026-02-10*
+*版本：3.0*
 *狀態：implemented*
 
 ### 實現狀態
 
 | 組件 | 狀態 | 實現位置 |
 |------|------|---------|
-| 即時翻譯（方案 A） | ✅ 已實現 | `eca_parallel_test.html` |
-| 通話前準備畫面 | ✅ 已實現 | `eca_parallel_test.html` |
-| Quick Response Bar | ✅ 已實現 | `eca_parallel_test.html` |
-| Teleprompter Overlay | ✅ 已實現 | `eca_parallel_test.html` |
-| Panic Button | ✅ 已實現 | `eca_parallel_test.html` |
+| 即時翻譯（方案 A） | ✅ 已實現 | `eca.html` |
+| 通話前準備畫面 | ✅ 已實現 | `eca.html` |
+| Quick Response Bar | ✅ 已實現 | `eca.html` |
+| Teleprompter Overlay | ✅ 已實現 | `eca.html` |
+| Panic Button | ✅ 已實現 | `eca.html` |
 | 講稿生成 API | ✅ 已實現 | `script_generator.py` |
-| 場景預設講稿 | ✅ 已實現 | `script_generator.py`, `eca_parallel_test.html` |
+| 場景預設講稿 | ✅ 已實現 | `script_generator.py`, `eca.html` |
 | 翻譯 API | ✅ 已實現 | `main.py /api/translate/stream` |
-| 角色標記（Speaker Attribution） | ✅ 已實現 | `eca_parallel_test.html` |
+| 角色標記（Speaker Attribution） | ✅ 已實現 | `eca.html` |
+| 口音識別配置 | ✅ 已實現 | `eca.html`, `webspeech_realtime.js` |
+| 多語言介面（i18n） | ✅ 已實現 | `eca.html` |
+| 用戶 API Key 管理 | ✅ 已實現 | `eca.html`, `main.py` |
 
 ### 更新日誌
 
 | 版本 | 日期 | 變更 |
 |------|------|------|
+| 3.0 | 2026-02-10 | **本地化與部署**：§4.6 口音識別配置、§4.7 多語言介面（zh-HK/zh-TW/zh-CN/en）、§4.8 用戶 API Key 管理（Cloud Run 部署支援）|
 | 2.9 | 2026-02-09 | **角色標記功能**：§4.5 新增 Speaker Attribution 設計、Spacebar HOLD 模式（按住=我，放開=對方）、Segment 新增 speaker 欄位、匯出包含說話者標記 |
 | 2.8 | 2026-02-07 | **場景預設講稿**：§5.6 新增場景預設 API、§5.7 場景預設講稿設計、每個場景 5 個常用目的一鍵生成 |
 | 2.7 | 2026-02-06 | **MVP 實現完成**：新增實現狀態表；狀態改為 `implemented` |
