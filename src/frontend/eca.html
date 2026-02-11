@@ -4168,33 +4168,51 @@
                     log('SmartSegmenter started early', 'success');
                 }
 
-                // Step 2: Get ephemeral token (runs in parallel with Web Speech)
-                log('Getting ephemeral token...');
-                const tokenHeaders = { 'Content-Type': 'application/json' };
+                // Step 2: Try to get ephemeral token for WebRTC (optional)
+                // WebRTC is optional - the app works with Web Speech + Translation API alone
+                let webrtcConnected = false;
                 const userApiKey = getApiKey();
+
                 if (userApiKey) {
-                    tokenHeaders['X-API-Key'] = userApiKey;
+                    try {
+                        log('Getting ephemeral token...');
+                        const tokenHeaders = {
+                            'Content-Type': 'application/json',
+                            'X-API-Key': userApiKey
+                        };
+                        const tokenResponse = await fetch('/api/token', {
+                            method: 'POST',
+                            headers: tokenHeaders,
+                            body: JSON.stringify({ voice: 'marin' })
+                        });
+
+                        if (tokenResponse.ok) {
+                            const tokenData = await tokenResponse.json();
+                            log('Token received', 'success');
+
+                            // Step 3: Setup WebRTC (optional)
+                            await setupWebRTC(audioStream, tokenData.client_secret);
+                            webrtcConnected = true;
+                            log('WebRTC connected', 'success');
+                        } else {
+                            log('Token request failed, continuing without WebRTC', 'warn');
+                        }
+                    } catch (webrtcError) {
+                        log(`WebRTC setup failed: ${webrtcError.message}, continuing without it`, 'warn');
+                    }
+                } else {
+                    log('No API Key set, skipping WebRTC', 'warn');
                 }
-                const tokenResponse = await fetch('/api/token', {
-                    method: 'POST',
-                    headers: tokenHeaders,
-                    body: JSON.stringify({ voice: 'marin' })
-                });
 
-                if (!tokenResponse.ok) {
-                    throw new Error('Failed to get token');
-                }
-
-                const tokenData = await tokenResponse.json();
-                log('Token received', 'success');
-
-                // Step 3: Setup WebRTC
-                await setupWebRTC(audioStream, tokenData.client_secret);
-
-                // UI updates: switch to call mode
+                // UI updates: switch to call mode (regardless of WebRTC status)
+                // Core functionality (Web Speech + Translation API) works without WebRTC
                 isConnected = true;
                 transcriptEmpty.style.display = 'flex';
                 switchToCallMode();
+
+                if (!webrtcConnected) {
+                    log('Running in Web Speech + Translation API mode', 'info');
+                }
 
             } catch (error) {
                 log(`Start failed: ${error.message}`, 'error');

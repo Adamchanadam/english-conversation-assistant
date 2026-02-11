@@ -8,6 +8,10 @@
 
 🚀 **[點擊這裡試用 Demo](https://english-conversation-assistant-686112121757.europe-west2.run.app/)**
 
+> ⚠️ **重要**：使用前請先在「設定」中輸入你的 [OpenAI API Key](https://platform.openai.com/api-keys)
+>
+> 🔒 **安全說明**：API Key 只存於你的瀏覽器 localStorage，伺服器不會儲存或記錄
+
 ## 設計理念
 
 ### 核心問題
