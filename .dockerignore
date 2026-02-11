@@ -1,0 +1,32 @@
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+.pytest_cache
+.venv
+venv
+env
+
+# IDE
+.vscode
+.idea
+
+# Project files
+CLAUDE.md
+prompt_*.md
+spec/
+_backup/
+*.md
+!README.md
+
+# Test files
+src/tests/
+src/spike/
+
+# Local config
+.env
+.env.local
