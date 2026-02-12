@@ -122,7 +122,7 @@ async def translate_text(request: TranslateRequest):
     # Twilio 風格 prompt："You are a translation machine..."
 ```
 
-**前端** (`eca_parallel_test.html`):
+**前端** (`eca.html`):
 ```javascript
 smartSegmenter.onSegment = (segment) => {
     // 不再調用 forceTranslation()（OpenAI Realtime）
@@ -247,7 +247,7 @@ _scheduleEmit(reason) {
 | 🛡️ 穩定 | 750ms | 200ms | 更穩定，較慢 |
 | 🔒 保守 | 900ms | 250ms | 最穩定，最慢 |
 
-**實現**：`eca_parallel_test.html` 頁頂選擇器，即時生效
+**實現**：`eca.html` 頁頂選擇器，即時生效
 
 ---
 
@@ -747,7 +747,7 @@ ui-renderer.js      → UI 渲染
 | **解決方案** | 重寫而非修補 |
 
 | **預防措施** | 1. 架構大改時，優先考慮重寫 |
-|           | 2. 舊代碼移到 `_archive/` 目錄 |
+|           | 2. 舊代碼移到 `_backup/` 目錄 |
 |           | 3. 不要在舊架構上疊加新邏輯 |
 
 ---
@@ -1320,10 +1320,147 @@ function pttStart() {
 
 ---
 
+## 8. 本地化與部署相關
+
+### 8.1 多語言介面實現（i18n）
+
+| 項目 | 內容 |
+|------|------|
+| **日期** | 2026-02-10 |
+| **需求** | 支援香港/台灣/中國用戶，介面需本地化 |
+| **方案** | 前端純 JavaScript i18n（無框架依賴）|
+
+**實現要點**：
+1. `TRANSLATIONS` 物件包含所有語言的鍵值對
+2. `t(key)` 函數根據 `currentLanguage` 返回對應文字
+3. HTML 使用 `data-i18n` 屬性標記需翻譯的元素
+4. `updateUILanguage()` 遍歷所有 `data-i18n` 元素並更新
+
+```javascript
+const TRANSLATIONS = {
+    'zh-HK': { appTitle: '英文對話助手', ... },  // 預設
+    'zh-CN': { appTitle: '英文对话助手', ... },
+    'en': { appTitle: 'English Conversation Assistant', ... }
+};
+
+function t(key) {
+    return (TRANSLATIONS[currentLanguage] || TRANSLATIONS['zh-HK'])[key] || key;
+}
+
+function updateUILanguage() {
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+        el.textContent = t(el.dataset.i18n);
+    });
+}
+```
+
+**關鍵教訓**：
+- Alert 訊息也需要本地化（容易遺漏）
+- Placeholder 文字需用 `data-i18n-placeholder` 屬性
+- 動態生成的內容（如 Segment）需在 render 時使用 `t()`
+
+### 8.2 用戶 API Key 安全設計
+
+| 項目 | 內容 |
+|------|------|
+| **日期** | 2026-02-10 |
+| **需求** | Cloud Run 部署時由用戶提供 API Key |
+| **安全原則** | API Key 只存於瀏覽器 localStorage |
+
+**前端實現**：
+- API Key 輸入框使用 `type="password"`
+- 儲存後清空輸入框（不顯示完整 Key）
+- 狀態顯示「已設定」/「未設定」
+
+**後端實現**：
+- 透過 `X-API-Key` header 接收用戶 Key
+- 優先使用用戶 Key，無則回退至伺服器 Key
+- 無 Key 時返回清晰的錯誤訊息
+
+```python
+user_api_key = req.headers.get("X-API-Key")
+api_key = user_api_key if user_api_key else OPENAI_API_KEY
+
+if not api_key:
+    return error("API Key not configured...")
+```
+
+**關鍵教訓**：
+- 清晰的安全提示讓用戶放心
+- 錯誤訊息要本地化
+- 後端不應記錄用戶 API Key
+
+### 8.3 Web Speech API 語言切換
+
+| 項目 | 內容 |
+|------|------|
+| **日期** | 2026-02-10（更新 2026-02-11）|
+| **需求** | 支援不同英語口音識別 |
+| **限制** | Chrome 不直接支援 en-HK |
+
+**實現要點**：
+1. `setLanguage(lang)` 方法動態切換識別語言
+2. 切換語言需要重啟 recognition
+3. Spacebar HOLD 時自動切換至「我的口音」
+
+**❌ 錯誤實現（會導致 InvalidStateError）**：
+```javascript
+// 問題：setTimeout 內直接 start()，recognition 可能尚未完全停止
+setLanguage(lang, restart = true) {
+    const wasRunning = this.isRunning;
+    if (wasRunning && restart) {
+        this.recognition.stop();
+    }
+    this.recognition.lang = lang;
+    this.currentLang = lang;
+    if (wasRunning && restart) {
+        setTimeout(() => this.recognition.start(), 100);  // ❌ 可能失敗
+    }
+}
+```
+
+**✅ 正確實現（使用 onend 事件觸發重啟）**：
+```javascript
+// setLanguage: 設置標誌，讓 onend 處理重啟
+setLanguage(lang, restart = true) {
+    const wasRunning = this.isRunning;
+    this.recognition.lang = lang;
+    this.currentLang = lang;
+    if (wasRunning && restart) {
+        this._pendingRestart = true;
+        this._isChangingLanguage = true;  // 防止常規自動重啟
+        this.recognition.stop();
+    }
+}
+
+// _handleEnd: 等 recognition 真正結束後再重啟
+_handleEnd() {
+    if (this._isChangingLanguage) {
+        this._isChangingLanguage = false;
+        if (this._pendingRestart) {
+            this._pendingRestart = false;
+            setTimeout(() => this.recognition.start(), 50);  // ✅ 確保完全停止後重啟
+        }
+        return;
+    }
+    // ... 常規自動重啟邏輯
+}
+```
+
+**關鍵教訓**：
+- ❌ 不能用 `setTimeout` 猜測 `stop()` 完成時間
+- ✅ 必須用 `onend` 事件確認 recognition 真正停止後再 `start()`
+- ✅ 使用 `_isChangingLanguage` 標誌防止常規自動重啟邏輯干擾
+- ✅ 使用 `_pendingRestart` 標誌讓 `onend` 知道需要重啟
+
+---
+
 ## 更新日誌
 
 | 日期 | 更新內容 |
 |------|---------|
+| 2026-02-11 | 更新 §8.3 Web Speech 語言切換（修復 InvalidStateError：使用 onend 事件觸發重啟）|
+| 2026-02-10 | 新增本地化與部署記錄（§8.1 多語言介面、§8.2 用戶 API Key 安全、§8.3 Web Speech 語言切換）|
 | 2026-02-09 | 新增角色標記功能記錄（§7.1 模式變更、§7.2 實現要點、§7.3 視覺設計、§7.4 匯出對齊）|
 | 2026-02-07 | 新增翻譯品質改良記錄（§6.1 數字規則、§6.2 詞庫整合、§6.3 驗證方法）|
 | 2026-02-06 | 新增 MVP 功能驗收記錄（Chrome DevTools MCP 測試通過）|

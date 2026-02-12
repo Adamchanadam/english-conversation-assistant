@@ -2,11 +2,11 @@
 name: english-conversation-assistant-design
 description: 英文對話助手（ECA）技術設計 — 即時翻譯 + 通話前準備 + Quick Response Bar + Smart 建議 + 場景預設講稿 + 角色標記 + 多語言介面 + 用戶 API Key
 status: approved
-version: 3.0
-date: 2026-02-10
+version: 3.1
+date: 2026-02-12
 ---
 
-# English Conversation Assistant — Design v2.0
+# English Conversation Assistant — Design v3.0
 
 ## 1. 產品定位
 
@@ -42,8 +42,8 @@ date: 2026-02-10
 ┌─────────────────────────────────────────────────────────────┐
 │                         Frontend                             │
 │  ┌─────────────────────────────────────────────────────┐    │
-│  │ Web App: React + Tailwind                           │    │
-│  │ Desktop: Tauri v2 (Phase 2)                         │    │
+│  │ Web App: Vanilla JS (ES6+) + CSS3                    │    │
+│  │ Desktop: Tauri v2 (Phase 2, 未實現)                  │    │
 │  └─────────────────────────────────────────────────────┘    │
 ├─────────────────────────────────────────────────────────────┤
 │                         Backend                              │
@@ -114,7 +114,7 @@ date: 2026-02-10
 | **P1** | 快捷短語 | ✅ | ✅ | ✅ |
 | **P1** | 對話記錄匯出 | ✅ | ✅ | ✅ |
 | **P1** | Smart 回應建議 | - | ✅ | ✅ |
-| **P2** | 場景預設 | ✅ | ✅ | ✅ |
+| **P0** | 場景預設 | ✅ | ✅ | ✅ |
 | **P2** | 對話歷史瀏覽 | - | ✅ | ✅ |
 | **P2** | 信心指示 | - | - | ✅ |
 | **P3** | Whisper Mode | - | - | ✅ |
@@ -232,22 +232,22 @@ date: 2026-02-10
 
 **5 種預設模式**（用戶可在 UI 選擇）：
 
-| 模式 | pauseThreshold | stabilityDelay | softLimit | hardLimit | 適用場景 |
-|------|---------------|----------------|-----------|-----------|---------|
-| 🚀 極速 | 400ms | 80ms | 12 | 20 | 最快反應，可能切斷單詞 |
-| ⚡ 快速 | 500ms | 100ms | 12 | 20 | **預設**，快速反應 |
-| ⚖️ 平衡 | 600ms | 150ms | 15 | 25 | 平衡速度與穩定性 |
-| 🛡️ 穩定 | 750ms | 200ms | 15 | 25 | 更穩定，較慢 |
-| 🔒 保守 | 900ms | 250ms | 18 | 30 | 最穩定，最慢 |
+| 模式 | pauseThreshold | stabilityDelay | softLimit | hardLimit | minSegmentWords | 適用場景 |
+|------|---------------|----------------|-----------|-----------|-----------------|---------|
+| 🚀 極速 | 400ms | 80ms | 12 | 20 | 2 | 最快反應，可能切斷單詞 |
+| ⚡ 快速 | 500ms | 100ms | 14 | 22 | 3 | **預設**，快速反應 |
+| ⚖️ 平衡 | 600ms | 150ms | 15 | 25 | 3 | 平衡速度與穩定性 |
+| 🛡️ 穩定 | 750ms | 200ms | 18 | 28 | 4 | 更穩定，較慢 |
+| 🔒 保守 | 900ms | 250ms | 20 | 30 | 4 | 最穩定，最慢 |
 
 ```javascript
 const SEGMENTER_PRESETS = {
   'fast': {  // 預設
     pauseThreshold: 500,
     stabilityDelay: 100,
-    softLimit: 12,
-    hardLimit: 20,
-    minSegmentWords: 2
+    softLimit: 14,
+    hardLimit: 22,
+    minSegmentWords: 3
   }
   // ... 其他預設見 eca.html
 };
@@ -639,20 +639,14 @@ const defaultAccents = {
     me: 'en-IN'     // 我的口音（亞洲口音）
 };
 
-// Spacebar HOLD 時自動切換口音
-function pttStart() {
-    webSpeechRealtime.setLanguage(accentSettings.me);
-}
-
-function pttEnd() {
-    webSpeechRealtime.setLanguage(accentSettings.them);
-}
+// ⚠️ 口音在通話開始時設定，通話中保持固定
+// 已移除 PTT 口音切換功能（會導致 WebSpeech restart 音訊丟失）
 ```
 
 #### 4.6.3 UI 設計
 
 - 設定區顯示「對方口音」和「我的口音」兩個下拉選單
-- 提示文字說明 Spacebar HOLD 時會自動切換
+- 口音在通話開始時套用，通話中不切換（避免音訊丟失）
 - 設定自動儲存於 localStorage
 
 ---
@@ -661,12 +655,11 @@ function pttEnd() {
 
 > **目標**：支援香港、台灣、中國大陸用戶，提供本地化介面。
 
-#### 4.7.1 支援語言
+#### 4.7.1 支援語言（3 種）
 
 | 語言代碼 | 名稱 | 詞彙風格 |
 |---------|------|---------|
 | zh-HK | 繁體中文（香港）| 粵語用詞（預設）|
-| zh-TW | 繁體中文（台灣）| 台灣用詞 |
 | zh-CN | 简体中文（中国）| 大陸用詞 |
 | en | English | 英文介面 |
 
@@ -782,13 +775,13 @@ def get_glossary_hint(text: str, scenario: str) -> str:
     # 返回：'Key terms: "direct debit" = "直接付款授權"'
 ```
 
-**詞庫內容**（`src/backend/domain_glossaries.json`）：
-| 場景 | 術語數 | 範例 |
-|------|--------|------|
-| Bank | 34 | direct debit → 直接付款授權, sort code → 銀行分類代碼 |
-| NHS | 32 | surgery → 診所（非手術）, GP → 家庭醫生 |
-| Utilities | 30 | standing charge → 每日固定收費, meter reading → 錶讀數 |
-| Insurance | 39 | excess → 自負額/墊底費, no claims bonus → 無索償折扣 |
+**詞庫內容**（`src/backend/domain_glossaries.json`，共 155 條）：
+| 場景 | 術語 | 短語 | 合計 | 範例 |
+|------|------|------|------|------|
+| Bank | 30 | 5 | 35 | direct debit → 直接付款授權, sort code → 銀行分類代碼 |
+| NHS | 33 | 6 | 39 | surgery → 診所（非手術）, GP → 家庭醫生 |
+| Utilities | 30 | 6 | 36 | standing charge → 每日固定收費, meter reading → 錶讀數 |
+| Insurance | 38 | 7 | 45 | excess → 自負額/墊底費, no claims bonus → 無索償折扣 |
 
 #### 4.9.2 數字保持規則
 
@@ -856,7 +849,7 @@ def get_glossary_hint(text: str, scenario: str) -> str:
 
 **使用流程**：
 ```
-1. 選場景（Bank / NHS / Utilities / Insurance）
+1. 選場景（Bank / NHS / Utilities / Insurance / General）
 2. 看場景詞彙和常用句（靜態數據）
 3. 輸入中文：「我想查上個月的費用明細」（不急，慢慢打）
 4. 生成英文講稿 + 備選方案（調用 POST /api/script/stream）
@@ -966,7 +959,7 @@ const STALLING_PHRASES = [
 ```
 
 **UI 規格**：
-- 字體大小：28px（大字易讀）
+- 字體大小：22px（大字易讀）
 - 行高：1.8（寬鬆間距）
 - 最大寬度：600px（避免視線移動過大）
 - 背景：淺色高對比（#f8f9fa）
@@ -1076,7 +1069,9 @@ const STALLING_PHRASES = [
 
 ---
 
-## 6. Smart 建議模組
+## 6. Smart 建議模組（v1.5 規劃，MVP 未實現）
+
+> ⚠️ **注意**：此模組為 v1.5 規劃功能，MVP 尚未實現。以下為設計規格，供未來開發參考。
 
 ### 6.1 觸發邏輯（Smart Mode）
 
@@ -1458,12 +1453,19 @@ const scenarioPresets = {
 
 ### 11.1 API 端點總覽
 
-| 端點 | 方法 | 功能 |
-|------|------|------|
-| `/api/token` | POST | 生成 Realtime API ephemeral token |
-| `/api/script` | POST | 生成英文講稿 |
-| `/api/suggest` | POST | 生成回應建議 |
-| `/api/translate` | POST | 翻譯文字（備援） |
+| 端點 | 方法 | 功能 | 狀態 |
+|------|------|------|------|
+| `/api/token` | POST | 生成 Realtime API ephemeral token | ✅ 已實現 |
+| `/api/translate/stream` | POST | 串流翻譯（英→中，gpt-4.1-nano） | ✅ 已實現 |
+| `/api/translate` | POST | 非串流翻譯（備援） | ✅ 已實現 |
+| `/api/script/stream` | POST | 串流講稿生成（中→英，gpt-5-mini） | ✅ 已實現 |
+| `/api/script` | POST | 非串流講稿生成 | ✅ 已實現 |
+| `/api/script/scenarios` | GET | 所有場景預設選項 | ✅ 已實現 |
+| `/api/script/scenarios/{scenario}` | GET | 特定場景預設選項 | ✅ 已實現 |
+| `/api/controller` | POST | 文字控制器（gpt-5-mini，舊版 VoiceProxy） | ✅ 已實現（舊版） |
+| `/api/summarize_ssot` | POST | SSOT 摘要（舊版） | ✅ 已實現（舊版） |
+| `/health` | GET | 健康檢查 | ✅ 已實現 |
+| `/api/suggest` | POST | Smart 回應建議 | ❌ v1.5 待實現 |
 
 ### 11.2 `/api/token`
 
@@ -1510,7 +1512,7 @@ const scenarioPresets = {
 }
 ```
 
-### 11.4 `/api/suggest`
+### 11.4 `/api/suggest`（v1.5 規劃，MVP 未實現）
 
 生成回應建議。
 
@@ -1665,8 +1667,8 @@ const scenarioPresets = {
 
 ---
 
-*最後更新：2026-02-10*
-*版本：3.0*
+*最後更新：2026-02-12*
+*版本：3.1*
 *狀態：implemented*
 
 ### 實現狀態
@@ -1690,7 +1692,8 @@ const scenarioPresets = {
 
 | 版本 | 日期 | 變更 |
 |------|------|------|
-| 3.0 | 2026-02-10 | **本地化與部署**：§4.6 口音識別配置、§4.7 多語言介面（zh-HK/zh-TW/zh-CN/en）、§4.8 用戶 API Key 管理（Cloud Run 部署支援）|
+| 3.0 | 2026-02-10 | **本地化與部署**：§4.6 口音識別配置、§4.7 多語言介面（zh-HK/zh-CN/en，3 種）、§4.8 用戶 API Key 管理（Cloud Run 部署支援）|
+| 3.1 | 2026-02-12 | **SSOT 對齊**：修正 i18n 語言數（4→3），修正 SmartSegmenter 預設參數值，修正 teleprompter 字體（28→22px），修正詞庫數量（135→155），標記 Smart 建議為 v1.5 規劃，更新 API 端點總覽，修正口音切換描述 |
 | 2.9 | 2026-02-09 | **角色標記功能**：§4.5 新增 Speaker Attribution 設計、Spacebar HOLD 模式（按住=我，放開=對方）、Segment 新增 speaker 欄位、匯出包含說話者標記 |
 | 2.8 | 2026-02-07 | **場景預設講稿**：§5.6 新增場景預設 API、§5.7 場景預設講稿設計、每個場景 5 個常用目的一鍵生成 |
 | 2.7 | 2026-02-06 | **MVP 實現完成**：新增實現狀態表；狀態改為 `implemented` |

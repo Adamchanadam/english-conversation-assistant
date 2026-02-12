@@ -342,13 +342,13 @@ TRANSLATION_MODEL = "gpt-4.1-nano"
 @app.post("/api/translate", response_model=TranslateResponse)
 async def translate_text(request: TranslateRequest, req: Request):
     """
-    Translate English text to Traditional Chinese using gpt-4o-mini.
+    Translate English text to Traditional Chinese using gpt-4.1-nano.
 
     方案 A: 兩階段架構
     - Web Speech API 負責 STT（語音轉文字）
-    - gpt-4o-mini 負責翻譯（文字轉文字）- 快速，約 0.3-0.8 秒
+    - gpt-4.1-nano 負責翻譯（文字轉文字）- 快速，約 0.3-0.8 秒
 
-    注意：翻譯不是「文字控制器」功能，使用 gpt-4o-mini 以獲得更快回應。
+    注意：翻譯不是「文字控制器」功能，使用 gpt-4.1-nano 以獲得更快回應。
     Controller API (/api/controller) 仍使用 gpt-5-mini。
 
     API Key 支援：
@@ -399,7 +399,7 @@ CRITICAL - Keep ALL numbers in Arabic numerals:
                     "Content-Type": "application/json",
                 },
                 json={
-                    "model": TRANSLATION_MODEL,  # gpt-4o-mini
+                    "model": TRANSLATION_MODEL,  # gpt-4.1-nano
                     "messages": [
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": request.text}

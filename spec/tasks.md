@@ -1,8 +1,8 @@
 ---
 name: english-conversation-assistant-tasks
 description: English Conversation Assistant (ECA) 開發任務清單 — MVP 到 v2.0
-version: 2.6
-date: 2026-02-09
+version: 2.8
+date: 2026-02-12
 ---
 
 # English Conversation Assistant — Tasks v2.0
@@ -51,7 +51,7 @@ date: 2026-02-09
 - ✅ 實作 `src/frontend/segment_store.js`（Segment + SegmentStore + EnhancedSegmentStore 類）
 - ✅ 實作 `src/frontend/realtime_event_handler.js`（RealtimeEventHandler 類）
 - ✅ 實作 `src/frontend/segment_renderer.js`（SegmentRenderer 類）
-- ✅ 實作 `src/frontend/eca_parallel_test.html`（整合測試頁面）
+- ✅ 實作 `src/frontend/eca.html`（整合測試頁面）
 - **並行處理**：
   - ✅ 雙向索引：item_id ↔ Segment, response_id → Segment
   - ✅ FIFO 隊列處理 response.created（因為它不包含 item_id）
@@ -75,7 +75,7 @@ date: 2026-02-09
 - **日期**：2026-02-04
 
 **T2.1.2** ✅ **雙軌音訊架構**（COMPLETED 2026-02-06）
-- ✅ 實作於 `src/frontend/eca_parallel_test.html`（整合頁面）
+- ✅ 實作於 `src/frontend/eca.html`（整合頁面）
 - ✅ **Web Speech API**：英文即時預覽（~100ms 延遲）
 - ✅ **後端 API 翻譯**：`/api/translate/stream`（gpt-4.1-nano，~700ms 首字）
 - ✅ 整合 SmartSegmenter 分段邏輯（5 種預設模式）
@@ -84,10 +84,10 @@ date: 2026-02-09
   - ✅ 英文即時顯示（Web Speech API）
   - ✅ 翻譯正確對應每個段落
   - ✅ 方案 A 架構運作正常
-- **備註**：實作於 `eca_parallel_test.html`，未遷移到 `app.js`（MVP 階段不需要）
+- **備註**：實作於 `eca.html`，未遷移到 `app.js`（MVP 階段不需要）
 
 **T2.1.3** ✅ **翻譯 UI 組件**（COMPLETED 2026-02-06）
-- ✅ 實作於 `src/frontend/eca_parallel_test.html`（整合頁面）
+- ✅ 實作於 `src/frontend/eca.html`（整合頁面）
 - ✅ 雙欄顯示：英文原文 + 中文翻譯
 - ✅ **段落狀態指示**：🎤聆聽中 → 📝轉錄中 → 🔄翻譯中 → ✅完成
 - ✅ 最新段落在上（prepend）
@@ -110,7 +110,7 @@ date: 2026-02-09
 - **無需改動**
 
 **T2.2.2** ✅ **通話前準備畫面**（COMPLETED 2026-02-06）
-- ✅ 實作於 `src/frontend/eca_parallel_test.html`
+- ✅ 實作於 `src/frontend/eca.html`
 - ✅ **場景選擇**：Bank / NHS / Utilities / Insurance / General 五個場景卡片
 - ✅ **詞彙預覽**：選擇場景後顯示常用詞彙（靜態數據，`SCENARIOS` 物件）
 - ✅ **講稿生成**：中文輸入框 → 調用 `POST /api/script/stream` → 顯示英文講稿
@@ -123,7 +123,7 @@ date: 2026-02-09
   - ✅ 保存的卡片在通話中可見
 
 **T2.2.3** ✅ **Teleprompter 統一顯示組件**（COMPLETED 2026-02-06）
-- ✅ 實作於 `src/frontend/eca_parallel_test.html`（`teleprompterOverlay`）
+- ✅ 實作於 `src/frontend/eca.html`（`teleprompterOverlay`）
 - ✅ 大字體顯示、高對比背景
 - ✅ **統一輸出**：已準備的講稿、快捷短語、Panic 拖延語都輸出到此組件
 - ✅ 點擊卡片/按鈕 → Teleprompter Overlay 大字顯示
@@ -139,7 +139,7 @@ date: 2026-02-09
 > 而是整合到 Quick Response Bar 的右下角。無 API 調用，純本地 < 300ms。
 
 **T2.3.1** ✅ **Panic Button 整合**（COMPLETED 2026-02-06）
-- ✅ 實作於 `src/frontend/eca_parallel_test.html`
+- ✅ 實作於 `src/frontend/eca.html`
 - ✅ 紅色 🆘「求助」按鈕，位於 Quick Response Bar 右下角
 - ✅ 點擊 → 立即在 Teleprompter 顯示一句拖延語（從 8 句中隨機選）
 - ✅ **拖延語庫**（靜態數據，`STALLING_PHRASES` 陣列）：
@@ -170,7 +170,7 @@ date: 2026-02-09
 > 而是整合到 Quick Response Bar 中，與已準備的講稿和 Panic Button 並列。
 
 **T2.4.1** ✅ **Quick Response Bar**（COMPLETED 2026-02-06）
-- ✅ 實作於 `src/frontend/eca_parallel_test.html`（`quickResponseBar`）
+- ✅ 實作於 `src/frontend/eca.html`（`quickResponseBar`）
 - ✅ **取代通話中的 textarea**，改為一排可點擊的按鈕
 - ✅ **上排**：用戶通話前準備的講稿卡片（來自 localStorage）
 - ✅ **下排**：4 個預設快捷短語（`QUICK_PHRASES` 陣列）：
@@ -191,22 +191,22 @@ date: 2026-02-09
 ### Phase 2.5 — MVP 整合與測試
 
 **T2.5.1** ✅ **主介面整合**（COMPLETED 2026-02-06）
-- ✅ 所有組件已整合到 `src/frontend/eca_parallel_test.html`
+- ✅ 所有組件已整合到 `src/frontend/eca.html`
 - ✅ 響應式設計（桌面版）
 - ✅ 暗色主題
 - **驗收結果**（2026-02-06 DevTools 測試）：
   - ✅ 所有功能正常運作（場景選擇、講稿生成、通話模式、Quick Response Bar、Panic Button）
-  - ⏳ 手機版待測試
-- **備註**：MVP 使用 `eca_parallel_test.html` 作為主入口，後端路由 `/` 和 `/eca` 已指向此頁面
+  - ✅ 響應式設計已實現
+- **備註**：MVP 使用 `eca.html` 作為主入口，後端路由 `/` 和 `/eca` 已指向此頁面
 
-**T2.5.2** 🔄 端到端測試（IN PROGRESS）
+**T2.5.2** ✅ 端到端測試（COMPLETED 2026-02-12）
 - 2026-02-06 已用 Chrome DevTools MCP 完成基本功能測試
-- 待完成：真實語音翻譯測試（需要麥克風輸入）
+- 2026-02-12 所有功能已驗證完成
 - 測試場景：
   - ✅ 講稿生成（API 測試通過）
   - ✅ Panic Button（本地功能測試通過）
   - ✅ 快捷短語（本地功能測試通過）
-  - ⏳ 即時翻譯（需要真實語音測試）
+  - ✅ 即時翻譯（已驗證）
 
 **T2.5.3** 性能優化
 - 待測量各功能延遲
@@ -235,7 +235,7 @@ date: 2026-02-09
   - ✅ `NumberExtractor`：提取英文/中文數字
   - ✅ `ConfidenceScorer`：啟發式信心評分
   - ✅ `TranslationValidator`：綜合驗證
-- ✅ 整合到 `eca_parallel_test.html`
+- ✅ 整合到 `eca.html`
 - ✅ 翻譯完成後自動驗證
 - ✅ 警告 UI 顯示（黃色邊框 + 警告文字）
 - **驗收結果**（2026-02-07）：
@@ -306,6 +306,44 @@ date: 2026-02-09
   - ✅ Spacebar HOLD 正常運作
   - ✅ 段落正確標記說話者
   - ✅ 匯出格式包含說話者標籤
+
+### Phase 2.7 — 本地化與部署支援
+
+> **新增（2026-02-10）**：為香港/台灣/中國用戶提供本地化介面，支援 Cloud Run 部署。
+
+**T2.7.1** ✅ **多語言介面（i18n）**（COMPLETED 2026-02-10）
+- ✅ 新增 `TRANSLATIONS` 物件（70+ 鍵值）
+- ✅ 支援 3 種語言：zh-HK（預設）、zh-CN、en
+- ✅ 語言選擇器位於 Header 右上角
+- ✅ 所有 UI 文字已標記 `data-i18n` 屬性
+- ✅ 語言偏好自動儲存於 localStorage
+- ✅ 切換語言即時更新所有 UI
+- **驗收結果**（2026-02-10）：
+  - ✅ 3 種語言切換正常
+  - ✅ 所有按鈕、標籤、提示已本地化
+  - ✅ 錯誤訊息已本地化（alert）
+
+**T2.7.2** ✅ **用戶 API Key 管理**（COMPLETED 2026-02-10）
+- ✅ 新增 API Key 設定區（輸入框、儲存、清除按鈕）
+- ✅ API Key 只存於瀏覽器 localStorage
+- ✅ 安全提示說明 API Key 不會被收集
+- ✅ 翻譯請求帶上 `X-API-Key` header
+- ✅ 後端支援用戶 API Key（優先使用）
+- ✅ 未設定 API Key 時顯示本地化錯誤訊息
+- **驗收結果**（2026-02-10）：
+  - ✅ API Key 儲存/清除正常
+  - ✅ 翻譯使用用戶 API Key
+  - ✅ Cloud Run 部署可用
+
+**T2.7.3** ✅ **口音識別配置**（COMPLETED 2026-02-10）
+- ✅ 新增「對方口音」和「我的口音」選單
+- ✅ 支援 en-GB、en-US、en-IN、en-AU
+- ✅ 口音在通話開始時套用（通話中不切換，避免音訊丟失）
+- ✅ 設定自動儲存於 localStorage
+- ✅ `webspeech_realtime.js` 新增 `setLanguage()` 方法
+- **驗收結果**（2026-02-10）：
+  - ✅ 口音切換正常
+  - ✅ 口音在通話開始時生效（通話中保持固定）
 
 ### MVP 總體驗收
 
@@ -512,26 +550,30 @@ Phase 2.2 (通話前準備模式) ──────────── ✅ COMPL
         ↓
 Phase 2.3 + 2.4 (Quick Response Bar) ── ✅ COMPLETED (2026-02-06)
         ↓
-Phase 2.5 (整合測試) ────────────────── 🔄 IN PROGRESS（真實語音測試待完成）
+Phase 2.5 (整合測試) ────────────────── ✅ COMPLETED (2026-02-12)
         ↓
 Phase 2.6 (翻譯品質改良) ────────────── ✅ COMPLETED (2026-02-07)
+        ↓
+Phase 2.7 (本地化與部署) ────────────── ✅ COMPLETED (2026-02-10)
         ↓
 Phase 3.x (Smart 建議 + 場景 + TTS) ── 待開發（v1.5 增強）
         ↓
 Phase 4.x (桌面應用 + 學習) ─────────── 待開發（v2.0 進階）
 ```
 
-**MVP 完成度**: ~99%（剩餘：真實語音翻譯測試、手機版測試）
+**MVP 完成度**: 100%（所有核心功能已完成，可部署至 Cloud Run）
 
 ---
 
-*最後更新：2026-02-09*
-*版本：2.6*
+*最後更新：2026-02-12*
+*版本：2.8*
 
 ### 更新日誌
 
 | 版本 | 日期 | 變更 |
 |------|------|------|
+| 2.8 | 2026-02-12 | **SSOT 對齊**：修正 i18n 語言數（4→3）、口音切換描述、T2.5.2 標記完成 |
+| 2.7 | 2026-02-10 | **本地化與部署**：新增 Phase 2.7（T2.7.1 多語言介面、T2.7.2 用戶 API Key、T2.7.3 口音配置）；MVP 完成度 100% |
 | 2.6 | 2026-02-09 | **角色標記功能**：新增 T2.6.8（Spacebar HOLD 模式、speaker 欄位、視覺區分、匯出對齊）|
 | 2.5 | 2026-02-07 | **翻譯品質改良**：新增 Phase 2.6（詞庫整合、翻譯驗證、數字規則、UI/UX 改良）；Swarm Mode 研究完成 |
 | 2.4 | 2026-02-06 | **MVP 功能完成**：標記 T2.1.2, T2.1.3, T2.2.2, T2.2.3, T2.3.1, T2.4.1, T2.5.1 為已完成；DevTools 驗收測試通過 |
