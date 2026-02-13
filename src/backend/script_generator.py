@@ -60,7 +60,9 @@ DEFAULT_PROMPTS = {
             {"label": "不明收費", "prompt": "我想詢問帳戶上一筆不明的收費是什麼"},
             {"label": "更新資料", "prompt": "我想更新我的地址和電話號碼"},
             {"label": "開戶咨詢", "prompt": "我想了解開立新帳戶需要什麼文件"},
-            {"label": "轉帳問題", "prompt": "我想查詢一筆轉帳為什麼還沒到帳"}
+            {"label": "轉帳問題", "prompt": "我想查詢一筆轉帳為什麼還沒到帳"},
+            {"label": "掛失卡片", "prompt": "我的銀行卡遺失了，想辦理掛失和補發"},
+            {"label": "申請貸款", "prompt": "我想了解個人貸款的利率和申請條件"}
         ]
     },
     "nhs": {
@@ -70,7 +72,9 @@ DEFAULT_PROMPTS = {
             {"label": "領處方簽", "prompt": "我想詢問我的處方簽是否可以領取"},
             {"label": "轉診進度", "prompt": "我想查詢專科轉診的進度"},
             {"label": "檢驗結果", "prompt": "我想詢問上次檢驗的結果出來了嗎"},
-            {"label": "取消預約", "prompt": "我想取消或更改我的預約時間"}
+            {"label": "取消預約", "prompt": "我想取消或更改我的預約時間"},
+            {"label": "病假證明", "prompt": "我需要一份病假證明給我的雇主"},
+            {"label": "重複處方", "prompt": "我想申請重複處方的續期"}
         ]
     },
     "utilities": {
@@ -80,7 +84,9 @@ DEFAULT_PROMPTS = {
             {"label": "更新付款", "prompt": "我想更新 Direct Debit 的銀行資料"},
             {"label": "報讀數", "prompt": "我想報告電錶/瓦斯表的讀數"},
             {"label": "換方案", "prompt": "我想了解有沒有更優惠的方案"},
-            {"label": "搬家通知", "prompt": "我下個月要搬家，想通知更新地址"}
+            {"label": "搬家通知", "prompt": "我下個月要搬家，想通知更新地址"},
+            {"label": "付款困難", "prompt": "我暫時有經濟困難，想了解分期付款的選項"},
+            {"label": "斷供投訴", "prompt": "我家突然停電/停水了，想查詢原因和恢復時間"}
         ]
     },
     "insurance": {
@@ -90,7 +96,9 @@ DEFAULT_PROMPTS = {
             {"label": "提出理賠", "prompt": "我想提出一個理賠申請"},
             {"label": "續約保費", "prompt": "我想詢問保費續約的金額"},
             {"label": "更改資料", "prompt": "我想更改保單上的個人資料"},
-            {"label": "取消保單", "prompt": "我想了解取消保單的流程"}
+            {"label": "取消保單", "prompt": "我想了解取消保單的流程"},
+            {"label": "理賠進度", "prompt": "我想查詢我之前提出的理賠申請目前的進度"},
+            {"label": "加保項目", "prompt": "我想了解可以加保哪些額外項目，例如牙科或眼科"}
         ]
     },
     "general": {
@@ -100,7 +108,9 @@ DEFAULT_PROMPTS = {
             {"label": "確認狀態", "prompt": "我想確認我的預約/訂單狀態"},
             {"label": "客服轉接", "prompt": "請問可以幫我轉接客服部門嗎"},
             {"label": "投訴反映", "prompt": "我想反映一個問題"},
-            {"label": "感謝結束", "prompt": "好的，謝謝你的幫忙，再見"}
+            {"label": "感謝結束", "prompt": "好的，謝謝你的幫忙，再見"},
+            {"label": "留言回電", "prompt": "請問可以留言嗎？請他方便時回電給我"},
+            {"label": "索取編號", "prompt": "可以給我這次通話的參考編號嗎？"}
         ]
     }
 }
@@ -190,7 +200,8 @@ def generate_script(
     chinese_input: str,
     scenario: Optional[str] = None,
     conversation_history: list = None,
-    tone: str = "polite"
+    tone: str = "polite",
+    api_key: Optional[str] = None
 ) -> dict:
     """
     Generate English script from Chinese input.
@@ -200,11 +211,12 @@ def generate_script(
         scenario: Optional scenario type
         conversation_history: Optional conversation context
         tone: Desired tone
+        api_key: Optional OpenAI API key (overrides env var)
 
     Returns:
         Dict with english_script, alternatives, pronunciation_tips
     """
-    client = OpenAI()
+    client = OpenAI(api_key=api_key) if api_key else OpenAI()
 
     prompt = build_script_prompt(
         chinese_input=chinese_input,
@@ -263,7 +275,8 @@ def generate_script_stream(
     chinese_input: str,
     scenario: Optional[str] = None,
     conversation_history: list = None,
-    tone: str = "polite"
+    tone: str = "polite",
+    api_key: Optional[str] = None
 ) -> Generator[str, None, None]:
     """
     Generate English script with streaming output.
@@ -275,11 +288,12 @@ def generate_script_stream(
         scenario: Optional scenario type
         conversation_history: Optional conversation context
         tone: Desired tone
+        api_key: Optional OpenAI API key (overrides env var)
 
     Yields:
         SSE-formatted strings
     """
-    client = OpenAI()
+    client = OpenAI(api_key=api_key) if api_key else OpenAI()
 
     # Use default prompt if input is empty
     actual_input = chinese_input.strip() if chinese_input else ""

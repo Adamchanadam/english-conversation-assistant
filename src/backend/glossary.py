@@ -6,6 +6,8 @@ Reference:
 - spec/research/uk_domain_glossaries.json
 
 Provides domain-specific terminology hints for translation API.
+6 domains: bank, nhs, utilities, insurance, government, housing (281 entries).
+'general' scenario searches all domains for maximum coverage.
 """
 
 import os
@@ -50,9 +52,12 @@ def get_glossary_hint(text: str, scenario: Optional[str] = None, max_hints: int 
     """
     Find matching glossary terms in source text and return hints.
 
+    For specific scenarios (bank, nhs, utilities, insurance), searches only that domain.
+    For 'general' scenario (or unknown), searches ALL domains to maximize coverage.
+
     Args:
         text: English source text to analyze
-        scenario: Domain scenario (bank, nhs, utilities, insurance)
+        scenario: Domain scenario (bank, nhs, utilities, insurance, government, housing, general)
         max_hints: Maximum number of hints to return
 
     Returns:
@@ -60,20 +65,34 @@ def get_glossary_hint(text: str, scenario: Optional[str] = None, max_hints: int 
     """
     _load_glossaries()
 
-    if not scenario or scenario not in _GLOSSARIES:
+    if not scenario:
         return ""
 
-    scenario_data = _GLOSSARIES.get(scenario, {})
-    terms = scenario_data.get("terms", {})
+    # Determine which domains to search
+    # Specific scenario → search that domain only
+    # 'general' or unknown → search ALL domains for maximum coverage
+    metadata_keys = {"version", "description", "locale", "last_updated"}
+    if scenario in _GLOSSARIES and scenario not in metadata_keys:
+        domains_to_search = [scenario]
+    else:
+        # 'general' or unknown scenario: search all domains
+        domains_to_search = [k for k in _GLOSSARIES.keys() if k not in metadata_keys]
 
-    if not terms:
+    # Merge all terms from selected domains
+    all_terms = {}
+    for domain in domains_to_search:
+        domain_data = _GLOSSARIES.get(domain, {})
+        terms = domain_data.get("terms", {})
+        all_terms.update(terms)
+
+    if not all_terms:
         return ""
 
     text_lower = text.lower()
     matches = []
 
     # Find matching terms (longer terms first to avoid partial matches)
-    sorted_terms = sorted(terms.keys(), key=len, reverse=True)
+    sorted_terms = sorted(all_terms.keys(), key=len, reverse=True)
     matched_positions = set()  # Track matched positions to avoid overlaps
 
     for term in sorted_terms:
@@ -84,7 +103,7 @@ def get_glossary_hint(text: str, scenario: Optional[str] = None, max_hints: int 
             # Check if this position overlaps with already matched terms
             term_range = set(range(pos, pos + len(term)))
             if not term_range & matched_positions:
-                info = terms[term]
+                info = all_terms[term]
                 zh = info.get("zh", "")
                 if zh:
                     matches.append(f'"{term}" = "{zh}"')
@@ -103,6 +122,8 @@ def get_scenario_context(scenario: Optional[str] = None) -> str:
     """
     Get scenario context description for translation prompt.
 
+    For 'general' or unknown scenario, returns a broad UK context description.
+
     Args:
         scenario: Domain scenario
 
@@ -111,11 +132,15 @@ def get_scenario_context(scenario: Optional[str] = None) -> str:
     """
     _load_glossaries()
 
-    if not scenario or scenario not in _GLOSSARIES:
+    if not scenario:
         return ""
 
-    description = _GLOSSARIES.get(scenario, {}).get("description", "")
-    return f"Context: {description}" if description else ""
+    if scenario in _GLOSSARIES:
+        description = _GLOSSARIES.get(scenario, {}).get("description", "")
+        return f"Context: {description}" if description else ""
+    else:
+        # 'general' scenario: provide broad context
+        return "Context: UK phone call, may involve banking, healthcare, utilities, insurance, government services, or housing"
 
 
 def post_process_translation(text: str, scenario: Optional[str] = None) -> str:

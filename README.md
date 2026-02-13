@@ -64,9 +64,10 @@ ECA 採用**雙軌並行架構**，同時解決「聽」和「說」的問題：
 - 數字、金額、日期保持阿拉伯數字格式，易於核對
 
 ### 📚 場景詞庫（UK 專用）
-- 4 個詞庫領域：銀行、NHS 醫療、水電、保險（共 155 條：131 術語 + 24 常用短語）
+- 6 個詞庫領域（共 281 條：236 術語 + 45 常用短語）
 - 領域術語自動提示翻譯（如 direct debit → 直接付款授權）
 - 避免常見誤譯（如 NHS surgery → 診所，非手術）
+- 選擇「一般」場景時自動搜索全部 6 個領域
 
 ### ✅ 翻譯品質驗證
 - 自動檢測數字/金額錯誤
@@ -81,9 +82,9 @@ ECA 採用**雙軌並行架構**，同時解決「聽」和「說」的問題：
 
 ### 🎯 通話輔助功能
 - **通話前準備**：選擇場景、生成講稿
-- **場景預設講稿**：每個場景有 5 個常用目的，一鍵生成講稿
-- **Quick Response Bar**：快捷短語一鍵調用
-- **Panic Button**：緊急時顯示拖延語
+- **場景預設講稿**：每個場景有 7 個常用目的，一鍵生成講稿（共 35 個）
+- **Quick Response Bar**：4 句快捷短語一鍵調用
+- **Panic Button**：8 句拖延語隨機輪換，爭取思考時間
 - **暫停/繼續**：隨時暫停收音，不離開通話
 - **匯出對話記錄**：一鍵匯出 Markdown 格式對話記錄
 
@@ -111,14 +112,56 @@ ECA 採用**雙軌並行架構**，同時解決「聽」和「說」的問題：
 - 每段英文原文 + 中文翻譯 + **說話者標記**
 - 自動下載為 `.md` 檔案
 
-### ⚡ 場景預設講稿
+### ⚡ 場景預設講稿（5 場景 × 7 個常用目的 = 35 個一鍵講稿）
 | 場景 | 常用目的 |
 |------|----------|
-| 銀行 | 查詢餘額、不明收費、更新資料、開戶咨詢、轉帳問題 |
-| 醫療 | 預約 GP、領處方簽、轉診進度、檢驗結果、取消預約 |
-| 水電 | 查帳單、更新付款、報讀數、換方案、搬家通知 |
-| 保險 | 保障範圍、提出理賠、續約保費、更改資料、取消保單 |
-| 一般 | 一般詢問、確認狀態、客服轉接、投訴反映、感謝結束 |
+| 🏦 銀行 | 查詢餘額、不明收費、更新資料、開戶咨詢、轉帳問題、掛失卡片、申請貸款 |
+| 🏥 醫療 | 預約 GP、領處方簽、轉診進度、檢驗結果、取消預約、病假證明、重複處方 |
+| ⚡ 水電 | 查帳單、更新付款、報讀數、換方案、搬家通知、付款困難、斷供投訴 |
+| 🛡️ 保險 | 保障範圍、提出理賠、續約保費、更改資料、取消保單、理賠進度、加保項目 |
+| 💬 一般 | 一般詢問、確認狀態、客服轉接、投訴反映、感謝結束、留言回電、索取編號 |
+
+### 🗣️ 快捷短語（Quick Phrases）
+
+通話中一鍵發送，無需 API 調用：
+
+| 英文 | 中文 |
+|------|------|
+| Could you repeat that, please? | 請再說一次 |
+| Could you speak more slowly? | 請慢點說 |
+| Let me confirm that... | 我確認一下 |
+| Thank you. Goodbye. | 謝謝再見 |
+
+### 🆘 Panic Button 拖延語（8 句隨機輪換）
+
+遇到聽不懂的情況，按下 Panic Button 爭取時間：
+
+| 英文 | 中文 |
+|------|------|
+| Let me think about that for a moment... | 讓我想一下... |
+| That's a good question. Give me a second... | 好問題，請給我一秒... |
+| Could you hold on for just a second? | 請稍等一下好嗎？ |
+| I want to make sure I understand correctly... | 我想確認我理解正確... |
+| Let me just check something quickly... | 讓我快速確認一下... |
+| Hmm, let me consider that... | 嗯，讓我考慮一下... |
+| I need a moment to think about this... | 我需要一點時間想想... |
+| That's interesting. Let me think... | 這很有趣，讓我想想... |
+
+### 📖 UK 領域詞庫總覽（281 條英國生活術語）
+
+專為 BNO 移民設計，涵蓋在英國生活最常打電話遇到的 6 大領域：
+
+| 領域 | 術語 | 常用句 | 合計 | 代表詞彙 |
+|------|------|--------|------|----------|
+| 🏦 銀行 | 38 | 7 | 45 | sort code、direct debit、ISA、overdraft、mortgage |
+| 🏥 NHS 醫療 | 44 | 8 | 52 | GP surgery、referral、fit note、repeat prescription |
+| ⚡ 水電/通訊 | 40 | 8 | 48 | smart meter、tariff、standing charge、Ofgem、broadband |
+| 🛡️ 保險 | 45 | 8 | 53 | excess、no claims bonus、comprehensive、cooling off period |
+| 🏛️ 政府/移民 | 35 | 8 | 43 | HMRC、NI number、BNO visa、ILR、council tax band、MOT |
+| 🏠 住屋/租屋 | 34 | 6 | 40 | letting agent、tenancy agreement、deposit protection、stamp duty |
+| **合計** | **236** | **45** | **281** | |
+
+> 💡 選擇特定場景（如「銀行」）時，翻譯引擎自動使用該領域詞庫。選擇「一般」時，自動搜索全部 6 個領域。
 
 ### 📊 雙軌架構
 ```
@@ -314,7 +357,7 @@ gcloud run deploy eca-app \
 | 即時英文預覽 | Web Speech API | 邊說邊顯示（~100ms 延遲） |
 | 智能分段 | SmartSegmenter | 600ms 停頓偵測 + 語法線索 |
 | 串流翻譯 | gpt-4.1-nano | 英文→繁體中文（~700ms 首字）|
-| 場景詞庫 | domain_glossaries.json | UK 專用術語提示 |
+| 場景詞庫 | domain_glossaries.json | UK 專用術語提示（6 領域 281 條） |
 | 翻譯驗證 | TranslationValidator | 數字/信心檢測 |
 | 講稿生成 | gpt-5-mini | 中文→英文講稿 |
 | 後端 | Python FastAPI | API 服務 |

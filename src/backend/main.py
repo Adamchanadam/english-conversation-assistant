@@ -589,7 +589,7 @@ NUMBERS - Keep ALL in Arabic numerals, NEVER convert to Chinese:
 
 
 @app.post("/api/script", response_model=ScriptResponse)
-async def generate_script_endpoint(request: ScriptRequest):
+async def generate_script_endpoint(request: ScriptRequest, req: Request):
     """
     Generate English script from Chinese input.
 
@@ -598,17 +598,25 @@ async def generate_script_endpoint(request: ScriptRequest):
     This endpoint uses gpt-5-mini to convert Chinese text into
     natural English scripts that users can read aloud during phone calls.
 
+    API Key 支援：
+    - 用戶可透過 X-API-Key header 提供自己的 OpenAI API Key
+    - 若未提供，則使用伺服器預設的 OPENAI_API_KEY
+
     Returns:
         - english_script: Main script to read
         - alternatives: 2 alternative phrasings
         - pronunciation_tips: IPA for difficult words
     """
-    if not OPENAI_API_KEY:
+    # 優先使用用戶提供的 API Key
+    user_api_key = req.headers.get("X-API-Key")
+    api_key = user_api_key if user_api_key else OPENAI_API_KEY
+
+    if not api_key:
         return ScriptResponse(
             english_script="",
             alternatives=[],
             pronunciation_tips=[],
-            error="OPENAI_API_KEY not configured"
+            error="API Key not configured. Please provide your OpenAI API Key in settings."
         )
 
     logger.info(f"Script generation request: {request.chinese_input[:50]}...")
@@ -626,7 +634,8 @@ async def generate_script_endpoint(request: ScriptRequest):
         chinese_input=request.chinese_input,
         scenario=scenario,
         conversation_history=conversation_history,
-        tone=tone
+        tone=tone,
+        api_key=api_key
     )
 
     return ScriptResponse(
@@ -638,21 +647,32 @@ async def generate_script_endpoint(request: ScriptRequest):
 
 
 @app.post("/api/script/stream")
-async def generate_script_stream_endpoint(request: ScriptRequest):
+async def generate_script_stream_endpoint(request: ScriptRequest, req: Request):
     """
     Streaming script generation using SSE.
 
     Reference: design.md § 5.2
 
     Streams the English script in real-time for faster perceived response.
+
+    API Key 支援：
+    - 用戶可透過 X-API-Key header 提供自己的 OpenAI API Key
+    - 若未提供，則使用伺服器預設的 OPENAI_API_KEY
     """
-    if not OPENAI_API_KEY:
+    # 優先使用用戶提供的 API Key
+    user_api_key = req.headers.get("X-API-Key")
+    api_key = user_api_key if user_api_key else OPENAI_API_KEY
+
+    if not api_key:
         async def error_gen():
-            yield f"data: {{\"type\": \"error\", \"error\": \"API key not configured\"}}\n\n"
+            yield f"data: {{\"type\": \"error\", \"error\": \"API Key not configured. Please provide your OpenAI API Key in settings.\"}}\n\n"
         return StreamingResponse(
             error_gen(),
             media_type="text/event-stream"
         )
+
+    if user_api_key:
+        logger.info("Using user-provided API Key for script generation")
 
     # Extract context
     context = request.context
@@ -668,7 +688,8 @@ async def generate_script_stream_endpoint(request: ScriptRequest):
             chinese_input=request.chinese_input,
             scenario=scenario,
             conversation_history=conversation_history,
-            tone=tone
+            tone=tone,
+            api_key=api_key
         ):
             yield chunk
 

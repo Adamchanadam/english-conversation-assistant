@@ -2,7 +2,7 @@
   "version": "1.0.0",
   "description": "UK phone call domain-specific glossaries for English-to-Chinese translation",
   "locale": "zh-HK",
-  "last_updated": "2026-02-06",
+  "last_updated": "2026-02-13",
 
   "bank": {
     "description": "UK banking and financial terms",
@@ -137,6 +137,40 @@
       "replacement card": {
         "zh": "補發卡",
         "notes": "New card to replace lost/stolen one"
+      },
+      "mortgage": {
+        "zh": "按揭",
+        "alt": ["房屋貸款"],
+        "notes": "Home loan"
+      },
+      "fixed rate mortgage": {
+        "zh": "定息按揭",
+        "notes": "Interest rate locked for set period"
+      },
+      "variable rate mortgage": {
+        "zh": "浮動利率按揭",
+        "notes": "Interest rate can change"
+      },
+      "remortgage": {
+        "zh": "轉按",
+        "notes": "Switch mortgage to new deal"
+      },
+      "deposit": {
+        "zh": "存款",
+        "alt": ["按金"],
+        "notes": "Money paid into account or as security"
+      },
+      "joint account": {
+        "zh": "聯名賬戶",
+        "notes": "Account shared by two people"
+      },
+      "reference number": {
+        "zh": "參考編號",
+        "notes": "Unique identifier for transactions"
+      },
+      "payment reference": {
+        "zh": "付款參考編號",
+        "notes": "Reference to identify a specific payment"
       }
     },
     "phrases": {
@@ -154,6 +188,12 @@
       },
       "Can I increase my overdraft limit?": {
         "zh": "我可以增加透支限額嗎？"
+      },
+      "I'd like to apply for a mortgage": {
+        "zh": "我想申請按揭"
+      },
+      "Can I get a bank reference letter?": {
+        "zh": "我可以取得銀行推薦信嗎？"
       }
     }
   },
@@ -303,6 +343,53 @@
       "out of hours": {
         "zh": "非辦公時間",
         "notes": "After normal surgery hours"
+      },
+      "NHS App": {
+        "zh": "NHS 應用程式",
+        "notes": "Official app for GP services, prescriptions, records"
+      },
+      "health visitor": {
+        "zh": "健康探訪員",
+        "notes": "Home visits for new parents and children"
+      },
+      "dentist": {
+        "zh": "牙醫",
+        "notes": "NHS dental care, bands 1-3 pricing"
+      },
+      "optician": {
+        "zh": "驗光師",
+        "alt": ["眼科視光師"],
+        "notes": "Eye tests and glasses"
+      },
+      "exempt": {
+        "zh": "豁免",
+        "notes": "Not needing to pay prescription charges"
+      },
+      "prescription charge": {
+        "zh": "處方費用",
+        "notes": "£9.90 per item in England (2024), free in Wales/Scotland"
+      },
+      "prepayment certificate": {
+        "zh": "預付證書",
+        "alt": ["PPC"],
+        "notes": "Save money if you need many prescriptions"
+      },
+      "mental health": {
+        "zh": "精神健康",
+        "notes": "Mental health services"
+      },
+      "self-referral": {
+        "zh": "自行轉介",
+        "notes": "Refer yourself without GP, e.g. IAPT/talking therapies"
+      },
+      "discharge": {
+        "zh": "出院",
+        "alt": ["解除"],
+        "notes": "Released from hospital care"
+      },
+      "triage": {
+        "zh": "分流",
+        "notes": "Priority assessment of patients"
       }
     },
     "phrases": {
@@ -323,6 +410,12 @@
       },
       "I need to register with a GP": {
         "zh": "我需要登記家庭醫生"
+      },
+      "Am I exempt from prescription charges?": {
+        "zh": "我是否可以豁免處方費用？"
+      },
+      "How long is the waiting list?": {
+        "zh": "輪候名單要等多久？"
       }
     }
   },
@@ -456,6 +549,49 @@
       "council tax": {
         "zh": "市政稅",
         "notes": "Local government tax on property"
+      },
+      "broadband": {
+        "zh": "寬頻",
+        "notes": "Home internet connection"
+      },
+      "fibre broadband": {
+        "zh": "光纖寬頻",
+        "notes": "High-speed internet"
+      },
+      "line rental": {
+        "zh": "電話線月費",
+        "notes": "Monthly charge for phone line"
+      },
+      "contract end date": {
+        "zh": "合約届滿日期",
+        "notes": "When your deal ends"
+      },
+      "early termination fee": {
+        "zh": "提前終止費",
+        "notes": "Charge for leaving contract early"
+      },
+      "Ofwat": {
+        "zh": "英國水務監管局",
+        "full_form": "Water Services Regulation Authority",
+        "notes": "UK water regulator"
+      },
+      "Ofcom": {
+        "zh": "英國通訊管理局",
+        "full_form": "Office of Communications",
+        "notes": "UK telecoms and broadband regulator"
+      },
+      "warm home discount": {
+        "zh": "暖屋折扣",
+        "notes": "Government scheme for low-income energy support"
+      },
+      "boiler": {
+        "zh": "鍋爐",
+        "alt": ["熱水爐"],
+        "notes": "Central heating boiler"
+      },
+      "power cut": {
+        "zh": "停電",
+        "notes": "Electricity outage"
       }
     },
     "phrases": {
@@ -476,6 +612,12 @@
       },
       "When is my contract end date?": {
         "zh": "我的合約何時届滿？"
+      },
+      "There's been a power cut in my area": {
+        "zh": "我的地區停電了"
+      },
+      "I'd like to upgrade my broadband": {
+        "zh": "我想升級寬頻"
       }
     }
   },
@@ -643,6 +785,34 @@
         "zh": "健康保險",
         "alt": ["醫療保險"],
         "notes": "Private medical coverage"
+      },
+      "pet insurance": {
+        "zh": "寵物保險",
+        "notes": "Insurance for veterinary costs"
+      },
+      "named driver": {
+        "zh": "記名駕駛者",
+        "notes": "Additional driver on car insurance"
+      },
+      "windscreen cover": {
+        "zh": "擋風玻璃保障",
+        "notes": "Glass repair/replacement coverage"
+      },
+      "courtesy car": {
+        "zh": "代用車",
+        "notes": "Temporary car while yours is repaired"
+      },
+      "accidental damage": {
+        "zh": "意外損壞",
+        "notes": "Unintentional damage coverage"
+      },
+      "loss adjuster": {
+        "zh": "理賠評估員",
+        "notes": "Person who investigates claims"
+      },
+      "broker": {
+        "zh": "保險經紀",
+        "notes": "Insurance intermediary"
       }
     },
     "phrases": {
@@ -666,6 +836,361 @@
       },
       "How many years no claims do I have?": {
         "zh": "我有多少年無索償紀錄？"
+      },
+      "Can I add a named driver?": {
+        "zh": "我可以加入記名駕駛者嗎？"
+      }
+    }
+  },
+
+  "government": {
+    "description": "UK government services, immigration, and public administration terms for BNO migrants",
+    "terms": {
+      "HMRC": {
+        "zh": "英國稅務海關總署",
+        "full_form": "His Majesty's Revenue and Customs",
+        "notes": "UK tax authority"
+      },
+      "DWP": {
+        "zh": "就業及退休保障部",
+        "full_form": "Department for Work and Pensions",
+        "notes": "Benefits and pensions"
+      },
+      "DVLA": {
+        "zh": "駕駛員和車輛牌照局",
+        "full_form": "Driver and Vehicle Licensing Agency",
+        "notes": "Driving licences and vehicle tax"
+      },
+      "Home Office": {
+        "zh": "內政部",
+        "notes": "Immigration and visas"
+      },
+      "National Insurance number": {
+        "zh": "國民保險號碼",
+        "alt": ["NI number"],
+        "notes": "Required for work and benefits, format: AB123456C"
+      },
+      "National Insurance": {
+        "zh": "國民保險",
+        "notes": "UK social security contributions"
+      },
+      "tax code": {
+        "zh": "稅務代碼",
+        "notes": "Determines how much tax is deducted, e.g. 1257L"
+      },
+      "tax return": {
+        "zh": "報稅表",
+        "notes": "Self-assessment annual tax declaration"
+      },
+      "self-assessment": {
+        "zh": "自我評估報稅",
+        "notes": "Filing your own tax return"
+      },
+      "PAYE": {
+        "zh": "源頭扣稅",
+        "full_form": "Pay As You Earn",
+        "notes": "Tax deducted from salary by employer"
+      },
+      "UTR": {
+        "zh": "統一稅務編號",
+        "full_form": "Unique Taxpayer Reference",
+        "notes": "10-digit number for self-assessment"
+      },
+      "council": {
+        "zh": "地方議會",
+        "notes": "Local government authority"
+      },
+      "council tax band": {
+        "zh": "市政稅級別",
+        "notes": "Property valuation band A-H, determines council tax amount"
+      },
+      "council tax reduction": {
+        "zh": "市政稅減免",
+        "notes": "Discount for low income"
+      },
+      "single person discount": {
+        "zh": "單人折扣",
+        "notes": "25% council tax discount for sole occupants"
+      },
+      "BRP": {
+        "zh": "生物辨識居留許可",
+        "full_form": "Biometric Residence Permit",
+        "notes": "Physical immigration document (being phased out for eVisas)"
+      },
+      "eVisa": {
+        "zh": "電子簽證",
+        "notes": "Digital proof of immigration status"
+      },
+      "BNO visa": {
+        "zh": "BNO 簽證",
+        "notes": "British National (Overseas) visa route"
+      },
+      "ILR": {
+        "zh": "永久居留權",
+        "full_form": "Indefinite Leave to Remain",
+        "notes": "Permanent residency in UK"
+      },
+      "settled status": {
+        "zh": "定居身份",
+        "notes": "Permanent residence status"
+      },
+      "pre-settled status": {
+        "zh": "預定居身份",
+        "notes": "Temporary residence status"
+      },
+      "share code": {
+        "zh": "分享代碼",
+        "notes": "Code to prove immigration status to employers/landlords"
+      },
+      "right to work": {
+        "zh": "工作權利",
+        "notes": "Legal permission to work in UK"
+      },
+      "right to rent": {
+        "zh": "租屋權利",
+        "notes": "Legal permission to rent in UK"
+      },
+      "Universal Credit": {
+        "zh": "統一福利金",
+        "notes": "Main UK benefit for working-age people"
+      },
+      "Child Benefit": {
+        "zh": "兒童福利金",
+        "notes": "Payment for each child under 16"
+      },
+      "free school meals": {
+        "zh": "免費校餐",
+        "notes": "Free lunch for eligible children"
+      },
+      "driving licence": {
+        "zh": "駕駛執照",
+        "notes": "UK driving licence (note: licence not license)"
+      },
+      "provisional licence": {
+        "zh": "臨時駕駛執照",
+        "notes": "Learner's driving licence"
+      },
+      "MOT": {
+        "zh": "車輛年檢",
+        "full_form": "Ministry of Transport test",
+        "notes": "Annual vehicle safety check, required for cars over 3 years"
+      },
+      "road tax": {
+        "zh": "路稅",
+        "alt": ["車輛稅"],
+        "notes": "Vehicle Excise Duty (VED)"
+      },
+      "congestion charge": {
+        "zh": "交通擠塞費",
+        "notes": "London daily driving charge"
+      },
+      "electoral roll": {
+        "zh": "選民登記冊",
+        "notes": "Register to vote, also helps credit score"
+      },
+      "proof of address": {
+        "zh": "地址證明",
+        "notes": "Utility bill, bank statement, council tax bill"
+      },
+      "DBS check": {
+        "zh": "犯罪紀錄查核",
+        "full_form": "Disclosure and Barring Service",
+        "notes": "Criminal record check for employment"
+      }
+    },
+    "phrases": {
+      "I need to apply for a National Insurance number": {
+        "zh": "我需要申請國民保險號碼"
+      },
+      "I'd like to check my tax code": {
+        "zh": "我想查詢我的稅務代碼"
+      },
+      "I need to update my address with the council": {
+        "zh": "我需要向地方議會更新地址"
+      },
+      "Can I get a council tax reduction?": {
+        "zh": "我可以申請市政稅減免嗎？"
+      },
+      "I need proof of my immigration status": {
+        "zh": "我需要證明我的移民身份"
+      },
+      "How do I get my share code?": {
+        "zh": "我如何取得分享代碼？"
+      },
+      "I'd like to register to vote": {
+        "zh": "我想登記投票"
+      },
+      "When is my MOT due?": {
+        "zh": "我的車輛年檢什麼時候到期？"
+      }
+    }
+  },
+
+  "housing": {
+    "description": "UK housing, tenancy, and property terms commonly encountered by BNO migrants renting or buying property",
+    "terms": {
+      "letting agent": {
+        "zh": "租屋代理",
+        "alt": ["出租代理"],
+        "notes": "Agent managing rental properties"
+      },
+      "estate agent": {
+        "zh": "地產代理",
+        "notes": "Property sales agent"
+      },
+      "tenancy agreement": {
+        "zh": "租約",
+        "alt": ["租賃合約"],
+        "notes": "Rental contract"
+      },
+      "assured shorthold tenancy": {
+        "zh": "有保證短期租約",
+        "alt": ["AST"],
+        "notes": "Most common type of tenancy in England"
+      },
+      "deposit protection": {
+        "zh": "按金保障",
+        "notes": "Landlord must protect deposit in approved scheme"
+      },
+      "deposit protection scheme": {
+        "zh": "按金保障計劃",
+        "notes": "TDS, DPS, or mydeposits"
+      },
+      "tenant": {
+        "zh": "租客",
+        "notes": "Person renting property"
+      },
+      "landlord": {
+        "zh": "業主",
+        "alt": ["房東"],
+        "notes": "Property owner"
+      },
+      "rent": {
+        "zh": "租金",
+        "notes": "Monthly payment for property"
+      },
+      "rent arrears": {
+        "zh": "欠租",
+        "notes": "Overdue rent payments"
+      },
+      "notice period": {
+        "zh": "通知期",
+        "notes": "Time required before leaving property"
+      },
+      "Section 21 notice": {
+        "zh": "第21條通知",
+        "notes": "No-fault eviction notice from landlord"
+      },
+      "Section 8 notice": {
+        "zh": "第8條通知",
+        "notes": "Eviction notice for breach of tenancy"
+      },
+      "inventory": {
+        "zh": "物品清單",
+        "notes": "List of items and condition at move-in"
+      },
+      "check-in": {
+        "zh": "入住檢查",
+        "notes": "Property inspection at move-in"
+      },
+      "check-out": {
+        "zh": "退租檢查",
+        "notes": "Property inspection at move-out"
+      },
+      "guarantor": {
+        "zh": "擔保人",
+        "notes": "Person guaranteeing rent payment"
+      },
+      "reference check": {
+        "zh": "背景審查",
+        "alt": ["推薦人查核"],
+        "notes": "Landlord checking tenant history"
+      },
+      "gas safety certificate": {
+        "zh": "煤氣安全證書",
+        "notes": "Annual check required by law for rental properties"
+      },
+      "EPC": {
+        "zh": "能源效能證書",
+        "full_form": "Energy Performance Certificate",
+        "notes": "Rating A-G for property energy efficiency"
+      },
+      "freehold": {
+        "zh": "永久業權",
+        "notes": "Own the property and land outright"
+      },
+      "leasehold": {
+        "zh": "租賃業權",
+        "notes": "Own property but not the land, lease has expiry"
+      },
+      "ground rent": {
+        "zh": "地租",
+        "notes": "Annual payment for leasehold land"
+      },
+      "service charge": {
+        "zh": "管理費",
+        "notes": "Fee for maintenance of communal areas"
+      },
+      "stamp duty": {
+        "zh": "印花稅",
+        "full_form": "Stamp Duty Land Tax",
+        "notes": "Tax paid when buying property over threshold"
+      },
+      "exchange of contracts": {
+        "zh": "交換合約",
+        "notes": "Legally binding point in property purchase"
+      },
+      "completion": {
+        "zh": "交易完成",
+        "notes": "Final step in buying property, keys handed over"
+      },
+      "solicitor": {
+        "zh": "律師",
+        "notes": "Legal professional for property transactions"
+      },
+      "conveyancing": {
+        "zh": "產權轉讓",
+        "notes": "Legal process of transferring property ownership"
+      },
+      "surveyor": {
+        "zh": "測量師",
+        "notes": "Professional who inspects property condition"
+      },
+      "damp": {
+        "zh": "潮濕",
+        "notes": "Moisture problem in property"
+      },
+      "mould": {
+        "zh": "霉菌",
+        "notes": "Fungal growth from damp conditions"
+      },
+      "maintenance": {
+        "zh": "維修",
+        "notes": "Property repairs and upkeep"
+      },
+      "disrepair": {
+        "zh": "失修",
+        "notes": "Property in poor condition"
+      }
+    },
+    "phrases": {
+      "I'd like to report a repair": {
+        "zh": "我想報告需要維修的問題"
+      },
+      "When will I get my deposit back?": {
+        "zh": "我什麼時候可以取回按金？"
+      },
+      "I'd like to give notice to leave": {
+        "zh": "我想通知退租"
+      },
+      "There's a problem with damp in my flat": {
+        "zh": "我的公寓有潮濕問題"
+      },
+      "Can I see the gas safety certificate?": {
+        "zh": "我可以看煤氣安全證書嗎？"
+      },
+      "I need to speak to the letting agent": {
+        "zh": "我需要跟租屋代理聯絡"
       }
     }
   }
