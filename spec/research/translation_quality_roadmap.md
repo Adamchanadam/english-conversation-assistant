@@ -30,7 +30,7 @@
 **文件**：
 - 創建 `src/backend/glossary.py` - 詞庫加載和查詢
 - 修改 `src/backend/main.py` - 整合詞庫到翻譯流程
-- 修改 `src/frontend/eca_parallel_test.html` - 傳遞 scenario
+- 修改 `src/frontend/eca.html` - 傳遞 scenario
 
 **工作量估計**：1 Workstream
 
@@ -52,7 +52,7 @@
 
 **文件**：
 - 創建 `src/frontend/translation_validator.js` - 驗證邏輯
-- 修改 `src/frontend/eca_parallel_test.html` - UI 整合
+- 修改 `src/frontend/eca.html` - UI 整合
 
 **工作量估計**：1 Workstream
 
@@ -73,7 +73,7 @@
 
 **文件**：
 - 更新 `src/frontend/translation_validator.js` - 添加 ConfidenceScorer
-- 更新 `src/frontend/eca_parallel_test.html` - 信心 UI
+- 更新 `src/frontend/eca.html` - 信心 UI
 
 **工作量估計**：0.5 Workstream
 
@@ -133,7 +133,7 @@ Future: Phase 4 (Logprobs) 視需求
 | 文件 | 修改內容 | Phase |
 |------|---------|-------|
 | `src/backend/main.py` | 整合詞庫，可選 logprobs | 1, 4 |
-| `src/frontend/eca_parallel_test.html` | 傳遞 scenario，顯示警告 UI | 1, 2, 3 |
+| `src/frontend/eca.html` | 傳遞 scenario，顯示警告 UI | 1, 2, 3 |
 
 ---
 

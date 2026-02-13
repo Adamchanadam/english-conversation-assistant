@@ -18,7 +18,7 @@
 
 ### 1.1 當前架構問題
 
-現有 `eca_main.html` 的翻譯流程存在以下並發問題：
+原 `eca_main.html`（現為 `eca.html`）的翻譯流程存在以下並發問題：
 
 ```
 問題場景：
@@ -374,7 +374,7 @@ class EnhancedSegmentStore extends SegmentStore {
 
 ### 5.1 當前方案：OpenAI Realtime API（內建翻譯）
 
-現有 `eca_main.html` 使用 Realtime API 的 `output_modalities: ['text']` 模式，讓 AI 直接輸出翻譯。
+原 `eca_main.html`（現為 `eca.html`）使用 Realtime API 的 `output_modalities: ['text']` 模式，讓 AI 直接輸出翻譯。
 
 **優點**：
 - 低延遲（單一 API 調用）

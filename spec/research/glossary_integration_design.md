@@ -143,7 +143,7 @@ Rules:
     # ... rest of streaming logic
 ```
 
-### Frontend Changes (`eca_parallel_test.html`)
+### Frontend Changes (`eca.html`)
 
 ```javascript
 // Pass scenario to translation API
@@ -240,7 +240,7 @@ The additional latency (~50ms) and cost (~10%) are acceptable for improved accur
 | File | Changes |
 |------|---------|
 | `src/backend/main.py` | Add glossary loading, prompt building, post-processing |
-| `src/frontend/eca_parallel_test.html` | Pass scenario to API |
+| `src/frontend/eca.html` | Pass scenario to API |
 | `spec/research/uk_domain_glossaries.json` | Glossary data (created) |
 
 ---

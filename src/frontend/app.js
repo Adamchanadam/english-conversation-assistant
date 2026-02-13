@@ -244,6 +244,12 @@ class VoiceProxyApp {
         this.lastAIUtterance = '';  // Track what AI last said
         this.capturedDirectiveContext = null;  // Context when button was pressed
 
+        // Transcript ordering fix: ensure 📞 對方說 appears before 🤖 AI代理說
+        // Problem: AI transcript arrives faster than counterpart's speech-to-text
+        // Solution: Buffer AI transcripts until counterpart transcript arrives
+        this.pendingCounterpartTranscript = false;  // Waiting for counterpart's transcript
+        this.pendingAITranscripts = [];  // Buffered AI transcripts (display after counterpart)
+
         // Button configuration (dynamically configurable)
         this.buttonConfig = null;  // Loaded from localStorage or defaults
 
@@ -590,6 +596,9 @@ class VoiceProxyApp {
         const langName = languageMap[L] || L;
 
         // Prompt Consolidation Pattern - validated by 3-Party Simulation Tests (100% pass)
+        // Enhanced with natural conversation rules (2026-01-28)
+        // Root-cause fix for irrelevant answers (2026-01-28) - Answer relevance enforcement
+        // ALL-ENGLISH prompt for multi-language support (2026-01-28)
         const instructions = `[LANGUAGE] Speak only in ${langName}.
 
 [CRITICAL IDENTITY]
@@ -603,21 +612,48 @@ class VoiceProxyApp {
 
 [YOUR GOAL] ${G}
 
-[WHAT YOU KNOW] Only say what ${I} would know. If unsure, say so honestly.
-
 ${R ? `[CONSTRAINTS] ${R}` : ''}
 
-${S ? `[REFERENCE] ${S.substring(0, 2000)}` : ''}
+${S ? `[FACTS I KNOW - This is ALL I know]
+${S.substring(0, 2000)}
+If ${O} asks about something NOT listed above, respond naturally (e.g., "I don't have that information right now, I can follow up later"). NEVER make up information.` : ''}
 
 [SPEAKING STYLE]
 - You are on a phone call as the CALLER.
 - Introduce yourself ONLY ONCE at the start.
 - Be concise. 1-2 sentences per turn.
-- Pursue YOUR goal, don't help ${O} with their job.
+- RESPOND FIRST, then pursue your goal. Never ignore ${O}'s question to talk about your goal.
+
+[RESPONSE RULES - HIGHEST PRIORITY]
+- LISTEN AND ANSWER: When ${O} asks a question, your answer MUST be about THAT question.
+- ANSWER RELEVANCE: Your response must be semantically related to what ${O} asked. NEVER give unrelated information.
+- IF YOU DON'T KNOW: Be honest but natural. You can say things like:
+  * "I don't have that information right now, I can get back to you later"
+  * "I need to check on that, I'll follow up"
+  * "I'm not sure about that, but I can find out"
+  * "Let me note that down and get back to you"
+  Choose a response that fits the conversation naturally. NEVER make up information.
+- NEVER SUBSTITUTE: If you don't know the answer, NEVER give unrelated information instead.
+- ANSWER THEN GOAL: Complete your answer to ${O}'s question BEFORE mentioning anything about your goal.
+- NO FILLERS: Never start with filler phrases like "Okay", "Sure", "I see", "Got it". Just answer directly.
+- VARY OPENINGS: Each response should start differently.
+
+[COMMON SITUATIONS]
+- Asked for your name → State your name directly.
+- Asked "when" or "what date" → Give the date/time if you know, or say you're not sure of the exact time.
+- Asked to repeat → REPEAT what you just said, maybe slower or rephrased. Don't say new information.
+- Yes/No question (e.g., "Do you have...?", "Did you...?") → Answer "Yes" or "No" FIRST, or if unsure: "I need to check on that". Then explain.
+- Asked "How can I help you?" → State your request clearly based on your goal.
+- Question about something NOT in your knowledge → Respond naturally that you don't have that info - don't make things up.
+- ${O} confirms something → Brief acknowledgment and move on.
+
+[SELF-CHECK]
+Before speaking, ask yourself: Does my answer actually address what ${O} just asked?
+If not, fix it. If you don't know, respond naturally and honestly - offer to follow up later if appropriate.
 
 [OUTPUT] Only speak as ${I}. No narration. Just what ${I} says.
 
-[INTERNAL] Messages marked [INTERNAL GUIDANCE] are from your principal. Follow naturally.`;
+[INTERNAL] Messages marked [INTERNAL GUIDANCE] are from your principal. Follow naturally, but ALWAYS respond to ${O}'s question first.`;
 
         // Debug: Log definitions and instructions
         console.log('=== DEFINITIONS ===');
@@ -804,6 +840,9 @@ ${S ? `[REFERENCE] ${S.substring(0, 2000)}` : ''}
 
             case 'input_audio_buffer.speech_stopped':
                 this._log('← speech_stopped (用戶停止說話)', 'event');
+                // Mark that we're waiting for counterpart's transcript
+                // (AI transcript may arrive faster, so we buffer it)
+                this.pendingCounterpartTranscript = true;
                 // Transition to THINKING
                 if (this.stateMachine.canTransition('THINKING')) {
                     this.stateMachine.transition('THINKING');
@@ -848,9 +887,17 @@ ${S ? `[REFERENCE] ${S.substring(0, 2000)}` : ''}
             case 'response.output_audio_transcript.done':
                 // AI proxy's speech transcript
                 if (event.transcript) {
-                    this._log(`🤖 AI代理說: "${event.transcript}"`, 'chat');
                     // Track AI's last response (can be used as context reference)
                     this.lastAIUtterance = event.transcript;
+
+                    // Transcript ordering fix:
+                    // If we're still waiting for counterpart's transcript, buffer this
+                    // Otherwise display immediately
+                    if (this.pendingCounterpartTranscript) {
+                        this.pendingAITranscripts.push(event.transcript);
+                    } else {
+                        this._log(`🤖 AI代理說: "${event.transcript}"`, 'chat');
+                    }
                 }
                 break;
 
@@ -858,8 +905,19 @@ ${S ? `[REFERENCE] ${S.substring(0, 2000)}` : ''}
             case 'conversation.item.input_audio_transcription.completed':
                 // Counterpart's speech transcript
                 if (event.transcript) {
+                    // Display counterpart's transcript FIRST (correct order)
                     this._log(`📞 對方說: "${event.transcript}"`, 'chat');
                     this.lastCounterpartUtterance = event.transcript;
+
+                    // Transcript ordering fix:
+                    // Now display any buffered AI transcripts (in order)
+                    if (this.pendingAITranscripts.length > 0) {
+                        for (const aiTranscript of this.pendingAITranscripts) {
+                            this._log(`🤖 AI代理說: "${aiTranscript}"`, 'chat');
+                        }
+                        this.pendingAITranscripts = [];  // Clear buffer
+                    }
+                    this.pendingCounterpartTranscript = false;  // Reset flag
                 }
                 break;
 
@@ -1194,56 +1252,51 @@ ${S ? `[REFERENCE] ${S.substring(0, 2000)}` : ''}
         const lastAI = capturedContext?.lastAIUtterance || this.lastAIUtterance || '';
         const userName = this.config?.agentName || 'the user';
 
-        // Header that clearly marks this as internal guidance, NOT counterpart speech
-        const guidanceHeader = `[INTERNAL GUIDANCE FROM YOUR HUMAN PRINCIPAL - NOT FROM THE COUNTERPART]
-REMINDER: You ARE ${userName}. You speak TO the counterpart (the other person on the phone).
-The counterpart is NOT giving you instructions - your principal is.
-`;
+        // Simplified header - less verbose, more focused (2026-01-28)
+        const guidanceHeader = `[INTERNAL GUIDANCE - FROM PRINCIPAL]
+You ARE ${userName}. Respond TO the counterpart.`;
 
         if (lastCounterpart && directive) {
             // Best case: we know what counterpart said
             guidanceText = `${guidanceHeader}
-The COUNTERPART (the other person on the phone) just said: "${lastCounterpart.substring(0, 200)}"
 
-Your principal's direction: ${directive}
-Suggested approach: ${utterance}
+Counterpart said: "${lastCounterpart.substring(0, 200)}"
 
-HOW TO RESPOND TO THE COUNTERPART:
-- First react naturally to what the COUNTERPART said (don't ignore them)
-- Then move toward the direction from your principal
-- Use YOUR OWN WORDS - be natural, vary your phrasing
-- Remember: YOU speak AS ${userName}, TO the counterpart`;
+DIRECTION: ${directive}
+APPROACH: ${utterance}
+
+RESPOND NATURALLY:
+1. Answer/acknowledge what they said first
+2. Then follow the direction above
+3. Use your own words, no filler phrases like "好的，我明白了"`;
         } else if (lastAI && directive) {
             // Fallback: we know what AI last said, use that for context
             guidanceText = `${guidanceHeader}
-You just said to the counterpart: "${lastAI.substring(0, 150)}"
-The COUNTERPART has responded.
 
-Your principal's new direction: ${directive}
-Suggested approach: ${utterance}
+You just said: "${lastAI.substring(0, 150)}"
+Counterpart has responded.
 
-HOW TO RESPOND TO THE COUNTERPART:
-- Don't repeat what you already said to them
-- Move the conversation forward with the counterpart
-- Be natural and responsive to the flow
-- Remember: YOU speak AS ${userName}, TO the counterpart`;
+DIRECTION: ${directive}
+APPROACH: ${utterance}
+
+RESPOND NATURALLY:
+1. Don't repeat yourself
+2. Move the conversation forward
+3. No filler phrases`;
         } else if (directive) {
             // Directive without context
             guidanceText = `${guidanceHeader}
-Your principal's direction: ${directive}
-Suggested approach: ${utterance}
 
-HOW TO RESPOND TO THE COUNTERPART:
-- Transition naturally from where the conversation is
-- Express this in your own words
-- Be conversational, not robotic
-- Remember: YOU speak AS ${userName}, TO the counterpart`;
+DIRECTION: ${directive}
+APPROACH: ${utterance}
+
+Express naturally in your own words. No filler phrases.`;
         } else {
             // Simple direction (for goodbye, etc.)
             guidanceText = `${guidanceHeader}
-Express something along these lines to the COUNTERPART: ${utterance}
-Use your own natural phrasing - don't read this verbatim.
-Remember: YOU speak AS ${userName}, TO the counterpart`;
+
+Express naturally: ${utterance}
+Use your own phrasing.`;
         }
 
         const event = {
@@ -1339,40 +1392,38 @@ Remember: YOU speak AS ${userName}, TO the counterpart`;
         const userName = this.config?.agentName || 'the user';
         const counterpartType = this.config?.counterpartType || 'the other person';
 
-        // Clear header to mark this as internal guidance
-        const guidanceHeader = `[INTERNAL GUIDANCE FROM YOUR HUMAN PRINCIPAL - NOT FROM THE COUNTERPART]
-REMINDER: You ARE ${userName}. You speak TO the counterpart (${counterpartType}).`;
+        // Simplified header (2026-01-28)
+        const guidanceHeader = `[INTERNAL GUIDANCE - FROM PRINCIPAL]
+You ARE ${userName}. Respond TO ${counterpartType}.`;
 
         // Build natural goodbye direction (not a script)
         let goodbyeGuidance;
         if (lastCounterpart) {
             goodbyeGuidance = `${guidanceHeader}
 
-The COUNTERPART (${counterpartType}) just said: "${lastCounterpart.substring(0, 200)}"
+${counterpartType} said: "${lastCounterpart.substring(0, 200)}"
 
-Your principal wants you to END this conversation with the counterpart.
-HOW TO DO THIS NATURALLY:
-- First, respond briefly to what the COUNTERPART just said (don't ignore them)
-- Then signal you need to wrap up
-- Finally, say a warm goodbye TO the counterpart
-Use your own words - be natural and genuine, not scripted.`;
+END THE CONVERSATION:
+1. Respond briefly to what they said
+2. Signal you need to go
+3. Say goodbye warmly
+
+Use your own words, no filler phrases.`;
         } else if (lastAI) {
             goodbyeGuidance = `${guidanceHeader}
 
-You just said to the counterpart: "${lastAI.substring(0, 150)}"
+You just said: "${lastAI.substring(0, 150)}"
 
-Your principal wants you to END this conversation with the counterpart.
-HOW TO WRAP UP:
-- Acknowledge the conversation was productive/helpful
-- Signal you need to go
-- Say a warm, genuine goodbye TO the counterpart`;
+END THE CONVERSATION:
+1. Acknowledge what was discussed
+2. Signal you need to go
+3. Say goodbye warmly`;
         } else {
             goodbyeGuidance = `${guidanceHeader}
 
-Your principal wants you to END this conversation with the counterpart.
-Wrap up naturally in your own words:
-- Thank the counterpart for their time
-- Say a warm goodbye TO the counterpart`;
+END THE CONVERSATION:
+- Thank them for their time
+- Say goodbye warmly`;
         }
 
         // Inject the goodbye guidance (AI will naturally transition)
@@ -1456,41 +1507,39 @@ Wrap up naturally in your own words:
         const userName = this.config?.agentName || 'the user';
         const counterpartType = this.config?.counterpartType || 'the other person';
 
-        // Clear header to mark this as internal guidance
-        const guidanceHeader = `[INTERNAL GUIDANCE FROM YOUR HUMAN PRINCIPAL - NOT FROM THE COUNTERPART]
-REMINDER: You ARE ${userName}. You speak TO the counterpart (${counterpartType}).
-SUCCESS! The negotiation goal has been ACHIEVED!`;
+        // Simplified header (2026-01-28)
+        const guidanceHeader = `[INTERNAL GUIDANCE - GOAL ACHIEVED!]
+You ARE ${userName}. Respond TO ${counterpartType}.`;
 
         // Build celebratory goodbye guidance (direction, not script)
         let celebratoryGuidance;
         if (lastCounterpart) {
             celebratoryGuidance = `${guidanceHeader}
 
-The COUNTERPART (${counterpartType}) just said: "${lastCounterpart.substring(0, 200)}"
+${counterpartType} said: "${lastCounterpart.substring(0, 200)}"
 
-Your principal is happy with this outcome. End on a HIGH NOTE:
-- React positively to what the COUNTERPART just said
-- Express genuine satisfaction and gratitude TO the counterpart
-- Wrap up warmly - this is a celebration!
-- Say goodbye to the counterpart with enthusiasm
-Be natural and vary your words.`;
+CELEBRATE & END:
+1. React positively to what they said
+2. Express satisfaction and thanks
+3. Say goodbye warmly with enthusiasm
+
+Use your own words, no filler phrases.`;
         } else if (lastAI) {
             celebratoryGuidance = `${guidanceHeader}
 
-You just said to the counterpart: "${lastAI.substring(0, 150)}"
+You just said: "${lastAI.substring(0, 150)}"
 
-Your principal is satisfied. Time to wrap up positively with the counterpart:
-- Acknowledge what was accomplished
-- Express genuine appreciation TO the counterpart
-- End on a warm, happy note
-- Say goodbye to the counterpart with enthusiasm`;
+CELEBRATE & END:
+1. Acknowledge what was accomplished
+2. Express appreciation
+3. Say goodbye with enthusiasm`;
         } else {
             celebratoryGuidance = `${guidanceHeader}
 
-Your principal wants you to end the conversation with the counterpart on a positive note:
-- Express satisfaction with the outcome TO the counterpart
-- Thank the counterpart warmly
-- Say goodbye to the counterpart with genuine enthusiasm`;
+CELEBRATE & END:
+- Express satisfaction
+- Thank them warmly
+- Say goodbye with enthusiasm`;
         }
 
         // Inject the celebratory guidance
@@ -1887,6 +1936,10 @@ Use your own natural phrasing - don't read this verbatim.]`;
         this.lastCounterpartUtterance = '';
         this.lastAIUtterance = '';
         this.capturedDirectiveContext = null;
+
+        // Reset transcript ordering state
+        this.pendingCounterpartTranscript = false;
+        this.pendingAITranscripts = [];
 
         // Reset state machine
         this.stateMachine.reset();

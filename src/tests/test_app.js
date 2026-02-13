@@ -329,6 +329,27 @@ test('STOP_TYPE has hard and soft types', () => {
 });
 
 // =============================================================================
+// Test: Transcript Ordering Fix
+// =============================================================================
+test('Transcript ordering: pendingCounterpartTranscript starts as false', () => {
+    const app = new VoiceProxyApp();
+    assert(app.pendingCounterpartTranscript === false, 'pendingCounterpartTranscript is initially false');
+    assert(Array.isArray(app.pendingAITranscripts), 'pendingAITranscripts is an array');
+    assert(app.pendingAITranscripts.length === 0, 'pendingAITranscripts is initially empty');
+});
+
+test('Transcript ordering: reset() clears transcript ordering state', () => {
+    const app = new VoiceProxyApp();
+    app.pendingCounterpartTranscript = true;
+    app.pendingAITranscripts = ['test1', 'test2'];
+
+    app.reset();
+
+    assert(app.pendingCounterpartTranscript === false, 'pendingCounterpartTranscript reset to false');
+    assert(app.pendingAITranscripts.length === 0, 'pendingAITranscripts cleared');
+});
+
+// =============================================================================
 // Summary
 // =============================================================================
 console.log('\n' + '='.repeat(60));

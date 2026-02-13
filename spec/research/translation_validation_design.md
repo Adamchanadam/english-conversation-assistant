@@ -283,7 +283,7 @@ class TranslationValidator {
 Validation should happen in the frontend after receiving each translation chunk:
 
 ```javascript
-// In eca_parallel_test.html, after receiving translation
+// In eca.html, after receiving translation
 function handleTranslationComplete(segment) {
   const validator = new TranslationValidator();
   const result = validator.validate(
