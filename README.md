@@ -14,6 +14,15 @@
 
 ## 設計理念
 
+![ECA Slides1](/spec/PDF/output_images/page_1.jpg)
+![ECA Slides2](/spec/PDF/output_images/page_2.jpg)
+![ECA Slides3](/spec/PDF/output_images/page_3.jpg)
+![ECA Slides4](/spec/PDF/output_images/page_4.jpg)
+![ECA Slides5](/spec/PDF/output_images/page_5.jpg)
+![ECA Slides6](/spec/PDF/output_images/page_6.jpg)
+![ECA Slides8](/spec/PDF/output_images/page_8.jpg)
+![ECA Slides9](/spec/PDF/output_images/page_9.jpg)
+
 ### 核心問題
 
 > **「聽懂對方說什麼，知道自己怎麼說」**
