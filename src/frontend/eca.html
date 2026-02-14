@@ -706,6 +706,64 @@
             border-radius: 8px;
         }
 
+        /* PWA Standalone Warning Banner */
+        .pwa-warning {
+            display: none;
+            background: linear-gradient(135deg, #ff6b35 0%, #e63946 100%);
+            color: #fff;
+            padding: 14px 20px;
+            font-size: 13px;
+            line-height: 1.5;
+            text-align: center;
+            flex-shrink: 0;
+            position: relative;
+        }
+
+        .pwa-warning.visible {
+            display: block;
+        }
+
+        .pwa-warning-title {
+            font-weight: 700;
+            font-size: 14px;
+            margin-bottom: 4px;
+        }
+
+        .pwa-warning-text {
+            opacity: 0.95;
+        }
+
+        .pwa-warning-link {
+            display: inline-block;
+            margin-top: 8px;
+            padding: 6px 16px;
+            background: rgba(255,255,255,0.2);
+            border: 1px solid rgba(255,255,255,0.4);
+            border-radius: 6px;
+            color: #fff;
+            font-weight: 600;
+            font-size: 13px;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        .pwa-warning-dismiss {
+            position: absolute;
+            top: 8px;
+            right: 10px;
+            background: none;
+            border: none;
+            color: rgba(255,255,255,0.7);
+            font-size: 18px;
+            cursor: pointer;
+            padding: 4px;
+            line-height: 1;
+        }
+
+        .pwa-warning-dismiss:hover {
+            color: #fff;
+        }
+
         /* Footer Credit */
         .footer-credit {
             text-align: center;
@@ -1769,6 +1827,14 @@
         </div>
     </header>
 
+    <!-- PWA Standalone Warning (iOS Add to Home Screen) -->
+    <div class="pwa-warning" id="pwaWarning">
+        <button class="pwa-warning-dismiss" onclick="dismissPwaWarning()" aria-label="Close">&times;</button>
+        <div class="pwa-warning-title" data-i18n="pwaWarningTitle">⚠️ 語音功能受限</div>
+        <div class="pwa-warning-text" data-i18n="pwaWarningText">「主畫面」模式暫不支援語音辨識。請用 Safari 開啟此網址以使用完整功能。</div>
+        <a class="pwa-warning-link" id="pwaWarningCopyLink" onclick="copyCurrentUrl()" data-i18n="pwaWarningCopy">📋 複製網址到 Safari 開啟</a>
+    </div>
+
     <!-- Main Content -->
     <main class="main-content">
         <!-- ============================================
@@ -2249,7 +2315,10 @@
                 loading: '載入中...',
                 error: '錯誤',
                 success: '成功',
-                warning: '警告'
+                warning: '警告',
+                pwaWarningTitle: '⚠️ 語音功能受限',
+                pwaWarningText: '「主畫面」模式暫不支援語音辨識。請用 Safari 開啟此網址以使用完整功能。',
+                pwaWarningCopy: '📋 複製網址到 Safari 開啟'
             },
             'zh-CN': {
                 appTitle: '英文对话助手',
@@ -2329,7 +2398,10 @@
                 loading: '加载中...',
                 error: '错误',
                 success: '成功',
-                warning: '警告'
+                warning: '警告',
+                pwaWarningTitle: '⚠️ 语音功能受限',
+                pwaWarningText: '「主画面」模式暂不支持语音识别。请用 Safari 打开此网址以使用完整功能。',
+                pwaWarningCopy: '📋 复制网址到 Safari 打开'
             },
             'en': {
                 appTitle: 'English Conversation Assistant',
@@ -2409,7 +2481,10 @@
                 loading: 'Loading...',
                 error: 'Error',
                 success: 'Success',
-                warning: 'Warning'
+                warning: 'Warning',
+                pwaWarningTitle: '⚠️ Voice Feature Unavailable',
+                pwaWarningText: 'Speech recognition is not supported in Home Screen mode. Please open this URL in Safari for full functionality.',
+                pwaWarningCopy: '📋 Copy URL to open in Safari'
             }
         };
 
@@ -4869,6 +4944,67 @@ FORMAT:
         }
 
         // ============================================
+        // iOS PWA Standalone Detection
+        // ============================================
+
+        /**
+         * Detect if running in iOS PWA standalone mode (Add to Home Screen).
+         * Web Speech API is not supported in WKWebView standalone mode.
+         */
+        function detectPwaStandalone() {
+            const isStandalone = window.navigator.standalone === true ||
+                                 window.matchMedia('(display-mode: standalone)').matches;
+            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+                          (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+            if (isStandalone && isIOS) {
+                // Check if user previously dismissed (session-only)
+                if (sessionStorage.getItem('pwa_warning_dismissed')) return;
+
+                const banner = document.getElementById('pwaWarning');
+                if (banner) {
+                    banner.classList.add('visible');
+                    console.warn('[ECA] iOS PWA standalone mode detected — Web Speech API may not work');
+                }
+            }
+        }
+
+        /**
+         * Dismiss the PWA warning banner (session-only)
+         */
+        function dismissPwaWarning() {
+            const banner = document.getElementById('pwaWarning');
+            if (banner) {
+                banner.classList.remove('visible');
+                sessionStorage.setItem('pwa_warning_dismissed', '1');
+            }
+        }
+
+        /**
+         * Copy current URL to clipboard so user can paste in Safari
+         */
+        async function copyCurrentUrl() {
+            try {
+                await navigator.clipboard.writeText(window.location.href);
+                const link = document.getElementById('pwaWarningCopyLink');
+                const originalText = link.textContent;
+                link.textContent = '✅ 已複製！請貼到 Safari';
+                setTimeout(() => { link.textContent = originalText; }, 2000);
+            } catch (e) {
+                // Fallback for older browsers
+                const input = document.createElement('input');
+                input.value = window.location.href;
+                document.body.appendChild(input);
+                input.select();
+                document.execCommand('copy');
+                document.body.removeChild(input);
+                const link = document.getElementById('pwaWarningCopyLink');
+                link.textContent = '✅ 已複製！';
+                setTimeout(() => { location.reload(); }, 1500);
+            }
+        }
+
+        // ============================================
         // Initialize
         // ============================================
 
@@ -4920,6 +5056,9 @@ FORMAT:
 
             // Ensure we start in preparation mode
             switchToPreparationMode();
+
+            // Detect iOS PWA standalone mode (Add to Home Screen)
+            detectPwaStandalone();
 
             log('ECA Parallel Translation Test ready');
         });
