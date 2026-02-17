@@ -2866,6 +2866,17 @@
                 scriptInputLabel: '我想說...（中文）',
                 scriptInputPlaceholder: '輸入你想說的話，例如：我想詢問這筆費用是什麼',
                 generateScript: '生成講稿',
+                generating: '生成中...',
+                scriptFailed: '生成失敗：',
+                hideLog: '隱藏日誌',
+                showLog: '顯示日誌',
+                copiedValue: '已複製: ',
+                readyStartSpeaking: '準備就緒！開始說話...',
+                pwaCopied: '✅ 已複製！請貼到 Safari',
+                pwaCopiedShort: '✅ 已複製！',
+                speakerMeLabel: '🙋 我',
+                speakerThemLabel: '👤 對方',
+                cleared: '已清除',
                 quickPrompts: '快速選擇常用目的：',
                 yourScript: '你的講稿',
                 copy: '複製',
@@ -2984,6 +2995,17 @@
                 scriptInputLabel: '我想说...（中文）',
                 scriptInputPlaceholder: '输入你想说的话，例如：我想问一下这笔费用是什么',
                 generateScript: '生成讲稿',
+                generating: '生成中...',
+                scriptFailed: '生成失败：',
+                hideLog: '隐藏日志',
+                showLog: '显示日志',
+                copiedValue: '已复制: ',
+                readyStartSpeaking: '准备就绪！开始说话...',
+                pwaCopied: '✅ 已复制！请贴到 Safari',
+                pwaCopiedShort: '✅ 已复制！',
+                speakerMeLabel: '🙋 我',
+                speakerThemLabel: '👤 对方',
+                cleared: '已清除',
                 quickPrompts: '快速选择常用目的：',
                 yourScript: '你的讲稿',
                 copy: '复制',
@@ -3102,6 +3124,17 @@
                 scriptInputLabel: 'I want to say... (Chinese)',
                 scriptInputPlaceholder: 'Enter what you want to say',
                 generateScript: 'Generate Script',
+                generating: 'Generating...',
+                scriptFailed: 'Generation failed: ',
+                hideLog: 'Hide Log',
+                showLog: 'Show Log',
+                copiedValue: 'Copied: ',
+                readyStartSpeaking: 'Ready! Start speaking...',
+                pwaCopied: '✅ Copied! Paste in Safari',
+                pwaCopiedShort: '✅ Copied!',
+                speakerMeLabel: '🙋 Me',
+                speakerThemLabel: '👤 Them',
+                cleared: 'Cleared',
                 quickPrompts: 'Quick select common purposes:',
                 yourScript: 'Your Script',
                 copy: 'Copy',
@@ -3249,6 +3282,17 @@
                 el.setAttribute('aria-label', t(key));
             });
             updateAccentSelectOptions();
+            // Re-render scenario-dependent content with new language
+            if (typeof renderScenarioGrid === 'function') renderScenarioGrid();
+            if (typeof selectedScenario !== 'undefined' && SCENARIOS[selectedScenario]) {
+                renderQuickPrompts(selectedScenario);
+                const scenario = SCENARIOS[selectedScenario];
+                const scriptInput = document.getElementById('scriptInput');
+                if (scriptInput && scenario.placeholder) {
+                    const ph = (typeof scenario.placeholder === 'object') ? (scenario.placeholder[currentLanguage] || scenario.placeholder['zh-HK']) : scenario.placeholder;
+                    scriptInput.placeholder = ph;
+                }
+            }
             const langSelect = document.getElementById('languageSelect');
             if (langSelect) langSelect.value = currentLanguage;
             document.title = `${t('appTitle')} - English Conversation Assistant`;
@@ -3372,75 +3416,75 @@
                 name: '銀行',
                 icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>`,
                 vocab: ['account', 'balance', 'transaction', 'statement', 'charge', 'fee', 'transfer'],
-                placeholder: '例如：我想查詢帳戶餘額',
+                placeholder: { 'zh-HK': '例如：我想查詢帳戶餘額', 'zh-CN': '例如：我想查询账户余额', 'en': 'e.g. I want to check my account balance' },
                 defaultPrompts: [
-                    { label: '查詢餘額', prompt: '我想查詢帳戶餘額和最近的交易記錄' },
-                    { label: '不明收費', prompt: '我想詢問帳戶上一筆不明的收費是什麼' },
-                    { label: '更新資料', prompt: '我想更新我的地址和電話號碼' },
-                    { label: '開戶咨詢', prompt: '我想了解開立新帳戶需要什麼文件' },
-                    { label: '轉帳問題', prompt: '我想查詢一筆轉帳為什麼還沒到帳' },
-                    { label: '掛失卡片', prompt: '我的銀行卡遺失了，想辦理掛失和補發' },
-                    { label: '申請貸款', prompt: '我想了解個人貸款的利率和申請條件' }
+                    { label: { 'zh-HK': '查詢餘額', 'zh-CN': '查询余额', 'en': 'Check balance' }, prompt: '我想查詢帳戶餘額和最近的交易記錄' },
+                    { label: { 'zh-HK': '不明收費', 'zh-CN': '不明收费', 'en': 'Unknown charge' }, prompt: '我想詢問帳戶上一筆不明的收費是什麼' },
+                    { label: { 'zh-HK': '更新資料', 'zh-CN': '更新资料', 'en': 'Update info' }, prompt: '我想更新我的地址和電話號碼' },
+                    { label: { 'zh-HK': '開戶咨詢', 'zh-CN': '开户咨询', 'en': 'Open account' }, prompt: '我想了解開立新帳戶需要什麼文件' },
+                    { label: { 'zh-HK': '轉帳問題', 'zh-CN': '转账问题', 'en': 'Transfer issue' }, prompt: '我想查詢一筆轉帳為什麼還沒到帳' },
+                    { label: { 'zh-HK': '掛失卡片', 'zh-CN': '挂失卡片', 'en': 'Lost card' }, prompt: '我的銀行卡遺失了，想辦理掛失和補發' },
+                    { label: { 'zh-HK': '申請貸款', 'zh-CN': '申请贷款', 'en': 'Apply loan' }, prompt: '我想了解個人貸款的利率和申請條件' }
                 ]
             },
             nhs: {
                 name: '醫療',
                 icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"></path></svg>`,
                 vocab: ['appointment', 'prescription', 'symptoms', 'referral', 'doctor', 'surgery'],
-                placeholder: '例如：我想預約看 GP',
+                placeholder: { 'zh-HK': '例如：我想預約看 GP', 'zh-CN': '例如：我想预约看 GP', 'en': 'e.g. I want to book a GP appointment' },
                 defaultPrompts: [
-                    { label: '預約 GP', prompt: '我想預約看 GP 的時間' },
-                    { label: '領處方簽', prompt: '我想詢問我的處方簽是否可以領取' },
-                    { label: '轉診進度', prompt: '我想查詢專科轉診的進度' },
-                    { label: '檢驗結果', prompt: '我想詢問上次檢驗的結果出來了嗎' },
-                    { label: '取消預約', prompt: '我想取消或更改我的預約時間' },
-                    { label: '病假證明', prompt: '我需要一份病假證明給我的雇主' },
-                    { label: '重複處方', prompt: '我想申請重複處方的續期' }
+                    { label: { 'zh-HK': '預約 GP', 'zh-CN': '预约 GP', 'en': 'Book GP' }, prompt: '我想預約看 GP 的時間' },
+                    { label: { 'zh-HK': '領處方簽', 'zh-CN': '领处方签', 'en': 'Prescription' }, prompt: '我想詢問我的處方簽是否可以領取' },
+                    { label: { 'zh-HK': '轉診進度', 'zh-CN': '转诊进度', 'en': 'Referral status' }, prompt: '我想查詢專科轉診的進度' },
+                    { label: { 'zh-HK': '檢驗結果', 'zh-CN': '检验结果', 'en': 'Test results' }, prompt: '我想詢問上次檢驗的結果出來了嗎' },
+                    { label: { 'zh-HK': '取消預約', 'zh-CN': '取消预约', 'en': 'Cancel appt' }, prompt: '我想取消或更改我的預約時間' },
+                    { label: { 'zh-HK': '病假證明', 'zh-CN': '病假证明', 'en': 'Sick note' }, prompt: '我需要一份病假證明給我的雇主' },
+                    { label: { 'zh-HK': '重複處方', 'zh-CN': '重复处方', 'en': 'Repeat Rx' }, prompt: '我想申請重複處方的續期' }
                 ]
             },
             utilities: {
                 name: '水電',
                 icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path></svg>`,
                 vocab: ['bill', 'meter reading', 'tariff', 'direct debit', 'account number'],
-                placeholder: '例如：我想查詢帳單',
+                placeholder: { 'zh-HK': '例如：我想查詢帳單', 'zh-CN': '例如：我想查询账单', 'en': 'e.g. I want to check my bill' },
                 defaultPrompts: [
-                    { label: '查帳單', prompt: '我想查詢最新的帳單金額' },
-                    { label: '更新付款', prompt: '我想更新 Direct Debit 的銀行資料' },
-                    { label: '報讀數', prompt: '我想報告電錶/瓦斯表的讀數' },
-                    { label: '換方案', prompt: '我想了解有沒有更優惠的方案' },
-                    { label: '搬家通知', prompt: '我下個月要搬家，想通知更新地址' },
-                    { label: '付款困難', prompt: '我暫時有經濟困難，想了解分期付款的選項' },
-                    { label: '斷供投訴', prompt: '我家突然停電/停水了，想查詢原因和恢復時間' }
+                    { label: { 'zh-HK': '查帳單', 'zh-CN': '查账单', 'en': 'Check bill' }, prompt: '我想查詢最新的帳單金額' },
+                    { label: { 'zh-HK': '更新付款', 'zh-CN': '更新付款', 'en': 'Update payment' }, prompt: '我想更新 Direct Debit 的銀行資料' },
+                    { label: { 'zh-HK': '報讀數', 'zh-CN': '报读数', 'en': 'Meter reading' }, prompt: '我想報告電錶/瓦斯表的讀數' },
+                    { label: { 'zh-HK': '換方案', 'zh-CN': '换方案', 'en': 'Switch plan' }, prompt: '我想了解有沒有更優惠的方案' },
+                    { label: { 'zh-HK': '搬家通知', 'zh-CN': '搬家通知', 'en': 'Moving house' }, prompt: '我下個月要搬家，想通知更新地址' },
+                    { label: { 'zh-HK': '付款困難', 'zh-CN': '付款困难', 'en': 'Payment help' }, prompt: '我暫時有經濟困難，想了解分期付款的選項' },
+                    { label: { 'zh-HK': '斷供投訴', 'zh-CN': '断供投诉', 'en': 'Outage report' }, prompt: '我家突然停電/停水了，想查詢原因和恢復時間' }
                 ]
             },
             insurance: {
                 name: '保險',
                 icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>`,
                 vocab: ['policy', 'claim', 'excess', 'cover', 'premium', 'renewal'],
-                placeholder: '例如：我想了解保單內容',
+                placeholder: { 'zh-HK': '例如：我想了解保單內容', 'zh-CN': '例如：我想了解保单内容', 'en': 'e.g. I want to know my policy coverage' },
                 defaultPrompts: [
-                    { label: '保障範圍', prompt: '我想了解我的保單涵蓋範圍' },
-                    { label: '提出理賠', prompt: '我想提出一個理賠申請' },
-                    { label: '續約保費', prompt: '我想詢問保費續約的金額' },
-                    { label: '更改資料', prompt: '我想更改保單上的個人資料' },
-                    { label: '取消保單', prompt: '我想了解取消保單的流程' },
-                    { label: '理賠進度', prompt: '我想查詢我之前提出的理賠申請目前的進度' },
-                    { label: '加保項目', prompt: '我想了解可以加保哪些額外項目，例如牙科或眼科' }
+                    { label: { 'zh-HK': '保障範圍', 'zh-CN': '保障范围', 'en': 'Coverage' }, prompt: '我想了解我的保單涵蓋範圍' },
+                    { label: { 'zh-HK': '提出理賠', 'zh-CN': '提出理赔', 'en': 'File claim' }, prompt: '我想提出一個理賠申請' },
+                    { label: { 'zh-HK': '續約保費', 'zh-CN': '续约保费', 'en': 'Renewal fee' }, prompt: '我想詢問保費續約的金額' },
+                    { label: { 'zh-HK': '更改資料', 'zh-CN': '更改资料', 'en': 'Update info' }, prompt: '我想更改保單上的個人資料' },
+                    { label: { 'zh-HK': '取消保單', 'zh-CN': '取消保单', 'en': 'Cancel policy' }, prompt: '我想了解取消保單的流程' },
+                    { label: { 'zh-HK': '理賠進度', 'zh-CN': '理赔进度', 'en': 'Claim status' }, prompt: '我想查詢我之前提出的理賠申請目前的進度' },
+                    { label: { 'zh-HK': '加保項目', 'zh-CN': '加保项目', 'en': 'Add coverage' }, prompt: '我想了解可以加保哪些額外項目，例如牙科或眼科' }
                 ]
             },
             general: {
                 name: '一般',
                 icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>`,
                 vocab: ['enquiry', 'confirm', 'reference number', 'information', 'details'],
-                placeholder: '例如：您好，我想詢問一些事情',
+                placeholder: { 'zh-HK': '例如：您好，我想詢問一些事情', 'zh-CN': '例如：您好，我想询问一些事情', 'en': 'e.g. Hello, I would like to enquire about something' },
                 defaultPrompts: [
-                    { label: '一般詢問', prompt: '您好，我想詢問一些事情' },
-                    { label: '確認狀態', prompt: '我想確認我的預約/訂單狀態' },
-                    { label: '客服轉接', prompt: '請問可以幫我轉接客服部門嗎' },
-                    { label: '投訴反映', prompt: '我想反映一個問題' },
-                    { label: '感謝結束', prompt: '好的，謝謝你的幫忙，再見' },
-                    { label: '留言回電', prompt: '請問可以留言嗎？請他方便時回電給我' },
-                    { label: '索取編號', prompt: '可以給我這次通話的參考編號嗎？' }
+                    { label: { 'zh-HK': '一般詢問', 'zh-CN': '一般询问', 'en': 'General enquiry' }, prompt: '您好，我想詢問一些事情' },
+                    { label: { 'zh-HK': '確認狀態', 'zh-CN': '确认状态', 'en': 'Check status' }, prompt: '我想確認我的預約/訂單狀態' },
+                    { label: { 'zh-HK': '客服轉接', 'zh-CN': '客服转接', 'en': 'Transfer call' }, prompt: '請問可以幫我轉接客服部門嗎' },
+                    { label: { 'zh-HK': '投訴反映', 'zh-CN': '投诉反映', 'en': 'Complaint' }, prompt: '我想反映一個問題' },
+                    { label: { 'zh-HK': '感謝結束', 'zh-CN': '感谢结束', 'en': 'Thank & end' }, prompt: '好的，謝謝你的幫忙，再見' },
+                    { label: { 'zh-HK': '留言回電', 'zh-CN': '留言回电', 'en': 'Leave message' }, prompt: '請問可以留言嗎？請他方便時回電給我' },
+                    { label: { 'zh-HK': '索取編號', 'zh-CN': '索取编号', 'en': 'Get ref number' }, prompt: '可以給我這次通話的參考編號嗎？' }
                 ]
             }
         };
@@ -3593,25 +3637,30 @@
 
             // Update button text
             const textSpan = logToggle.querySelector('span');
-            textSpan.textContent = isCollapsed ? '隱藏日誌' : '顯示日誌';
+            textSpan.textContent = isCollapsed ? t('hideLog') : t('showLog');
         }
 
         // =============================================
         // Phase 1: Scenario Selector
         // =============================================
 
+        // Map scenario keys to i18n keys
+        const SCENARIO_I18N = { bank: 'scenarioBank', nhs: 'scenarioNHS', utilities: 'scenarioUtilities', insurance: 'scenarioInsurance', general: 'scenarioGeneral' };
+
         function renderScenarioGrid() {
             const grid = document.getElementById('scenarioGrid');
             grid.innerHTML = '';
             for (const [key, scenario] of Object.entries(SCENARIOS)) {
+                const name = t(SCENARIO_I18N[key] || key);
                 const card = document.createElement('button');
                 card.className = 'scenario-card' + (key === selectedScenario ? ' selected' : '');
                 card.setAttribute('tabindex', '0');
-                card.setAttribute('aria-label', scenario.name);
+                card.setAttribute('data-scenario', key);
+                card.setAttribute('aria-label', name);
                 card.onclick = () => selectScenario(key);
                 card.innerHTML = `
                     <div class="scenario-card-icon">${scenario.icon}</div>
-                    <div class="scenario-card-name">${scenario.name}</div>
+                    <div class="scenario-card-name">${name}</div>
                     <div class="scenario-card-vocab">${scenario.vocab.join(', ')}</div>
                 `;
                 grid.appendChild(card);
@@ -3635,7 +3684,8 @@
             const scenario = SCENARIOS[key];
             const scriptInput = document.getElementById('scriptInput');
             if (scriptInput && scenario.placeholder) {
-                scriptInput.placeholder = scenario.placeholder;
+                const ph = (typeof scenario.placeholder === 'object') ? (scenario.placeholder[currentLanguage] || scenario.placeholder['zh-HK']) : scenario.placeholder;
+                scriptInput.placeholder = ph;
             }
             renderQuickPrompts(key);
         }
@@ -3653,11 +3703,10 @@
                 return;
             }
 
-            grid.innerHTML = scenario.defaultPrompts.map(item => `
-                <button class="quick-prompt-btn" onclick="useQuickPrompt('${escapeHtmlForAttr(item.prompt)}')">
-                    ${item.label}
-                </button>
-            `).join('');
+            grid.innerHTML = scenario.defaultPrompts.map(item => {
+                const label = (typeof item.label === 'object') ? (item.label[currentLanguage] || item.label['zh-HK']) : item.label;
+                return `<button class="quick-prompt-btn" onclick="useQuickPrompt('${escapeHtmlForAttr(item.prompt)}')">${label}</button>`;
+            }).join('');
         }
 
         /**
@@ -3764,7 +3813,7 @@
                             <span>${date}</span>
                         </div>
                     </div>
-                    <button class="saved-script-delete" onclick="deleteSavedScript('${script.id}')" aria-label="刪除" title="刪除">
+                    <button class="saved-script-delete" onclick="deleteSavedScript('${script.id}')" aria-label="${t('delete_')}" title="${t('delete_')}">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M3 6h18"></path>
                             <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
@@ -4270,7 +4319,7 @@
                 const chineseEl = el.querySelector('div[style*="font-size: 16px"]');
 
                 segments.push({
-                    speaker: speakerEl ? speakerEl.textContent.trim() : '👤 對方',
+                    speaker: speakerEl ? speakerEl.textContent.trim() : t('speakerThemLabel'),
                     english: englishEl ? englishEl.textContent.trim() : '',
                     chinese: chineseEl ? chineseEl.textContent.trim() : '',
                     time: timeEl ? timeEl.textContent.trim() : ''
@@ -4635,7 +4684,7 @@
 
             navigator.clipboard.writeText(value).then(() => {
                 const toast = document.getElementById('copyToast');
-                toast.textContent = `已複製: ${value}`;
+                toast.textContent = `${t('copiedValue')}${value}`;
                 toast.classList.add('visible');
                 setTimeout(() => toast.classList.remove('visible'), 1500);
             }).catch(() => {
@@ -4649,7 +4698,7 @@
                 document.execCommand('copy');
                 document.body.removeChild(ta);
                 const toast = document.getElementById('copyToast');
-                toast.textContent = `已複製: ${value}`;
+                toast.textContent = `${t('copiedValue')}${value}`;
                 toast.classList.add('visible');
                 setTimeout(() => toast.classList.remove('visible'), 1500);
             });
@@ -4838,7 +4887,7 @@
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="animate-spin">
                     <path d="M21 12a9 9 0 1 1-6.219-8.56"></path>
                 </svg>
-                生成中...
+                ${t('generating')}
             `;
 
             // Show teleprompter
@@ -4912,7 +4961,7 @@
                                             .join('');
                                     }
                                 } else if (data.type === 'error') {
-                                    scriptOutput.innerHTML = `<span style="color:var(--accent-red);">生成失敗：${data.error}</span>`;
+                                    scriptOutput.innerHTML = `<span style="color:var(--accent-red);">${t('scriptFailed')}${data.error}</span>`;
                                 }
                             } catch (e) {
                                 // Ignore parse errors for incomplete JSON
@@ -4925,7 +4974,7 @@
 
             } catch (error) {
                 console.error('Script generation error:', error);
-                scriptOutput.innerHTML = `<span style="color:var(--accent-red);">生成失敗：${error.message}</span>`;
+                scriptOutput.innerHTML = `<span style="color:var(--accent-red);">${t('scriptFailed')}${error.message}</span>`;
                 log(`[講稿] 錯誤: ${error.message}`, 'error');
             } finally {
                 isGenerating = false;
@@ -4935,7 +4984,7 @@
                         <path d="m5 12 7-7 7 7"></path>
                         <path d="M12 19V5"></path>
                     </svg>
-                    生成講稿
+                    ${t('generateScript')}
                 `;
             }
         }
@@ -4955,7 +5004,7 @@
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <polyline points="20 6 9 17 4 12"></polyline>
                     </svg>
-                    已複製
+                    ${t('copied')}
                 `;
                 setTimeout(() => { btn.innerHTML = originalText; }, 1500);
             } catch (error) {
@@ -5051,7 +5100,7 @@
             // 更新英文原文區域提示 - 使用 Karaoke 高亮效果
             const previewText = document.getElementById('previewText');
             if (previewText) {
-                previewText.innerHTML = '<span class="preview-text-inner"><span class="interim">Ready! Start speaking...</span></span>';
+                previewText.innerHTML = `<span class="preview-text-inner"><span class="interim">${t('readyStartSpeaking')}</span></span>`;
             }
         }
 
@@ -5802,7 +5851,7 @@ FORMAT:
 
             // 說話者樣式
             const isMe = segment.speaker === 'me';
-            const speakerLabel = isMe ? '🙋 我' : '👤 對方';
+            const speakerLabel = isMe ? t('speakerMeLabel') : t('speakerThemLabel');
             const speakerColor = isMe ? 'var(--accent-blue)' : 'var(--accent-green)';
             const borderColor = isMe ? 'var(--accent-blue)' : 'var(--accent-green)';
             const bgTint = isMe ? 'rgba(0, 212, 255, 0.08)' : 'rgba(0, 255, 136, 0.08)';
@@ -6019,7 +6068,7 @@ FORMAT:
             transcriptEmpty.style.display = 'flex';
 
             // Clear log
-            logPanel.innerHTML = '<div style="color:var(--text-secondary);">已清除</div>';
+            logPanel.innerHTML = `<div style="color:var(--text-secondary);">${t('cleared')}</div>`;
 
             // Reset stats
             updateStats();
@@ -6072,7 +6121,7 @@ FORMAT:
                 await navigator.clipboard.writeText(window.location.href);
                 const link = document.getElementById('pwaWarningCopyLink');
                 const originalText = link.textContent;
-                link.textContent = '✅ 已複製！請貼到 Safari';
+                link.textContent = t('pwaCopied');
                 setTimeout(() => { link.textContent = originalText; }, 2000);
             } catch (e) {
                 // Fallback for older browsers
@@ -6083,7 +6132,7 @@ FORMAT:
                 document.execCommand('copy');
                 document.body.removeChild(input);
                 const link = document.getElementById('pwaWarningCopyLink');
-                link.textContent = '✅ 已複製！';
+                link.textContent = t('pwaCopiedShort');
                 setTimeout(() => { location.reload(); }, 1500);
             }
         }
@@ -6135,7 +6184,8 @@ FORMAT:
             // Update initial placeholder based on selected scenario
             const initialScenario = SCENARIOS[selectedScenario];
             if (initialScenario && initialScenario.placeholder) {
-                document.getElementById('scriptInput').placeholder = initialScenario.placeholder;
+                const ph = (typeof initialScenario.placeholder === 'object') ? (initialScenario.placeholder[currentLanguage] || initialScenario.placeholder['zh-HK']) : initialScenario.placeholder;
+                document.getElementById('scriptInput').placeholder = ph;
             }
 
             // Ensure we start in preparation mode
