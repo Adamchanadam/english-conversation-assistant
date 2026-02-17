@@ -1455,10 +1455,55 @@ _handleEnd() {
 
 ---
 
+## §9. Smart Suggestions 模型選型與架構（2026-02-16）
+
+### 9.1 模型速度對比
+
+測試條件：3 turn 對話上下文 → 生成 2-3 個建議（EN + ZH）
+
+| 模型 | 首建議時間 | 總時間 | 備註 |
+|------|-----------|--------|------|
+| gpt-4.1-mini | ~1.0s | ~1.6s | ✅ 最佳：速度快、繁體中文正確 |
+| gpt-4.1-nano | ~1.9s | ~2.5s | 較慢（意外） |
+| gpt-4o-mini | ~2.3s | ~3.0s | ❌ 輸出簡體中文 |
+| gpt-5-mini | ~3.0s+ | ~5.0s+ | ❌ reasoning 開銷太大 |
+
+**結論：Smart Suggestions 使用 `gpt-4.1-mini`**
+
+### 9.2 SSE StreamingResponse Windows 開銷問題
+
+**問題**：使用 FastAPI `StreamingResponse` + async httpx 調用 OpenAI API，在 Windows 上有 ~4-5 秒額外開銷（raw API ~1.5s vs endpoint ~5-7s）。
+
+**根因**：可能與 Windows asyncio ProactorEventLoop DNS/SSL 開銷有關，加上 StreamingResponse 內部 buffering。所有 SSE 端點都受影響（包括已有的 `/api/translate/stream`）。
+
+**解決方案**：Smart Suggestions 不需要串流（總回應 ~2.5s，串流收益小），改用普通 JSON POST：
+- 移除 `StreamingResponse` + SSE 格式
+- 使用 `await client.post()` + `return {"suggestions": [...]}`
+- 端點開銷降為 ~0（與 raw API 時間一致）
+
+### 9.3 response_format: json_object 緩衝問題
+
+使用 `response_format: {"type": "json_object"}` 會導致模型先規劃完整 JSON 結構再輸出，等於失去串流優勢。改用分隔符格式（`EN:/ZH:/---`）解決。
+
+### 9.4 Delimiter 格式設計
+
+```
+EN: [English response]
+ZH: [Traditional Chinese translation]
+---
+EN: [next suggestion]
+ZH: [translation]
+```
+
+解析方式：`content.split("---")` → 逐塊提取 EN:/ZH: 行。
+
+---
+
 ## 更新日誌
 
 | 日期 | 更新內容 |
 |------|---------|
+| 2026-02-16 | 新增 §9 Smart Suggestions 模型選型與架構（gpt-4.1-mini、SSE 開銷、JSON POST 方案）|
 | 2026-02-11 | 更新 §8.3 Web Speech 語言切換（修復 InvalidStateError：使用 onend 事件觸發重啟）|
 | 2026-02-10 | 新增本地化與部署記錄（§8.1 多語言介面、§8.2 用戶 API Key 安全、§8.3 Web Speech 語言切換）|
 | 2026-02-09 | 新增角色標記功能記錄（§7.1 模式變更、§7.2 實現要點、§7.3 視覺設計、§7.4 匯出對齊）|

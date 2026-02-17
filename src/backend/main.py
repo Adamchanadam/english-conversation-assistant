@@ -37,6 +37,7 @@ try:
         TranslateResponse,
         ScriptRequest,
         ScriptResponse,
+        SuggestRequest,
     )
     from .controller import (
         generate_controller_response,
@@ -68,6 +69,7 @@ except ImportError:
         TranslateResponse,
         ScriptRequest,
         ScriptResponse,
+        SuggestRequest,
     )
     from controller import (
         generate_controller_response,
@@ -128,9 +130,23 @@ app.add_middleware(
 # Constants
 # =============================================================================
 
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 REALTIME_MODEL = "gpt-realtime-mini-2025-12-15"
 OPENAI_CLIENT_SECRETS_URL = "https://api.openai.com/v1/realtime/client_secrets"
+
+
+def _require_api_key(req: Request) -> str:
+    """Extract API key from X-API-Key header. Raise 401 if not provided.
+
+    All endpoints require the user to provide their own OpenAI API Key
+    via the frontend settings page (stored in localStorage, sent as header).
+    """
+    api_key = req.headers.get("X-API-Key")
+    if not api_key:
+        raise HTTPException(
+            status_code=401,
+            detail="API Key required. Please set your OpenAI API Key in Settings (首頁設定)."
+        )
+    return api_key
 
 
 # =============================================================================
@@ -145,17 +161,9 @@ async def get_ephemeral_token(request: TokenRequest, req: Request):
     CRITICAL: Token TTL is 10 minutes (not 60 minutes).
     Reference: design.md § 9, SKILL openai-realtime-mini-voice
 
-    支援用戶透過 X-API-Key header 提供自己的 API Key（Cloud Run 部署場景）。
+    用戶必須透過 X-API-Key header 提供自己的 API Key。
     """
-    # 優先使用用戶提供的 API Key，否則使用伺服器預設
-    user_api_key = req.headers.get("X-API-Key")
-    api_key = user_api_key if user_api_key else OPENAI_API_KEY
-
-    if not api_key:
-        raise HTTPException(
-            status_code=500,
-            detail="API Key not configured. Please set your OpenAI API Key in Settings."
-        )
+    api_key = _require_api_key(req)
 
     # Validate voice selection
     valid_voices = ["marin", "cedar"]
@@ -233,7 +241,7 @@ async def get_ephemeral_token(request: TokenRequest, req: Request):
 # =============================================================================
 
 @app.post("/api/controller", response_model=ControllerResponse)
-async def controller_endpoint(request: ControllerRequest):
+async def controller_endpoint(request: ControllerRequest, req: Request):
     """
     Generate next utterance strategy based on user directive.
 
@@ -244,16 +252,12 @@ async def controller_endpoint(request: ControllerRequest):
     2. Calls gpt-5-mini via Responses API
     3. Returns decision, next utterance, memory update, notes
     """
-    if not OPENAI_API_KEY:
-        raise HTTPException(
-            status_code=500,
-            detail="OPENAI_API_KEY not configured"
-        )
+    api_key = _require_api_key(req)
 
     logger.info(f"Controller request: directive={request.directive}")
 
     try:
-        response = await generate_controller_response(request)
+        response = await generate_controller_response(request, api_key=api_key)
         logger.info(f"Controller response: decision={response.decision}")
         return response
 
@@ -275,7 +279,7 @@ async def controller_endpoint(request: ControllerRequest):
 # =============================================================================
 
 @app.post("/api/summarize_ssot", response_model=SummarizeSsotResponse)
-async def summarize_ssot_endpoint(request: SummarizeSsotRequest):
+async def summarize_ssot_endpoint(request: SummarizeSsotRequest, req: Request):
     """
     Summarize SSOT content if it exceeds token limit.
 
@@ -286,16 +290,12 @@ async def summarize_ssot_endpoint(request: SummarizeSsotRequest):
     2. If > 1500 tokens, summarizes using gpt-5-mini
     3. Returns summary with token counts
     """
-    if not OPENAI_API_KEY:
-        raise HTTPException(
-            status_code=500,
-            detail="OPENAI_API_KEY not configured"
-        )
+    api_key = _require_api_key(req)
 
     logger.info(f"SSOT summarize request: {len(request.ssot_text)} characters")
 
     try:
-        response = await summarize_ssot(request)
+        response = await summarize_ssot(request, api_key=api_key)
         logger.info(
             f"SSOT summarize response: {response.original_tokens} -> {response.summary_tokens} tokens"
         )
@@ -320,7 +320,7 @@ async def health_check():
         status="ok",
         model_controller=CONTROLLER_MODEL,
         model_realtime=REALTIME_MODEL,
-        api_key_configured=bool(OPENAI_API_KEY),
+        api_key_configured=True,  # API key now required per-request via X-API-Key header
     )
 
 
@@ -351,26 +351,10 @@ async def translate_text(request: TranslateRequest, req: Request):
     注意：翻譯不是「文字控制器」功能，使用 gpt-4.1-nano 以獲得更快回應。
     Controller API (/api/controller) 仍使用 gpt-5-mini。
 
-    API Key 支援：
-    - 用戶可透過 X-API-Key header 提供自己的 OpenAI API Key
-    - 若未提供，則使用伺服器預設的 OPENAI_API_KEY
-
     Reference:
     - spec/lessons_learned.md (Test 21 - 方案 A)
     """
-    # 優先使用用戶提供的 API Key
-    user_api_key = req.headers.get("X-API-Key")
-    api_key = user_api_key if user_api_key else OPENAI_API_KEY
-
-    if not api_key:
-        return TranslateResponse(
-            translation="",
-            source_text=request.text,
-            error="API Key not configured. Please provide your OpenAI API Key in settings."
-        )
-
-    if user_api_key:
-        logger.info("Using user-provided API Key for translation")
+    api_key = _require_api_key(req)
 
     logger.info(f"Translate request: {len(request.text)} chars")
 
@@ -464,24 +448,9 @@ async def translate_text_stream(request: TranslateRequest, req: Request):
     使用方式：
     前端用 EventSource 或 fetch + ReadableStream 接收
 
-    API Key 支援：
-    - 用戶可透過 X-API-Key header 提供自己的 OpenAI API Key
-    - 若未提供，則使用伺服器預設的 OPENAI_API_KEY
-    - 這允許 Cloud Run 部署時由用戶自行提供 API Key
-
     Reference: spec/research/glossary_integration_design.md
     """
-    # 優先使用用戶提供的 API Key，否則使用伺服器預設的
-    user_api_key = req.headers.get("X-API-Key")
-    api_key = user_api_key if user_api_key else OPENAI_API_KEY
-
-    if not api_key:
-        async def error_gen():
-            yield f"data: {{\"error\": \"API Key not configured. Please provide your OpenAI API Key in settings.\"}}\n\n"
-        return StreamingResponse(error_gen(), media_type="text/event-stream")
-
-    if user_api_key:
-        logger.info("Using user-provided API Key for translation")
+    api_key = _require_api_key(req)
 
     # Build system prompt with optional glossary hints
     base_prompt = """You are a translation machine. Translate English to Traditional Chinese (Hong Kong style, 繁體中文).
@@ -516,7 +485,7 @@ NUMBERS - Keep ALL in Arabic numerals, NEVER convert to Chinese:
     async def generate():
         import json as json_module
         logger.info(f"[Translate] Starting stream translation for: {request.text[:50]}...")
-        logger.info(f"[Translate] Using API key: {api_key[:15]}... (user-provided: {bool(user_api_key)})")
+        logger.info(f"[Translate] Using API key: {api_key[:15]}...")
 
         try:
             async with httpx.AsyncClient() as client:
@@ -598,26 +567,12 @@ async def generate_script_endpoint(request: ScriptRequest, req: Request):
     This endpoint uses gpt-5-mini to convert Chinese text into
     natural English scripts that users can read aloud during phone calls.
 
-    API Key 支援：
-    - 用戶可透過 X-API-Key header 提供自己的 OpenAI API Key
-    - 若未提供，則使用伺服器預設的 OPENAI_API_KEY
-
     Returns:
         - english_script: Main script to read
         - alternatives: 2 alternative phrasings
         - pronunciation_tips: IPA for difficult words
     """
-    # 優先使用用戶提供的 API Key
-    user_api_key = req.headers.get("X-API-Key")
-    api_key = user_api_key if user_api_key else OPENAI_API_KEY
-
-    if not api_key:
-        return ScriptResponse(
-            english_script="",
-            alternatives=[],
-            pronunciation_tips=[],
-            error="API Key not configured. Please provide your OpenAI API Key in settings."
-        )
+    api_key = _require_api_key(req)
 
     logger.info(f"Script generation request: {request.chinese_input[:50]}...")
 
@@ -655,24 +610,8 @@ async def generate_script_stream_endpoint(request: ScriptRequest, req: Request):
 
     Streams the English script in real-time for faster perceived response.
 
-    API Key 支援：
-    - 用戶可透過 X-API-Key header 提供自己的 OpenAI API Key
-    - 若未提供，則使用伺服器預設的 OPENAI_API_KEY
     """
-    # 優先使用用戶提供的 API Key
-    user_api_key = req.headers.get("X-API-Key")
-    api_key = user_api_key if user_api_key else OPENAI_API_KEY
-
-    if not api_key:
-        async def error_gen():
-            yield f"data: {{\"type\": \"error\", \"error\": \"API Key not configured. Please provide your OpenAI API Key in settings.\"}}\n\n"
-        return StreamingResponse(
-            error_gen(),
-            media_type="text/event-stream"
-        )
-
-    if user_api_key:
-        logger.info("Using user-provided API Key for script generation")
+    api_key = _require_api_key(req)
 
     # Extract context
     context = request.context
@@ -744,12 +683,154 @@ async def get_scenario_prompts(scenario: str):
 
 
 # =============================================================================
+# Smart Suggestions Endpoint (Feature A)
+# Uses gpt-4.1-mini: 1st suggestion ~1s, total ~1.6s (fastest + best quality)
+# Tested: gpt-4.1-mini 1.08s > gpt-4.1-nano 1.89s > gpt-4o-mini 2.31s
+# =============================================================================
+
+SUGGEST_MODEL = "gpt-4.1-mini"
+
+
+def _parse_suggestion_block(block: str) -> dict | None:
+    """Parse a suggestion block in EN:/ZH: format."""
+    english = ""
+    chinese = ""
+    for line in block.split("\n"):
+        line = line.strip()
+        if line.upper().startswith("EN:"):
+            english = line[3:].strip()
+        elif line.upper().startswith("ZH:"):
+            chinese = line[3:].strip()
+    if english and chinese:
+        return {"english": english, "chinese": chinese}
+    return None
+
+
+SUGGEST_SYSTEM_PROMPT = """You help a non-native English speaker respond in a phone call.
+Suggest 2-3 natural responses the user could say next.
+
+FORMAT (strict, one per block):
+EN: [English response, 1-2 sentences, British spelling]
+ZH: [Traditional Chinese translation, Hong Kong style, 繁體中文]
+---
+EN: [next suggestion]
+ZH: [translation]
+---
+
+Output ONLY in this format. No numbering, no extra text.
+Use Traditional Chinese characters (說話 not 说话, 電話 not 电话)."""
+
+
+def _suggest_stream_sync(api_key: str, conversation_text: str, num_turns: int):
+    """Sync SSE generator — uses sync httpx streaming to avoid Windows async overhead.
+
+    Yields SSE events as each suggestion is parsed from the --- delimiter stream.
+    First suggestion typically arrives in ~1s.
+    """
+    import json as _json
+
+    user_message = f"Recent conversation:\n{conversation_text}\n\nSuggest 2-3 responses for the Caller:"
+
+    logger.info(f"[Suggest] Streaming for {num_turns} turns (sync)")
+    try:
+        with httpx.Client() as client:
+            with client.stream(
+                "POST",
+                OPENAI_CHAT_URL,
+                headers={
+                    "Authorization": f"Bearer {api_key}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": SUGGEST_MODEL,
+                    "messages": [
+                        {"role": "system", "content": SUGGEST_SYSTEM_PROMPT},
+                        {"role": "user", "content": user_message}
+                    ],
+                    "max_tokens": 500,
+                    "temperature": 0.7,
+                    "stream": True,
+                },
+                timeout=15.0,
+            ) as response:
+                if response.status_code != 200:
+                    yield f"data: {_json.dumps({'type': 'error', 'error': f'API {response.status_code}'})}\n\n"
+                    return
+
+                accumulated = ""
+                suggestion_index = 0
+
+                for line in response.iter_lines():
+                    if not line.startswith("data: "):
+                        continue
+                    d = line[6:]
+                    if d == "[DONE]":
+                        break
+                    try:
+                        chunk = _json.loads(d)
+                        content = chunk.get("choices", [{}])[0].get("delta", {}).get("content", "")
+                        if content:
+                            accumulated += content
+                            # Check for complete suggestion blocks
+                            while "---" in accumulated and suggestion_index < 3:
+                                parts = accumulated.split("---", 1)
+                                block = parts[0].strip()
+                                accumulated = parts[1] if len(parts) > 1 else ""
+                                if block:
+                                    s = _parse_suggestion_block(block)
+                                    if s:
+                                        yield f"data: {_json.dumps({'type': 'suggestion', 'index': suggestion_index, 'english': s['english'], 'chinese': s['chinese']})}\n\n"
+                                        suggestion_index += 1
+                    except (_json.JSONDecodeError, IndexError, KeyError):
+                        pass
+
+                # Handle last block (no trailing ---)
+                if accumulated.strip() and suggestion_index < 3:
+                    s = _parse_suggestion_block(accumulated.strip())
+                    if s:
+                        yield f"data: {_json.dumps({'type': 'suggestion', 'index': suggestion_index, 'english': s['english'], 'chinese': s['chinese']})}\n\n"
+                        suggestion_index += 1
+
+                logger.info(f"[Suggest] Streamed {suggestion_index} suggestions")
+                yield f"data: {_json.dumps({'type': 'done'})}\n\n"
+
+    except httpx.TimeoutException:
+        yield f"data: {_json.dumps({'type': 'error', 'error': 'API timeout'})}\n\n"
+    except Exception as e:
+        logger.error(f"[Suggest] Error: {e}")
+        yield f"data: {_json.dumps({'type': 'error', 'error': str(e)[:100]})}\n\n"
+
+
+@app.post("/api/suggest/stream")
+async def suggest_stream(request: SuggestRequest, req: Request):
+    """
+    SSE streaming endpoint for smart suggestions.
+
+    Uses sync httpx streaming in thread pool (avoids Windows async overhead).
+    Each suggestion is emitted as soon as it's parsed from the stream.
+    """
+    api_key = _require_api_key(req)
+
+    conv_lines = []
+    for turn in request.conversation_turns:
+        label = "Caller" if turn.role == "me" else "Other party"
+        conv_lines.append(f"{label}: {turn.text}")
+    conversation_text = "\n".join(conv_lines)
+
+    return StreamingResponse(
+        _suggest_stream_sync(api_key, conversation_text, len(request.conversation_turns)),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
+# =============================================================================
 # 3-Party Simulation Endpoint (design.md § 9)
 # =============================================================================
 
 
 @app.post("/api/simulate/llm", response_model=SimulateLLMResponse)
-async def simulate_llm_endpoint(request: SimulateLLMRequest):
+async def simulate_llm_endpoint(request: SimulateLLMRequest, req: Request):
     """
     LLM endpoint for 3-party simulation testing.
 
@@ -762,11 +843,7 @@ async def simulate_llm_endpoint(request: SimulateLLMRequest):
 
     Used by: src/tests/simulation/simulator.js
     """
-    if not OPENAI_API_KEY:
-        return SimulateLLMResponse(
-            response="",
-            error="OPENAI_API_KEY not configured"
-        )
+    api_key = _require_api_key(req)
 
     logger.info(f"Simulate LLM request: {len(request.messages)} messages")
 
@@ -784,7 +861,7 @@ async def simulate_llm_endpoint(request: SimulateLLMRequest):
             response = await client.post(
                 OPENAI_RESPONSES_URL,
                 headers={
-                    "Authorization": f"Bearer {OPENAI_API_KEY}",
+                    "Authorization": f"Bearer {api_key}",
                     "Content-Type": "application/json",
                 },
                 json={
@@ -872,7 +949,7 @@ if __name__ == "__main__":
     print(f"Starting English Conversation Assistant backend on http://{host}:{port}")
     print(f"Controller Model: {CONTROLLER_MODEL}")
     print(f"Realtime Model: {REALTIME_MODEL}")
-    print(f"API Key configured: {bool(OPENAI_API_KEY)}")
+    print("API Key: required via X-API-Key header (no .env fallback)")
     print(f"API docs: http://{host}:{port}/docs")
     print(f"Frontend dir: {FRONTEND_DIR}")
 

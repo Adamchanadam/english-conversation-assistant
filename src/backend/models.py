@@ -325,3 +325,26 @@ class ScriptResponse(BaseModel):
         default=None,
         description="Error message if generation failed"
     )
+
+
+# =============================================================================
+# Smart Suggestions API Models (Feature A)
+# =============================================================================
+
+class SuggestRequest(BaseModel):
+    """
+    Request model for smart suggestions API.
+
+    Uses recent conversation turns to generate contextual response suggestions.
+    Backend uses gpt-5-mini (CLAUDE.md hard rule for text controller).
+    """
+    conversation_turns: List[ConversationTurn] = Field(
+        ...,
+        description="Recent conversation turns (last 3-5)",
+        min_length=1,
+        max_length=10
+    )
+    scenario: Optional[str] = Field(
+        default="general",
+        description="Scenario type: bank, nhs, utilities, insurance, general"
+    )

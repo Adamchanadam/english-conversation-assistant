@@ -89,10 +89,27 @@ ECA 採用**雙軌並行架構**，同時解決「聽」和「說」的問題：
 - 長度保護：15 字軟性限制、25 字硬性限制
 - 過濾填充詞（um, uh, hmm）
 
+### 💡 Smart Suggestions（智能回應建議）
+- 通話中按「幫我回應」按鈕，AI 根據最近對話自動生成 2-3 個回應建議
+- 每個建議包含英文 + 繁體中文翻譯
+- 使用 `gpt-4.1-mini` SSE 串流，首個建議約 1 秒出現
+- 選擇建議後直接顯示在 Teleprompter 提詞器
+
+### 🔍 Key Info Extraction（關鍵資訊自動擷取）
+- 自動偵測並標亮對話中的重要資訊：電話號碼、日期、金額、參考編號、郵遞區號、時間
+- 不同類型以不同顏色標示（電話=藍、金額=綠、日期=黃、編號=紫、郵遞區號=橙）
+- 點擊標亮文字一鍵複製到剪貼板
+
+### 📱 Mobile Progressive Disclosure UI
+- 通話中僅顯示 3 個核心按鈕（PTT、暫停/繼續、幫我回應）
+- 次要功能收納於 Peek Bar + Bottom Sheet（快捷短語、講稿、Panic Button）
+- 進階功能放在 ⋮ Overflow Menu（返回首頁、匯出記錄）
+- 桌面版保持原有完整介面
+
 ### 🎯 通話輔助功能
 - **通話前準備**：選擇場景、生成講稿
 - **場景預設講稿**：每個場景有 7 個常用目的，一鍵生成講稿（共 35 個）
-- **Quick Response Bar**：4 句快捷短語一鍵調用
+- **Quick Phrases**：4 句快捷短語一鍵調用
 - **Panic Button**：8 句拖延語隨機輪換，爭取思考時間
 - **暫停/繼續**：隨時暫停收音，不離開通話
 - **匯出對話記錄**：一鍵匯出 Markdown 格式對話記錄
@@ -198,11 +215,14 @@ ECA 採用**雙軌並行架構**，同時解決「聽」和「說」的問題：
 
 ### API Key 需求
 
-本專案**只需要一個 OpenAI API Key**，但需確保帳號有以下模型的存取權限：
+本專案**只需要一個 OpenAI API Key**，在前端設定頁面輸入即可（不需要設定環境變數）。
+
+需確保帳號有以下模型的存取權限：
 
 | 模型 | 用途 | 必要性 |
 |------|------|--------|
 | `gpt-4.1-nano` | 即時翻譯 | ✅ 必要 |
+| `gpt-4.1-mini` | Smart Suggestions | ✅ 必要 |
 | `gpt-5-mini` | 講稿生成 | ✅ 必要 |
 
 > 💡 **費用估算**：一通 10 分鐘電話約使用 $0.05-0.10 USD（視對話量而定）
@@ -212,34 +232,23 @@ ECA 採用**雙軌並行架構**，同時解決「聽」和「說」的問題：
 pip install -r requirements.txt
 ```
 
-### 步驟 2：設定環境變數
-```bash
-# Windows (CMD)
-set OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxx
-
-# Windows (PowerShell)
-$env:OPENAI_API_KEY="sk-xxxxxxxxxxxxxxxxxxxxxxxx"
-
-# Mac/Linux
-export OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxx
-```
-
-### 步驟 3：啟動後端
+### 步驟 2：啟動後端
 ```bash
 cd src/backend
 python main.py
 ```
 
-### 步驟 4：開啟瀏覽器
+### 步驟 3：開啟瀏覽器
 ```
 http://localhost:8000
 ```
 
-### 步驟 5：開始使用
-1. 選擇場景（銀行/NHS/水電/保險）
-2. 點擊「開始聆聽」
-3. 允許麥克風權限
-4. 開始你的電話通話（擴音模式）
+### 步驟 4：設定 API Key 並開始使用
+1. 在首頁展開「設定」，輸入你的 OpenAI API Key 並儲存
+2. 選擇場景（銀行/NHS/水電/保險）
+3. 點擊「開始聆聽」
+4. 允許麥克風權限
+5. 開始你的電話通話（擴音模式）
 
 ## Cloud Run 部署
 
@@ -338,6 +347,10 @@ gcloud run deploy eca-app \
 │   │ 講稿生成     │  │ Quick短語   │  │ Panic Button│            │
 │   │ gpt-5-mini  │  │ 預設 4 句   │  │ 8 句拖延語   │            │
 │   └─────────────┘  └─────────────┘  └─────────────┘            │
+│   ┌─────────────────────────────────────────────┐              │
+│   │ Smart Suggestions (gpt-4.1-mini SSE ~1s)   │              │
+│   │ AI 自動生成 2-3 個回應建議（英+中）            │              │
+│   └─────────────────────────────────────────────┘              │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -348,6 +361,7 @@ gcloud run deploy eca-app \
 | 即時英文預覽 | Web Speech API | 瀏覽器原生 | ~100ms | 免費，無需 API Key |
 | 智能分段 | SmartSegmenter | 前端 | ~600ms | 暫停偵測 + 語法線索 |
 | 翻譯（英→中）| `gpt-4.1-nano` | `/api/translate/stream` | ~700ms | 最快翻譯模型 |
+| Smart Suggestions | `gpt-4.1-mini` | `/api/suggest/stream` | ~1s | SSE 串流建議 |
 | 講稿生成（中→英）| `gpt-5-mini` | `/api/script/stream` | ~1.5s | 高品質生成 |
 
 ### 為何選擇這些模型？
@@ -355,6 +369,7 @@ gcloud run deploy eca-app \
 | 模型 | 選擇原因 |
 |------|----------|
 | `gpt-4.1-nano` | 翻譯最快（703ms），比 gpt-5-mini 快 5 倍 |
+| `gpt-4.1-mini` | Smart Suggestions 最快（首建議 ~1s），繁體中文正確 |
 | `gpt-5-mini` | 支援 400k context，適合長對話和複雜生成 |
 
 > ⚠️ **不能用 gpt-5-mini 做翻譯**：它是 reasoning 模型，需 5-6 秒才能回應
@@ -366,7 +381,9 @@ gcloud run deploy eca-app \
 | 即時英文預覽 | Web Speech API | 邊說邊顯示（~100ms 延遲） |
 | 智能分段 | SmartSegmenter | 600ms 停頓偵測 + 語法線索 |
 | 串流翻譯 | gpt-4.1-nano | 英文→繁體中文（~700ms 首字）|
+| Smart Suggestions | gpt-4.1-mini | 智能回應建議（SSE 串流）|
 | 場景詞庫 | domain_glossaries.json | UK 專用術語提示（6 領域 281 條） |
+| Key Info Extraction | Regex + DOM | 電話/金額/日期/編號自動標亮 |
 | 翻譯驗證 | TranslationValidator | 數字/信心檢測 |
 | 講稿生成 | gpt-5-mini | 中文→英文講稿 |
 | 後端 | Python FastAPI | API 服務 |

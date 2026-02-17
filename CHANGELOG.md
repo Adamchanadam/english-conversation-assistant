@@ -1,0 +1,56 @@
+# Changelog
+
+## [v2.0] - 2026-02-16
+
+### New Features
+
+- **Smart Suggestions (Feature A)**：通話中按「幫我回應」按鈕，AI 自動根據最近對話生成 2-3 個回應建議（英+中），使用 `gpt-4.1-mini` SSE 串流，首個建議約 1 秒出現
+- **Key Info Extraction (Feature C)**：自動偵測並標亮對話中的重要資訊 — 電話號碼、日期、金額、參考編號、郵遞區號、時間，點擊一鍵複製
+- **Mobile Progressive Disclosure UI**：手機版通話介面全面改版，採用三層漸進式顯示設計：
+  - Layer 1：固定底部 3 按鈕（PTT、暫停/繼續、幫我回應）
+  - Layer 2：Peek Bar + Bottom Sheet（快捷短語、已儲存講稿、Panic Button）
+  - Layer 3：⋮ Overflow Menu（返回首頁、匯出記錄）
+
+### Security
+
+- **API Key 強制用戶輸入**：移除所有後端 `.env` `OPENAI_API_KEY` fallback，所有 API 端點強制要求前端透過 `X-API-Key` header 提供 API Key，未設定時返回 401 錯誤
+
+### Bug Fixes
+
+- **Spacebar 滾動修復**：通話模式下 Spacebar 不再觸發頁面滾動（`e.preventDefault()` 移至 `isPaused` 判斷之前）
+- **Mobile 滾動修復**：修復手機版無法滾動到頁底的問題（CSS `height` 改為 `100dvh`，加上 `-webkit-overflow-scrolling: touch`）
+
+### Backend Changes
+
+- 新增 `/api/suggest/stream` SSE 端點（sync httpx 串流，避免 Windows async 開銷）
+- 新增 `SuggestRequest` Pydantic model
+- `controller.py` `call_responses_api()` 改為接受 `api_key` 參數
+- 所有 9 個 API 端點統一使用 `_require_api_key()` helper
+
+### Models
+
+| 功能 | 模型 | 延遲 |
+|------|------|------|
+| 即時翻譯 | `gpt-4.1-nano` | ~700ms |
+| Smart Suggestions | `gpt-4.1-mini` | ~1s 首建議 |
+| 講稿生成 | `gpt-5-mini` | ~1.5s |
+
+---
+
+## [v1.0] - 2026-02-08
+
+### Initial Release
+
+- 即時英文字幕（Web Speech API Karaoke 效果）
+- 智能中文翻譯（gpt-4.1-nano 串流）
+- SmartSegmenter 智能分段
+- 場景詞庫（6 領域 281 條 UK 術語）
+- 翻譯品質驗證
+- 講稿生成（gpt-5-mini）
+- Quick Phrases（4 句快捷短語）
+- Panic Button（8 句拖延語）
+- Speaker Attribution（Spacebar HOLD 角色標記）
+- 多語言介面（繁中/簡中/English）
+- 匯出對話記錄（Markdown）
+- Cloud Run 部署支援
+- iOS PWA standalone 模式偵測

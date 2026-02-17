@@ -276,7 +276,8 @@ async def call_responses_api(
     instruction: str,
     prompt: str,
     previous_response_id: Optional[str] = None,
-    max_tokens: int = MAX_OUTPUT_TOKENS
+    max_tokens: int = MAX_OUTPUT_TOKENS,
+    api_key: Optional[str] = None
 ) -> Tuple[str, str]:
     """
     Call OpenAI Responses API with gpt-5-mini.
@@ -288,6 +289,7 @@ async def call_responses_api(
         prompt: User input prompt
         previous_response_id: Optional ID for stateful continuation
         max_tokens: Maximum output tokens
+        api_key: OpenAI API key (required, passed from endpoint)
 
     Returns:
         Tuple of (response_text, response_id)
@@ -296,9 +298,8 @@ async def call_responses_api(
         httpx.HTTPStatusError: On API errors
         httpx.TimeoutException: On timeout
     """
-    api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
-        raise ValueError("OPENAI_API_KEY not configured")
+        raise ValueError("API Key required. Please set your OpenAI API Key in Settings.")
 
     # Build request body
     request_body = {
@@ -357,7 +358,8 @@ async def call_responses_api(
 # =============================================================================
 
 async def generate_controller_response(
-    request: ControllerRequest
+    request: ControllerRequest,
+    api_key: Optional[str] = None
 ) -> ControllerResponse:
     """
     Generate controller response based on user directive and context.
@@ -366,6 +368,7 @@ async def generate_controller_response(
 
     Args:
         request: ControllerRequest with directive, context, memory, turns
+        api_key: OpenAI API key (required, passed from endpoint)
 
     Returns:
         ControllerResponse with decision, utterance, memory update, notes
@@ -383,7 +386,8 @@ async def generate_controller_response(
         response_text, response_id = await call_responses_api(
             instruction=CONTROLLER_INSTRUCTION,
             prompt=prompt,
-            previous_response_id=request.previous_response_id
+            previous_response_id=request.previous_response_id,
+            api_key=api_key
         )
 
         # Parse output with fail-soft strategy
@@ -440,7 +444,7 @@ async def generate_controller_response(
         )
 
 
-async def summarize_ssot(request: SummarizeSsotRequest) -> SummarizeSsotResponse:
+async def summarize_ssot(request: SummarizeSsotRequest, api_key: Optional[str] = None) -> SummarizeSsotResponse:
     """
     Summarize SSOT content using gpt-5-mini.
 
@@ -471,7 +475,8 @@ async def summarize_ssot(request: SummarizeSsotRequest) -> SummarizeSsotResponse
         summary_text, _ = await call_responses_api(
             instruction=SSOT_SUMMARIZE_INSTRUCTION,
             prompt=prompt,
-            max_tokens=2000  # Allow more tokens for summary
+            max_tokens=2000,  # Allow more tokens for summary
+            api_key=api_key
         )
 
         summary_tokens = estimate_tokens(summary_text)

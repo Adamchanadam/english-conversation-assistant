@@ -29,12 +29,16 @@
             font-family: 'Noto Sans TC', 'Microsoft JhengHei', -apple-system, sans-serif;
             background: var(--bg-primary);
             color: var(--text-primary);
-            height: 100vh;
+            height: 100%;
             height: 100dvh; /* Mobile: accounts for browser chrome (URL bar) */
             overflow: hidden;
             display: flex;
             flex-direction: column;
             padding-bottom: env(safe-area-inset-bottom, 0px);
+        }
+
+        html {
+            height: 100%;
         }
 
         /* Header */
@@ -131,6 +135,7 @@
             margin: 0 auto;
             width: 100%;
             overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
         }
 
         /* Stats Bar */
@@ -1460,6 +1465,432 @@
         }
 
         /* ============================================
+         * Overflow Menu (⋮) — replaces header buttons
+         * ============================================ */
+
+        .overflow-menu-wrapper {
+            position: relative;
+        }
+
+        .overflow-menu-btn {
+            width: 36px;
+            height: 36px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background: var(--bg-tertiary);
+            color: var(--text-secondary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            font-weight: bold;
+            letter-spacing: 1px;
+            transition: all 0.2s;
+        }
+
+        .overflow-menu-btn:hover {
+            background: var(--bg-primary);
+            border-color: var(--accent-blue);
+            color: var(--text-primary);
+        }
+
+        .overflow-menu-dropdown {
+            position: absolute;
+            top: calc(100% + 6px);
+            right: 0;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            min-width: 140px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+            z-index: 100;
+            display: none;
+            overflow: hidden;
+        }
+
+        .overflow-menu-dropdown.open {
+            display: block;
+        }
+
+        .overflow-menu-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 16px;
+            color: var(--text-primary);
+            font-size: 14px;
+            cursor: pointer;
+            transition: background 0.15s;
+            border: none;
+            background: none;
+            width: 100%;
+            text-align: left;
+        }
+
+        .overflow-menu-item:hover {
+            background: var(--bg-tertiary);
+        }
+
+        .overflow-menu-item svg {
+            width: 16px;
+            height: 16px;
+            flex-shrink: 0;
+            color: var(--text-secondary);
+        }
+
+        /* ============================================
+         * Bottom Bar — 3 main buttons (mobile)
+         * ============================================ */
+
+        .call-bottom-bar {
+            flex-shrink: 0;
+            background: var(--bg-secondary);
+            border-top: 1px solid var(--border-color);
+            padding: 10px 16px;
+            padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+            display: none;
+        }
+
+        .bottom-bar-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .bottom-bar-btn {
+            flex: 1;
+            max-width: 140px;
+            min-height: 48px;
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        .bottom-bar-btn svg {
+            width: 18px;
+            height: 18px;
+        }
+
+        .bottom-bar-btn.ptt {
+            border-color: var(--accent-yellow);
+            color: var(--accent-yellow);
+            touch-action: manipulation;
+        }
+        .bottom-bar-btn.ptt:hover { background: rgba(255, 170, 0, 0.1); }
+        .bottom-bar-btn.ptt:active,
+        .bottom-bar-btn.ptt.active {
+            background: rgba(255, 170, 0, 0.3);
+            color: #fff;
+        }
+
+        .bottom-bar-btn.pause-resume {
+            border-color: var(--accent-yellow);
+            color: var(--accent-yellow);
+        }
+        .bottom-bar-btn.pause-resume:hover { background: rgba(255, 170, 0, 0.1); }
+        .bottom-bar-btn.pause-resume.paused {
+            border-color: var(--accent-green);
+            color: var(--accent-green);
+        }
+
+        .bottom-bar-btn.suggest {
+            border-color: var(--accent-blue);
+            color: var(--accent-blue);
+        }
+        .bottom-bar-btn.suggest:hover { background: rgba(0, 170, 255, 0.1); }
+        .bottom-bar-btn.suggest:disabled { opacity: 0.4; cursor: default; }
+        .bottom-bar-btn.suggest .spinner {
+            display: none;
+            width: 14px;
+            height: 14px;
+            border: 2px solid transparent;
+            border-top-color: currentColor;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        .bottom-bar-btn.suggest.loading .spinner { display: inline-block; }
+        .bottom-bar-btn.suggest.loading .suggest-icon { display: none; }
+
+        /* ============================================
+         * Peek Bar + Bottom Sheet
+         * ============================================ */
+
+        .peek-bar {
+            flex-shrink: 0;
+            background: var(--bg-secondary);
+            border-top: 1px solid var(--border-color);
+            padding: 8px 16px;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            cursor: pointer;
+            color: var(--text-secondary);
+            font-size: 13px;
+            transition: background 0.15s;
+        }
+
+        .peek-bar:hover {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+        }
+
+        .peek-bar-arrow {
+            font-size: 10px;
+            transition: transform 0.3s;
+        }
+
+        .peek-bar.sheet-open .peek-bar-arrow {
+            transform: rotate(180deg);
+        }
+
+        .bottom-sheet-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.4);
+            z-index: 90;
+            display: none;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .bottom-sheet-overlay.open {
+            display: block;
+            opacity: 1;
+        }
+
+        .bottom-sheet {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: var(--bg-secondary);
+            border-top: 1px solid var(--border-color);
+            border-radius: 16px 16px 0 0;
+            z-index: 91;
+            transform: translateY(100%);
+            transition: transform 0.3s ease, visibility 0.3s;
+            max-height: 60vh;
+            overflow-y: auto;
+            padding-bottom: env(safe-area-inset-bottom, 0px);
+            visibility: hidden;
+            pointer-events: none;
+        }
+
+        .bottom-sheet.open {
+            transform: translateY(0);
+            visibility: visible;
+            pointer-events: auto;
+        }
+
+        .bottom-sheet-handle {
+            width: 36px;
+            height: 4px;
+            background: var(--border-color);
+            border-radius: 2px;
+            margin: 10px auto;
+        }
+
+        .bottom-sheet-section {
+            padding: 4px 16px 12px;
+        }
+
+        .bottom-sheet-section-title {
+            font-size: 11px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+            padding-left: 2px;
+        }
+
+        .bottom-sheet-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .bottom-sheet-grid .quick-phrase-btn {
+            flex: 1;
+            min-width: calc(50% - 4px);
+            justify-content: center;
+        }
+
+        .bottom-sheet-grid .prepared-card {
+            flex: 1;
+            min-width: calc(50% - 4px);
+            max-width: none;
+        }
+
+        .bottom-sheet .panic-btn {
+            width: 100%;
+            justify-content: center;
+            margin-left: 0;
+            margin-top: 4px;
+        }
+
+        /* ============================================
+         * Feature C: Key Info Highlighting
+         * ============================================ */
+
+        .key-info {
+            cursor: pointer;
+            padding: 1px 4px;
+            border-radius: 3px;
+            font-weight: 500;
+            transition: all 0.15s;
+            position: relative;
+        }
+        .key-info:hover {
+            filter: brightness(1.3);
+        }
+        .key-info-phone {
+            background: rgba(59, 130, 246, 0.15);
+            color: #60a5fa;
+        }
+        .key-info-amount {
+            background: rgba(34, 197, 94, 0.15);
+            color: #4ade80;
+        }
+        .key-info-date {
+            background: rgba(250, 204, 21, 0.15);
+            color: #fbbf24;
+        }
+        .key-info-ref {
+            background: rgba(168, 85, 247, 0.15);
+            color: #c084fc;
+        }
+        .key-info-postcode {
+            background: rgba(251, 146, 60, 0.15);
+            color: #fb923c;
+        }
+        .key-info-time {
+            background: rgba(45, 212, 191, 0.15);
+            color: #2dd4bf;
+        }
+
+        /* Copy toast notification */
+        .copy-toast {
+            position: fixed;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%) translateY(20px);
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            opacity: 0;
+            transition: all 0.3s;
+            pointer-events: none;
+            z-index: 9999;
+            border: 1px solid var(--border-color);
+        }
+        .copy-toast.visible {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        /* ============================================
+         * Feature A: Smart Suggestions
+         * ============================================ */
+
+        .suggest-btn {
+            padding: 8px 14px;
+            min-height: 40px;
+            border: 1px solid var(--accent-yellow);
+            border-radius: 6px;
+            background: rgba(255, 170, 0, 0.1);
+            color: var(--accent-yellow);
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        .suggest-btn:hover {
+            background: rgba(255, 170, 0, 0.2);
+        }
+        .suggest-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+        .suggest-btn .spinner {
+            display: none;
+            width: 14px;
+            height: 14px;
+            border: 2px solid var(--accent-yellow);
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        .suggest-btn.loading .spinner { display: inline-block; }
+        .suggest-btn.loading .suggest-icon { display: none; }
+
+        /* Suggestion Panel */
+        .suggestion-panel {
+            background: var(--bg-secondary);
+            border-top: 1px solid var(--border-color);
+            padding: 12px 16px;
+            display: flex;
+            gap: 10px;
+            overflow-x: auto;
+            flex-shrink: 0;
+        }
+        .suggestion-card {
+            flex: 1;
+            min-width: 180px;
+            max-width: 280px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .suggestion-card:hover {
+            border-color: var(--accent-yellow);
+            background: rgba(255, 170, 0, 0.05);
+        }
+        .suggestion-card-en {
+            font-size: 15px;
+            color: var(--text-primary);
+            margin-bottom: 6px;
+            line-height: 1.4;
+        }
+        .suggestion-card-zh {
+            font-size: 13px;
+            color: var(--accent-blue);
+            margin-bottom: 8px;
+        }
+        .suggestion-card-use {
+            font-size: 11px;
+            color: var(--accent-yellow);
+            text-align: right;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* ============================================
          * Phase 1: Teleprompter Overlay
          * ============================================ */
 
@@ -1785,6 +2216,26 @@
                 min-height: 36px;
             }
 
+            .suggest-btn {
+                font-size: 11px;
+                padding: 6px 10px;
+                min-height: 36px;
+            }
+
+            .suggestion-panel {
+                padding: 8px 12px;
+                gap: 8px;
+            }
+
+            .suggestion-card {
+                min-width: 150px;
+                padding: 10px;
+            }
+
+            .suggestion-card-en {
+                font-size: 14px;
+            }
+
             .teleprompter-overlay {
                 padding: 12px;
             }
@@ -1800,6 +2251,45 @@
             .teleprompter-overlay-chinese {
                 font-size: 16px;
             }
+
+            /* Mobile: hide old quick-response-bar, show new bottom bar + peek bar */
+            .quick-response-bar {
+                display: none !important;
+            }
+
+            .call-bottom-bar.active {
+                display: block;
+            }
+
+            .peek-bar.active {
+                display: flex;
+            }
+
+            /* Mobile: hide header PTT/Pause/Resume (moved to bottom bar) */
+            .call-header-right .btn-call-control.ptt,
+            .call-header-right .btn-call-control.pause,
+            .call-header-right .btn-call-control.resume {
+                display: none !important;
+            }
+
+            /* Mobile: hide Home/Export buttons (moved to overflow menu) */
+            .call-header-right .btn-call-control.home,
+            .call-header-right .btn-call-control.export {
+                display: none !important;
+            }
+
+            .bottom-bar-btn {
+                min-height: 44px;
+                font-size: 13px;
+            }
+        }
+
+        /* Desktop: keep old layout mostly, just add overflow menu */
+        @media (min-width: 481px) {
+            .call-bottom-bar { display: none !important; }
+            .peek-bar { display: none !important; }
+            .bottom-sheet { display: none !important; }
+            .bottom-sheet-overlay { display: none !important; }
         }
     </style>
 </head>
@@ -2067,6 +2557,7 @@
                     <div class="call-timer" id="callTimer">00:00</div>
                 </div>
                 <div class="call-header-right">
+                    <!-- Desktop: keep all buttons visible -->
                     <button class="btn-call-control ptt" id="btnPTT"
                             onmousedown="pttStart()" onmouseup="pttEnd()" onmouseleave="pttEnd()"
                             ontouchstart="pttStart()" ontouchend="pttEnd()">
@@ -2105,6 +2596,27 @@
                         </svg>
                         匯出
                     </button>
+                    <!-- Overflow menu (visible on mobile, replaces Home/Export) -->
+                    <div class="overflow-menu-wrapper">
+                        <button class="overflow-menu-btn" onclick="toggleOverflowMenu()" aria-label="更多選項">&#8942;</button>
+                        <div class="overflow-menu-dropdown" id="overflowMenu">
+                            <button class="overflow-menu-item" onclick="goToHome(); closeOverflowMenu();">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                                    <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                                </svg>
+                                首頁
+                            </button>
+                            <button class="overflow-menu-item" onclick="exportTranscript(); closeOverflowMenu();">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                    <polyline points="7 10 12 15 17 10"></polyline>
+                                    <line x1="12" x2="12" y1="15" y2="3"></line>
+                                </svg>
+                                匯出記錄
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -2150,6 +2662,9 @@
         </div>
     </main>
 
+    <!-- Suggestion Panel (between transcript and Quick Response Bar) -->
+    <div id="suggestionPanel" style="display:none;" class="suggestion-panel"></div>
+
     <!-- Quick Response Bar (shown DURING call) - Single Row Layout -->
     <div class="quick-response-bar" id="quickResponseBar" style="display:none;">
         <!-- Prepared script cards (from localStorage) -->
@@ -2183,6 +2698,12 @@
             </svg>
             謝謝
         </button>
+        <!-- Smart Suggest Button -->
+        <button class="suggest-btn" id="suggestBtn" onclick="requestSuggestions()" disabled title="AI 幫我回應">
+            <span class="suggest-icon">💡</span>
+            <span class="spinner"></span>
+            幫我回應
+        </button>
         <!-- Panic Button -->
         <button class="panic-btn" id="panicBtn" onclick="triggerPanic()">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -2193,6 +2714,99 @@
             求助
         </button>
     </div>
+
+    <!-- Mobile: Peek Bar (tap to open bottom sheet) -->
+    <div class="peek-bar" id="peekBar" onclick="toggleBottomSheet()">
+        <span>💬 快速回應</span>
+        <span class="peek-bar-arrow">▲</span>
+    </div>
+
+    <!-- Mobile: Bottom Bar (3 main buttons) -->
+    <div class="call-bottom-bar" id="callBottomBar">
+        <div class="bottom-bar-buttons">
+            <button class="bottom-bar-btn ptt" id="btnPTTMobile"
+                    onmousedown="pttStart()" onmouseup="pttEnd()" onmouseleave="pttEnd()"
+                    ontouchstart="pttStart()" ontouchend="pttEnd()">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
+                    <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                    <line x1="12" x2="12" y1="19" y2="22"></line>
+                </svg>
+                <span>我在說</span>
+            </button>
+            <button class="bottom-bar-btn pause-resume" id="btnPauseResumeMobile" onclick="togglePauseResume()">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" stroke="none" id="pauseResumeIcon">
+                    <rect x="6" y="4" width="4" height="16" rx="1"></rect>
+                    <rect x="14" y="4" width="4" height="16" rx="1"></rect>
+                </svg>
+                <span id="pauseResumeLabel">暫停</span>
+            </button>
+            <button class="bottom-bar-btn suggest" id="suggestBtnMobile" onclick="requestSuggestions()" disabled>
+                <span class="suggest-icon">💡</span>
+                <span class="spinner"></span>
+                <span>幫我回應</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Mobile: Bottom Sheet Overlay -->
+    <div class="bottom-sheet-overlay" id="bottomSheetOverlay" onclick="closeBottomSheet()"></div>
+
+    <!-- Mobile: Bottom Sheet -->
+    <div class="bottom-sheet" id="bottomSheet">
+        <div class="bottom-sheet-handle"></div>
+        <!-- Prepared scripts section -->
+        <div class="bottom-sheet-section" id="sheetPreparedSection" style="display:none;">
+            <div class="bottom-sheet-section-title">📋 準備好的講稿</div>
+            <div class="bottom-sheet-grid" id="sheetPreparedCards"></div>
+        </div>
+        <!-- Quick phrases section -->
+        <div class="bottom-sheet-section">
+            <div class="bottom-sheet-section-title">⚡ 常用回應</div>
+            <div class="bottom-sheet-grid">
+                <button class="quick-phrase-btn" onclick="showQuickPhrase(0); closeBottomSheet();" title="請再說一次">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+                        <path d="M3 3v5h5"></path>
+                    </svg>
+                    再說一次
+                </button>
+                <button class="quick-phrase-btn" onclick="showQuickPhrase(1); closeBottomSheet();" title="請慢點說">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <polyline points="12 6 12 12 16 14"></polyline>
+                    </svg>
+                    慢點說
+                </button>
+                <button class="quick-phrase-btn" onclick="showQuickPhrase(2); closeBottomSheet();" title="我確認一下">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>
+                    確認一下
+                </button>
+                <button class="quick-phrase-btn" onclick="showQuickPhrase(3); closeBottomSheet();" title="謝謝再見">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M4.5 21.5l6-6M9 10.5L4.5 15m0 0l6 6"></path>
+                    </svg>
+                    謝謝
+                </button>
+            </div>
+        </div>
+        <!-- Panic section -->
+        <div class="bottom-sheet-section">
+            <button class="panic-btn" onclick="triggerPanic(); closeBottomSheet();">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                    <line x1="12" y1="9" x2="12" y2="13"></line>
+                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                </svg>
+                求助
+            </button>
+        </div>
+    </div>
+
+    <!-- Copy Toast -->
+    <div id="copyToast" class="copy-toast">已複製!</div>
 
     <!-- Teleprompter Overlay (for quick phrases, panic, prepared cards) -->
     <div class="teleprompter-overlay" id="teleprompterOverlay" onclick="closeTeleprompterOverlay(event)">
@@ -3059,7 +3673,11 @@
             document.getElementById('preparationMode').classList.add('hidden');
             document.getElementById('callMode').classList.add('active');
             document.getElementById('quickResponseBar').style.display = '';
+            // Mobile: show bottom bar + peek bar
+            document.getElementById('callBottomBar').classList.add('active');
+            document.getElementById('peekBar').classList.add('active');
             renderPreparedCards();
+            renderSheetPreparedCards();
             startCallTimer();
         }
 
@@ -3067,7 +3685,102 @@
             document.getElementById('preparationMode').classList.remove('hidden');
             document.getElementById('callMode').classList.remove('active');
             document.getElementById('quickResponseBar').style.display = 'none';
+            document.getElementById('suggestionPanel').style.display = 'none';
+            // Mobile: hide bottom bar + peek bar + sheet
+            document.getElementById('callBottomBar').classList.remove('active');
+            document.getElementById('peekBar').classList.remove('active');
+            closeBottomSheet();
             stopCallTimer();
+        }
+
+        // =============================================
+        // Mobile UI: Overflow Menu, Bottom Sheet, Toggle
+        // =============================================
+
+        function toggleOverflowMenu() {
+            const menu = document.getElementById('overflowMenu');
+            menu.classList.toggle('open');
+        }
+
+        function closeOverflowMenu() {
+            document.getElementById('overflowMenu').classList.remove('open');
+        }
+
+        // Close overflow menu on outside click
+        document.addEventListener('click', function(e) {
+            const wrapper = document.querySelector('.overflow-menu-wrapper');
+            if (wrapper && !wrapper.contains(e.target)) {
+                closeOverflowMenu();
+            }
+        });
+
+        function toggleBottomSheet() {
+            const sheet = document.getElementById('bottomSheet');
+            const overlay = document.getElementById('bottomSheetOverlay');
+            const peek = document.getElementById('peekBar');
+            const isOpen = sheet.classList.contains('open');
+            if (isOpen) {
+                closeBottomSheet();
+            } else {
+                sheet.classList.add('open');
+                overlay.classList.add('open');
+                peek.classList.add('sheet-open');
+            }
+        }
+
+        function closeBottomSheet() {
+            document.getElementById('bottomSheet').classList.remove('open');
+            document.getElementById('bottomSheetOverlay').classList.remove('open');
+            document.getElementById('peekBar').classList.remove('sheet-open');
+        }
+
+        function togglePauseResume() {
+            const btn = document.getElementById('btnPauseResumeMobile');
+            const icon = document.getElementById('pauseResumeIcon');
+            const label = document.getElementById('pauseResumeLabel');
+            if (btn.classList.contains('paused')) {
+                // Resume
+                resumeListening();
+                btn.classList.remove('paused');
+                icon.innerHTML = '<rect x="6" y="4" width="4" height="16" rx="1"></rect><rect x="14" y="4" width="4" height="16" rx="1"></rect>';
+                label.textContent = '暫停';
+            } else {
+                // Pause
+                pauseListening();
+                btn.classList.add('paused');
+                icon.innerHTML = '<polygon points="5 3 19 12 5 21 5 3"></polygon>';
+                label.textContent = '繼續';
+            }
+        }
+
+        // Render prepared script cards in bottom sheet
+        function renderSheetPreparedCards() {
+            const container = document.getElementById('sheetPreparedCards');
+            const section = document.getElementById('sheetPreparedSection');
+            if (!container || !section) return;
+
+            const savedCards = JSON.parse(localStorage.getItem('eca_prepared_cards') || '[]');
+            if (savedCards.length === 0) {
+                section.style.display = 'none';
+                return;
+            }
+
+            section.style.display = '';
+            container.innerHTML = '';
+            savedCards.forEach(card => {
+                const btn = document.createElement('button');
+                btn.className = 'prepared-card';
+                btn.tabIndex = 0;
+                const displayText = card.chinese
+                    ? card.chinese.substring(0, 8) + ' / ' + card.english.substring(0, 12)
+                    : card.english.substring(0, 20);
+                btn.innerHTML = `<span class="prepared-card-icon"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg></span><span>${displayText}</span>`;
+                btn.onclick = () => {
+                    showTeleprompterOverlay(card.english, card.chinese || '');
+                    closeBottomSheet();
+                };
+                container.appendChild(btn);
+            });
         }
 
         // =============================================
@@ -3181,11 +3894,11 @@
             // 注意：不 mute、不 stop - Web Speech 和 SmartSegmenter 繼續運行
             // 後續的 segment 會被標記為 speaker='me'
 
-            // 更新按鈕 UI
+            // 更新按鈕 UI (desktop + mobile)
             const btn = document.getElementById('btnPTT');
-            if (btn) {
-                btn.classList.add('active');
-            }
+            if (btn) btn.classList.add('active');
+            const btnM = document.getElementById('btnPTTMobile');
+            if (btnM) btnM.classList.add('active');
 
             // 更新說話者指示器（取代全螢幕覆蓋層）
             updateSpeakerIndicator('me');
@@ -3218,11 +3931,11 @@
             // 🔧 2024-02-11 修復：移除口音切換，避免 WebSpeech restart 導致音訊丟失
             // 保持使用通話開始時設定的口音，不中斷識別
 
-            // 更新按鈕 UI
+            // 更新按鈕 UI (desktop + mobile)
             const btn = document.getElementById('btnPTT');
-            if (btn) {
-                btn.classList.remove('active');
-            }
+            if (btn) btn.classList.remove('active');
+            const btnM = document.getElementById('btnPTTMobile');
+            if (btnM) btnM.classList.remove('active');
 
             // 更新說話者指示器
             updateSpeakerIndicator('them');
@@ -3286,24 +3999,26 @@
 
         // Spacebar 控制 PTT（HOLD 模式：按住=我，放開=對方）
         document.addEventListener('keydown', function(e) {
-            // 只在通話模式下生效，且不是在輸入框中
-            if (!isConnected || isPaused) return;
             if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
 
-            if (e.code === 'Space' && !e.repeat) {
-                e.preventDefault();
-                pttStart();  // HOLD 模式：keydown 開始
+            if (e.code === 'Space') {
+                // 通話模式下：永遠阻止 Spacebar 預設滾動行為
+                if (isConnected) e.preventDefault();
+                // 只在通話中且未暫停時觸發 PTT
+                if (isConnected && !isPaused && !e.repeat) {
+                    pttStart();
+                }
             }
         });
 
         document.addEventListener('keyup', function(e) {
-            // 只在通話模式下生效，且不是在輸入框中
-            if (!isConnected || isPaused) return;
             if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
 
             if (e.code === 'Space') {
-                e.preventDefault();
-                pttEnd();  // HOLD 模式：keyup 結束
+                if (isConnected) e.preventDefault();
+                if (isConnected && !isPaused) {
+                    pttEnd();
+                }
             }
         });
 
@@ -3716,8 +4431,256 @@
         document.addEventListener('keydown', function(e) {
             if (e.key === 'Escape') {
                 closeTeleprompterOverlay();
+                document.getElementById('suggestionPanel').style.display = 'none';
+                closeBottomSheet();
+                closeOverflowMenu();
             }
         });
+
+        // =============================================
+        // Feature C: Key Info Highlighting
+        // =============================================
+
+        /**
+         * Detect and highlight key information in text.
+         * Returns HTML with clickable spans for matched items.
+         */
+        function highlightKeyInfo(text) {
+            if (!text) return text;
+
+            // Define patterns with types (order matters — more specific first)
+            const patterns = [
+                // UK postcodes: SW1A 1AA, EC2R 8AH
+                { regex: /\b([A-Z]{1,2}\d[A-Z\d]?\s?\d[A-Z]{2})\b/gi, type: 'postcode' },
+                // Phone: 020 7123 4567, +44 20 7123 4567, 07700 900000
+                { regex: /(\+44[\s-]?\d{2,4}[\s-]?\d{3,4}[\s-]?\d{3,4}|\b0\d{2,4}[\s-]?\d{3,4}[\s-]?\d{3,4})\b/g, type: 'phone' },
+                // Reference numbers: REF-123456, AB1234567, ABC/12345
+                { regex: /\b([A-Z]{2,4}[-\/]?\d{4,12})\b/g, type: 'ref' },
+                // Currency: £500, $1,000, £12.50
+                { regex: /([£$]\s?\d[\d,]*(?:\.\d{1,2})?)/g, type: 'amount' },
+                // Amount with words: 500 pounds, 50p, 100 pence
+                { regex: /\b(\d[\d,]*(?:\.\d{1,2})?\s?(?:pounds?|pence|p))\b/gi, type: 'amount' },
+                // Dates: 15th March 2024, 1 Jan 2025, 03/02/2024
+                { regex: /\b(\d{1,2}(?:st|nd|rd|th)?\s+(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+\d{2,4})\b/gi, type: 'date' },
+                { regex: /\b(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})\b/g, type: 'date' },
+                // Times: 2:30pm, 14:00, 9:15 AM
+                { regex: /\b(\d{1,2}:\d{2}\s?(?:am|pm|AM|PM)?)\b/g, type: 'time' },
+            ];
+
+            // Collect all matches with their positions
+            const matches = [];
+            for (const { regex, type } of patterns) {
+                let m;
+                // Reset lastIndex for global regex
+                regex.lastIndex = 0;
+                while ((m = regex.exec(text)) !== null) {
+                    matches.push({
+                        start: m.index,
+                        end: m.index + m[0].length,
+                        value: m[1] || m[0],
+                        fullMatch: m[0],
+                        type
+                    });
+                }
+            }
+
+            if (matches.length === 0) return escapeHtml(text);
+
+            // Sort by position, remove overlaps (keep first match)
+            matches.sort((a, b) => a.start - b.start);
+            const filtered = [];
+            let lastEnd = 0;
+            for (const m of matches) {
+                if (m.start >= lastEnd) {
+                    filtered.push(m);
+                    lastEnd = m.end;
+                }
+            }
+
+            // Build HTML
+            let result = '';
+            let pos = 0;
+            for (const m of filtered) {
+                if (m.start > pos) {
+                    result += escapeHtml(text.slice(pos, m.start));
+                }
+                const cleanValue = m.value.trim();
+                result += `<span class="key-info key-info-${m.type}" data-value="${escapeHtml(cleanValue)}" onclick="copyKeyInfo(this)" title="點擊複製">${escapeHtml(m.fullMatch)}</span>`;
+                pos = m.end;
+            }
+            if (pos < text.length) {
+                result += escapeHtml(text.slice(pos));
+            }
+
+            return result;
+        }
+
+        /**
+         * Copy key info value to clipboard and show toast.
+         */
+        function copyKeyInfo(el) {
+            const value = el.dataset.value;
+            if (!value) return;
+
+            navigator.clipboard.writeText(value).then(() => {
+                const toast = document.getElementById('copyToast');
+                toast.textContent = `已複製: ${value}`;
+                toast.classList.add('visible');
+                setTimeout(() => toast.classList.remove('visible'), 1500);
+            }).catch(() => {
+                // Fallback for older browsers
+                const ta = document.createElement('textarea');
+                ta.value = value;
+                ta.style.position = 'fixed';
+                ta.style.opacity = '0';
+                document.body.appendChild(ta);
+                ta.select();
+                document.execCommand('copy');
+                document.body.removeChild(ta);
+                const toast = document.getElementById('copyToast');
+                toast.textContent = `已複製: ${value}`;
+                toast.classList.add('visible');
+                setTimeout(() => toast.classList.remove('visible'), 1500);
+            });
+        }
+
+        // =============================================
+        // Feature A: Smart Suggestions
+        // =============================================
+
+        let suggestAbortController = null;
+
+        function requestSuggestions() {
+            const btn = document.getElementById('suggestBtn');
+            const btnM = document.getElementById('suggestBtnMobile');
+            const panel = document.getElementById('suggestionPanel');
+
+            // If panel is visible, toggle it off
+            if (panel.style.display !== 'none') {
+                panel.style.display = 'none';
+                return;
+            }
+
+            // Collect recent segments from DOM
+            const segmentEls = document.querySelectorAll('.segment-item');
+            if (segmentEls.length === 0) return;
+
+            const turns = [];
+            // Segments are newest-first in DOM, so reverse for chronological order
+            const els = Array.from(segmentEls).reverse().slice(-5);
+            for (const el of els) {
+                // Extract speaker from the label
+                const labelEl = el.querySelector('span[style*="font-weight"]');
+                const label = labelEl ? labelEl.textContent.trim() : '';
+                const role = label.includes('我') ? 'me' : 'them';
+
+                // Extract English and Chinese text
+                const divs = el.querySelectorAll('div[style*="font-size"]');
+                let englishText = '';
+                if (divs.length >= 1) {
+                    englishText = divs[0].textContent.trim();
+                }
+                if (englishText && englishText !== '翻譯中...') {
+                    turns.push({ role, text: englishText });
+                }
+            }
+
+            if (turns.length === 0) return;
+
+            // Get current scenario
+            const scenarioEl = document.querySelector('.scenario-card.selected');
+            const scenario = scenarioEl ? scenarioEl.dataset.scenario : 'general';
+
+            // Show loading state (desktop + mobile)
+            if (btn) { btn.classList.add('loading'); btn.disabled = true; }
+            if (btnM) { btnM.classList.add('loading'); btnM.disabled = true; }
+            panel.innerHTML = '<div style="color:var(--text-secondary);font-size:13px;padding:8px;">思考中...</div>';
+            panel.style.display = 'flex';
+
+            // Abort previous request
+            if (suggestAbortController) suggestAbortController.abort();
+            suggestAbortController = new AbortController();
+
+            // Get API key (required)
+            const apiKey = getApiKey();
+            if (!apiKey) {
+                panel.innerHTML = '<div style="color:var(--accent-red);font-size:13px;padding:8px;">' + t('apiKeyRequired') + '</div>';
+                if (btn) { btn.classList.remove('loading'); btn.disabled = false; }
+                if (btnM) { btnM.classList.remove('loading'); btnM.disabled = false; }
+                return;
+            }
+
+            const headers = { 'Content-Type': 'application/json', 'X-API-Key': apiKey };
+
+            // SSE streaming — show each suggestion as it arrives (~1s for first)
+            fetch('/api/suggest/stream', {
+                method: 'POST',
+                headers,
+                body: JSON.stringify({ conversation_turns: turns, scenario }),
+                signal: suggestAbortController.signal,
+            }).then(response => {
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+                let firstSuggestion = true;
+
+                function setSuggestDone() {
+                    if (btn) { btn.classList.remove('loading'); btn.disabled = false; }
+                    if (btnM) { btnM.classList.remove('loading'); btnM.disabled = false; }
+                }
+
+                function processStream() {
+                    return reader.read().then(({ done, value }) => {
+                        if (done) { setSuggestDone(); return; }
+                        buffer += decoder.decode(value, { stream: true });
+                        const lines = buffer.split('\n');
+                        buffer = lines.pop() || '';
+
+                        for (const line of lines) {
+                            if (!line.startsWith('data: ')) continue;
+                            try {
+                                const evt = JSON.parse(line.slice(6));
+                                if (evt.type === 'suggestion') {
+                                    if (firstSuggestion) {
+                                        panel.innerHTML = '';
+                                        firstSuggestion = false;
+                                    }
+                                    appendSuggestionCard(panel, evt);
+                                } else if (evt.type === 'done') {
+                                    setSuggestDone();
+                                } else if (evt.type === 'error') {
+                                    panel.innerHTML = `<div style="color:var(--accent-red);font-size:13px;padding:8px;">${escapeHtml(evt.error)}</div>`;
+                                    setSuggestDone();
+                                }
+                            } catch (e) {}
+                        }
+                        return processStream();
+                    });
+                }
+                return processStream();
+            }).catch(err => {
+                if (err.name === 'AbortError') return;
+                panel.innerHTML = '<div style="color:var(--accent-red);font-size:13px;padding:8px;">建議生成失敗</div>';
+                if (btn) { btn.classList.remove('loading'); btn.disabled = false; }
+                if (btnM) { btnM.classList.remove('loading'); btnM.disabled = false; }
+            });
+        }
+
+        function appendSuggestionCard(panel, s) {
+            const card = document.createElement('div');
+            card.className = 'suggestion-card';
+            card.innerHTML = `
+                <div class="suggestion-card-en">${escapeHtml(s.english)}</div>
+                <div class="suggestion-card-zh">${escapeHtml(s.chinese)}</div>
+                <div class="suggestion-card-use">用這個 →</div>
+            `;
+            card.onclick = () => {
+                showTeleprompterOverlay(s.english, s.chinese);
+                panel.style.display = 'none';
+            };
+            panel.appendChild(card);
+        }
 
         // =============================================
         // Phase 1: Start Listening (from preparation mode)
@@ -4714,6 +5677,16 @@ FORMAT:
             // 隱藏空狀態
             transcriptEmpty.style.display = 'none';
 
+            // Enable suggest buttons (desktop + mobile) when segments exist
+            const suggestBtn = document.getElementById('suggestBtn');
+            if (suggestBtn && !suggestBtn.classList.contains('loading')) {
+                suggestBtn.disabled = false;
+            }
+            const suggestBtnM = document.getElementById('suggestBtnMobile');
+            if (suggestBtnM && !suggestBtnM.classList.contains('loading')) {
+                suggestBtnM.disabled = false;
+            }
+
             let segmentEl = document.getElementById(segment.id);
 
             // 說話者樣式
@@ -4799,9 +5772,9 @@ FORMAT:
                     <span style="font-size: 12px; color: ${speakerColor}; font-weight: 600;">${speakerLabel}</span>
                     <span style="font-size: 11px; color: var(--text-secondary);">${time}</span>
                 </div>
-                <div style="font-size: 18px; color: var(--text-primary); margin-bottom: 8px;">${segment.englishText}</div>
+                <div style="font-size: 18px; color: var(--text-primary); margin-bottom: 8px;">${highlightKeyInfo(segment.englishText)}</div>
                 <div style="font-size: 16px; color: var(--accent-blue); margin-bottom: 8px;">
-                    ${segment.chineseTranslation || '<span style="color: var(--text-secondary);">翻譯中...</span>'}
+                    ${segment.chineseTranslation ? highlightKeyInfo(segment.chineseTranslation) : '<span style="color: var(--text-secondary);">翻譯中...</span>'}
                 </div>
                 ${warningHtml}
                 <div style="display: flex; justify-content: flex-end; font-size: 12px; color: var(--text-secondary);">
