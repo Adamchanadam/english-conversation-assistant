@@ -2586,7 +2586,7 @@
                             <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
                             <polyline points="9 22 9 12 15 12 15 22"></polyline>
                         </svg>
-                        首頁
+                        <span data-i18n="home">首頁</span>
                     </button>
                     <button class="btn-call-control export" id="btnExport" onclick="exportTranscript()">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -2594,18 +2594,18 @@
                             <polyline points="7 10 12 15 17 10"></polyline>
                             <line x1="12" x2="12" y1="15" y2="3"></line>
                         </svg>
-                        匯出
+                        <span data-i18n="exportRecord">匯出</span>
                     </button>
                     <!-- Overflow menu (visible on mobile, replaces Home/Export) -->
                     <div class="overflow-menu-wrapper">
-                        <button class="overflow-menu-btn" onclick="toggleOverflowMenu()" aria-label="更多選項">&#8942;</button>
+                        <button class="overflow-menu-btn" onclick="toggleOverflowMenu()" data-i18n-title="moreOptions" aria-label="更多選項">&#8942;</button>
                         <div class="overflow-menu-dropdown" id="overflowMenu">
                             <button class="overflow-menu-item" onclick="goToHome(); closeOverflowMenu();">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                     <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
                                     <polyline points="9 22 9 12 15 12 15 22"></polyline>
                                 </svg>
-                                首頁
+                                <span data-i18n="home">首頁</span>
                             </button>
                             <button class="overflow-menu-item" onclick="exportTranscript(); closeOverflowMenu();">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -2613,7 +2613,7 @@
                                     <polyline points="7 10 12 15 17 10"></polyline>
                                     <line x1="12" x2="12" y1="15" y2="3"></line>
                                 </svg>
-                                匯出記錄
+                                <span data-i18n="exportRecord">匯出記錄</span>
                             </button>
                         </div>
                     </div>
@@ -2637,7 +2637,7 @@
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
                         </svg>
-                        <span>即時翻譯</span>
+                        <span data-i18n="listeningTitle">即時翻譯</span>
                     </h3>
                 </div>
                 <div class="transcript-content" id="transcriptContent">
@@ -2647,8 +2647,8 @@
                             <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
                             <line x1="12" x2="12" y1="19" y2="22"></line>
                         </svg>
-                        <div style="font-size:16px;font-weight:500;margin-top:12px;">聆聽中...</div>
-                        <div style="font-size:14px;color:var(--text-secondary);max-width:300px;line-height:1.6;">
+                        <div style="font-size:16px;font-weight:500;margin-top:12px;" data-i18n="listeningEmpty">聆聽中...</div>
+                        <div style="font-size:14px;color:var(--text-secondary);max-width:300px;line-height:1.6;" data-i18n="listeningHint">
                             將手機通話開啟擴音，<br>對方說的英文會即時翻譯成中文
                         </div>
                     </div>
@@ -2672,37 +2672,37 @@
         <!-- Divider between cards and phrases (hidden if no cards) -->
         <div class="quick-response-divider" id="quickResponseDivider" style="display:none;"></div>
         <!-- Quick phrases -->
-        <button class="quick-phrase-btn" onclick="showQuickPhrase(0)" title="請再說一次">
+        <button class="quick-phrase-btn" onclick="showQuickPhrase(0)">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
                 <path d="M3 3v5h5"></path>
             </svg>
-            再說一次
+            <span data-i18n="phraseRepeat">再說一次</span>
         </button>
-        <button class="quick-phrase-btn" onclick="showQuickPhrase(1)" title="請慢點說">
+        <button class="quick-phrase-btn" onclick="showQuickPhrase(1)">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <circle cx="12" cy="12" r="10"></circle>
                 <polyline points="12 6 12 12 16 14"></polyline>
             </svg>
-            慢點說
+            <span data-i18n="phraseSlow">慢點說</span>
         </button>
-        <button class="quick-phrase-btn" onclick="showQuickPhrase(2)" title="我確認一下">
+        <button class="quick-phrase-btn" onclick="showQuickPhrase(2)">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <polyline points="20 6 9 17 4 12"></polyline>
             </svg>
-            確認一下
+            <span data-i18n="phraseConfirm">確認一下</span>
         </button>
-        <button class="quick-phrase-btn" onclick="showQuickPhrase(3)" title="謝謝再見">
+        <button class="quick-phrase-btn" onclick="showQuickPhrase(3)">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M4.5 21.5l6-6M9 10.5L4.5 15m0 0l6 6"></path>
             </svg>
-            謝謝
+            <span data-i18n="phraseThanks">謝謝</span>
         </button>
         <!-- Smart Suggest Button -->
-        <button class="suggest-btn" id="suggestBtn" onclick="requestSuggestions()" disabled title="AI 幫我回應">
+        <button class="suggest-btn" id="suggestBtn" onclick="requestSuggestions()" disabled>
             <span class="suggest-icon">💡</span>
             <span class="spinner"></span>
-            幫我回應
+            <span data-i18n="suggestBtn">幫我回應</span>
         </button>
         <!-- Panic Button -->
         <button class="panic-btn" id="panicBtn" onclick="triggerPanic()">
@@ -2711,13 +2711,13 @@
                 <line x1="12" y1="9" x2="12" y2="13"></line>
                 <line x1="12" y1="17" x2="12.01" y2="17"></line>
             </svg>
-            求助
+            <span data-i18n="panicBtn">求助</span>
         </button>
     </div>
 
     <!-- Mobile: Peek Bar (tap to open bottom sheet) -->
     <div class="peek-bar" id="peekBar" onclick="toggleBottomSheet()">
-        <span>💬 快速回應</span>
+        <span data-i18n="peekBarLabel">💬 快速回應</span>
         <span class="peek-bar-arrow">▲</span>
     </div>
 
@@ -2732,19 +2732,19 @@
                     <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
                     <line x1="12" x2="12" y1="19" y2="22"></line>
                 </svg>
-                <span>我在說</span>
+                <span data-i18n="iAmSpeakingShort">我在說</span>
             </button>
             <button class="bottom-bar-btn pause-resume" id="btnPauseResumeMobile" onclick="togglePauseResume()">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" stroke="none" id="pauseResumeIcon">
                     <rect x="6" y="4" width="4" height="16" rx="1"></rect>
                     <rect x="14" y="4" width="4" height="16" rx="1"></rect>
                 </svg>
-                <span id="pauseResumeLabel">暫停</span>
+                <span id="pauseResumeLabel" data-i18n="pause">暫停</span>
             </button>
             <button class="bottom-bar-btn suggest" id="suggestBtnMobile" onclick="requestSuggestions()" disabled>
                 <span class="suggest-icon">💡</span>
                 <span class="spinner"></span>
-                <span>幫我回應</span>
+                <span data-i18n="suggestBtn">幫我回應</span>
             </button>
         </div>
     </div>
@@ -2757,38 +2757,38 @@
         <div class="bottom-sheet-handle"></div>
         <!-- Prepared scripts section -->
         <div class="bottom-sheet-section" id="sheetPreparedSection" style="display:none;">
-            <div class="bottom-sheet-section-title">📋 準備好的講稿</div>
+            <div class="bottom-sheet-section-title" data-i18n="sheetPreparedTitle">📋 準備好的講稿</div>
             <div class="bottom-sheet-grid" id="sheetPreparedCards"></div>
         </div>
         <!-- Quick phrases section -->
         <div class="bottom-sheet-section">
-            <div class="bottom-sheet-section-title">⚡ 常用回應</div>
+            <div class="bottom-sheet-section-title" data-i18n="sheetQuickTitle">⚡ 常用回應</div>
             <div class="bottom-sheet-grid">
-                <button class="quick-phrase-btn" onclick="showQuickPhrase(0); closeBottomSheet();" title="請再說一次">
+                <button class="quick-phrase-btn" onclick="showQuickPhrase(0); closeBottomSheet();">
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
                         <path d="M3 3v5h5"></path>
                     </svg>
-                    再說一次
+                    <span data-i18n="phraseRepeat">再說一次</span>
                 </button>
-                <button class="quick-phrase-btn" onclick="showQuickPhrase(1); closeBottomSheet();" title="請慢點說">
+                <button class="quick-phrase-btn" onclick="showQuickPhrase(1); closeBottomSheet();">
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <circle cx="12" cy="12" r="10"></circle>
                         <polyline points="12 6 12 12 16 14"></polyline>
                     </svg>
-                    慢點說
+                    <span data-i18n="phraseSlow">慢點說</span>
                 </button>
-                <button class="quick-phrase-btn" onclick="showQuickPhrase(2); closeBottomSheet();" title="我確認一下">
+                <button class="quick-phrase-btn" onclick="showQuickPhrase(2); closeBottomSheet();">
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <polyline points="20 6 9 17 4 12"></polyline>
                     </svg>
-                    確認一下
+                    <span data-i18n="phraseConfirm">確認一下</span>
                 </button>
-                <button class="quick-phrase-btn" onclick="showQuickPhrase(3); closeBottomSheet();" title="謝謝再見">
+                <button class="quick-phrase-btn" onclick="showQuickPhrase(3); closeBottomSheet();">
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M4.5 21.5l6-6M9 10.5L4.5 15m0 0l6 6"></path>
                     </svg>
-                    謝謝
+                    <span data-i18n="phraseThanks">謝謝</span>
                 </button>
             </div>
         </div>
@@ -2800,18 +2800,18 @@
                     <line x1="12" y1="9" x2="12" y2="13"></line>
                     <line x1="12" y1="17" x2="12.01" y2="17"></line>
                 </svg>
-                求助
+                <span data-i18n="panicBtn">求助</span>
             </button>
         </div>
     </div>
 
     <!-- Copy Toast -->
-    <div id="copyToast" class="copy-toast">已複製!</div>
+    <div id="copyToast" class="copy-toast" data-i18n="copied">已複製!</div>
 
     <!-- Teleprompter Overlay (for quick phrases, panic, prepared cards) -->
     <div class="teleprompter-overlay" id="teleprompterOverlay" onclick="closeTeleprompterOverlay(event)">
         <div class="teleprompter-overlay-content" onclick="event.stopPropagation()">
-            <button class="teleprompter-overlay-close" onclick="closeTeleprompterOverlay()" aria-label="關閉">
+            <button class="teleprompter-overlay-close" onclick="closeTeleprompterOverlay()" data-i18n-title="close" aria-label="關閉">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <line x1="18" y1="6" x2="6" y2="18"></line>
                     <line x1="6" y1="6" x2="18" y2="18"></line>
@@ -2824,7 +2824,7 @@
             <div class="teleprompter-overlay-chinese" id="overlayChinese"></div>
             <!-- Prepared scripts shown in panic mode -->
             <div class="teleprompter-overlay-scripts" id="overlayScripts" style="display:none;">
-                <div class="teleprompter-overlay-scripts-title">你準備好的講稿：</div>
+                <div class="teleprompter-overlay-scripts-title" data-i18n="preparedScriptsTitle">你準備好的講稿：</div>
                 <div id="overlayScriptsList"></div>
             </div>
         </div>
@@ -2932,7 +2932,42 @@
                 warning: '警告',
                 pwaWarningTitle: '⚠️ 語音功能受限',
                 pwaWarningText: '「主畫面」模式暫不支援語音辨識。請用 Safari 開啟此網址以使用完整功能。',
-                pwaWarningCopy: '📋 複製網址到 Safari 開啟'
+                pwaWarningCopy: '📋 複製網址到 Safari 開啟',
+                // v2.0 new keys
+                home: '首頁',
+                exportRecord: '匯出記錄',
+                moreOptions: '更多選項',
+                peekBarLabel: '💬 快速回應',
+                iAmSpeakingShort: '我在說',
+                suggestBtn: '幫我回應',
+                sheetPreparedTitle: '📋 準備好的講稿',
+                sheetQuickTitle: '⚡ 常用回應',
+                phraseRepeat: '再說一次',
+                phraseSlow: '慢點說',
+                phraseConfirm: '確認一下',
+                phraseThanks: '謝謝',
+                panicBtn: '求助',
+                useThis: '用這個 →',
+                copied: '已複製!',
+                thinking: '思考中...',
+                suggestFailed: '建議生成失敗',
+                listeningTitle: '即時翻譯',
+                listeningEmpty: '聆聽中...',
+                listeningHint: '將手機通話開啟擴音，<br>對方說的英文會即時翻譯成中文',
+                previewLabel: '英文原文',
+                previewLabelPaused: '英文原文（已暫停）',
+                previewLabelStopped: '英文原文（已停止）',
+                waitingAudio: '等待語音...',
+                speakerMeIndicator: '🙋 我在說話',
+                speakerThemIndicator: '👤 對方說話',
+                confirmLeave: '確定要離開嗎？翻譯記錄將會清除。',
+                clickToCopy: '點擊複製',
+                preparedScriptsTitle: '你準備好的講稿：',
+                statusTranslating: '翻譯中',
+                statusPreparing: '準備中...',
+                statusStopped: '已停止',
+                close: '關閉',
+                delete_: '刪除'
             },
             'zh-CN': {
                 appTitle: '英文对话助手',
@@ -3015,7 +3050,42 @@
                 warning: '警告',
                 pwaWarningTitle: '⚠️ 语音功能受限',
                 pwaWarningText: '「主画面」模式暂不支持语音识别。请用 Safari 打开此网址以使用完整功能。',
-                pwaWarningCopy: '📋 复制网址到 Safari 打开'
+                pwaWarningCopy: '📋 复制网址到 Safari 打开',
+                // v2.0 new keys
+                home: '首页',
+                exportRecord: '导出记录',
+                moreOptions: '更多选项',
+                peekBarLabel: '💬 快速回应',
+                iAmSpeakingShort: '我在说',
+                suggestBtn: '帮我回应',
+                sheetPreparedTitle: '📋 准备好的讲稿',
+                sheetQuickTitle: '⚡ 常用回应',
+                phraseRepeat: '再说一次',
+                phraseSlow: '慢点说',
+                phraseConfirm: '确认一下',
+                phraseThanks: '谢谢',
+                panicBtn: '求助',
+                useThis: '用这个 →',
+                copied: '已复制!',
+                thinking: '思考中...',
+                suggestFailed: '建议生成失败',
+                listeningTitle: '实时翻译',
+                listeningEmpty: '聆听中...',
+                listeningHint: '将手机通话开启扩音，<br>对方说的英文会实时翻译成中文',
+                previewLabel: '英文原文',
+                previewLabelPaused: '英文原文（已暂停）',
+                previewLabelStopped: '英文原文（已停止）',
+                waitingAudio: '等待语音...',
+                speakerMeIndicator: '🙋 我在说话',
+                speakerThemIndicator: '👤 对方说话',
+                confirmLeave: '确定要离开吗？翻译记录将会清除。',
+                clickToCopy: '点击复制',
+                preparedScriptsTitle: '你准备好的讲稿：',
+                statusTranslating: '翻译中',
+                statusPreparing: '准备中...',
+                statusStopped: '已停止',
+                close: '关闭',
+                delete_: '删除'
             },
             'en': {
                 appTitle: 'English Conversation Assistant',
@@ -3098,7 +3168,42 @@
                 warning: 'Warning',
                 pwaWarningTitle: '⚠️ Voice Feature Unavailable',
                 pwaWarningText: 'Speech recognition is not supported in Home Screen mode. Please open this URL in Safari for full functionality.',
-                pwaWarningCopy: '📋 Copy URL to open in Safari'
+                pwaWarningCopy: '📋 Copy URL to open in Safari',
+                // v2.0 new keys
+                home: 'Home',
+                exportRecord: 'Export',
+                moreOptions: 'More options',
+                peekBarLabel: '💬 Quick Response',
+                iAmSpeakingShort: 'Speaking',
+                suggestBtn: 'Suggest',
+                sheetPreparedTitle: '📋 Prepared Scripts',
+                sheetQuickTitle: '⚡ Quick Responses',
+                phraseRepeat: 'Repeat',
+                phraseSlow: 'Slower',
+                phraseConfirm: 'Confirm',
+                phraseThanks: 'Thanks',
+                panicBtn: 'Help',
+                useThis: 'Use this →',
+                copied: 'Copied!',
+                thinking: 'Thinking...',
+                suggestFailed: 'Failed to generate suggestions',
+                listeningTitle: 'Live Translation',
+                listeningEmpty: 'Listening...',
+                listeningHint: 'Turn on speakerphone,<br>English speech will be translated to Chinese in real time',
+                previewLabel: 'English Text',
+                previewLabelPaused: 'English Text (Paused)',
+                previewLabelStopped: 'English Text (Stopped)',
+                waitingAudio: 'Waiting for audio...',
+                speakerMeIndicator: '🙋 I am speaking',
+                speakerThemIndicator: '👤 Other party',
+                confirmLeave: 'Are you sure you want to leave? Translation history will be cleared.',
+                clickToCopy: 'Click to copy',
+                preparedScriptsTitle: 'Your prepared scripts:',
+                statusTranslating: 'Translating',
+                statusPreparing: 'Preparing...',
+                statusStopped: 'Stopped',
+                close: 'Close',
+                delete_: 'Delete'
             }
         };
 
@@ -3127,7 +3232,11 @@
         function updateUILanguage() {
             document.querySelectorAll('[data-i18n]').forEach(el => {
                 const key = el.getAttribute('data-i18n');
-                if (key) el.textContent = t(key);
+                if (!key) return;
+                const val = t(key);
+                // Use innerHTML for translations containing HTML tags (e.g. <br>)
+                if (val.includes('<')) el.innerHTML = val;
+                else el.textContent = val;
             });
             document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
                 const key = el.getAttribute('data-i18n-placeholder');
@@ -3135,7 +3244,9 @@
             });
             document.querySelectorAll('[data-i18n-title]').forEach(el => {
                 const key = el.getAttribute('data-i18n-title');
-                if (key) el.title = t(key);
+                if (!key) return;
+                el.title = t(key);
+                el.setAttribute('aria-label', t(key));
             });
             updateAccentSelectOptions();
             const langSelect = document.getElementById('languageSelect');
@@ -3743,13 +3854,13 @@
                 resumeListening();
                 btn.classList.remove('paused');
                 icon.innerHTML = '<rect x="6" y="4" width="4" height="16" rx="1"></rect><rect x="14" y="4" width="4" height="16" rx="1"></rect>';
-                label.textContent = '暫停';
+                label.textContent = t('pause');
             } else {
                 // Pause
                 pauseListening();
                 btn.classList.add('paused');
                 icon.innerHTML = '<polygon points="5 3 19 12 5 21 5 3"></polygon>';
-                label.textContent = '繼續';
+                label.textContent = t('resume');
             }
         }
 
@@ -3904,7 +4015,7 @@
             updateSpeakerIndicator('me');
 
             // 更新狀態指示器
-            updateStatus('ptt', '我在說話');
+            updateStatus('ptt', t('statusSpeaking'));
 
             log('PTT: 我在說話模式', 'info');
         }
@@ -3941,7 +4052,7 @@
             updateSpeakerIndicator('them');
 
             // 恢復狀態指示器
-            updateStatus('connected', '翻譯中');
+            updateStatus('connected', t('statusTranslating'));
 
             log('PTT: 對方說話模式', 'info');
         }
@@ -3976,11 +4087,11 @@
             }
 
             if (speaker === 'me') {
-                indicator.innerHTML = '🙋 我在說話';
+                indicator.innerHTML = t('speakerMeIndicator');
                 indicator.style.background = 'rgba(0, 212, 255, 0.95)';
                 indicator.style.color = '#000';
             } else {
-                indicator.innerHTML = '👤 對方說話';
+                indicator.innerHTML = t('speakerThemIndicator');
                 indicator.style.background = 'rgba(0, 255, 136, 0.25)';
                 indicator.style.color = 'var(--accent-green)';
                 indicator.style.border = '1px solid var(--accent-green)';
@@ -4061,7 +4172,7 @@
                 previewEl.classList.add('stopped');
                 const labelEl = previewEl.querySelector('.preview-label span:last-child');
                 if (labelEl) {
-                    labelEl.textContent = '英文原文（已暫停）';
+                    labelEl.textContent = t('previewLabelPaused');
                 }
             }
 
@@ -4073,7 +4184,7 @@
             document.getElementById('btnResume').style.display = '';
 
             // Update status
-            updateStatus('paused', '已暫停');
+            updateStatus('paused', t('statusPaused'));
             // 隱藏說話者指示器
             hideSpeakerIndicator();
             log('Listening paused', 'success');
@@ -4106,7 +4217,7 @@
                 previewEl.classList.remove('stopped');
                 const labelEl = previewEl.querySelector('.preview-label span:last-child');
                 if (labelEl) {
-                    labelEl.textContent = '英文原文';
+                    labelEl.textContent = t('previewLabel');
                 }
             }
 
@@ -4118,7 +4229,7 @@
             document.getElementById('btnResume').style.display = 'none';
 
             // Update status
-            updateStatus('connected', '翻譯中');
+            updateStatus('connected', t('statusTranslating'));
             // 恢復說話者指示器
             updateSpeakerIndicator('them');
             log('Listening resumed', 'success');
@@ -4128,7 +4239,7 @@
          * 返回首頁 - 帶確認對話框
          */
         function goToHome() {
-            const confirmed = confirm('確定要離開嗎？翻譯記錄將會清除。');
+            const confirmed = confirm(t('confirmLeave'));
             if (confirmed) {
                 stopTest();
             }
@@ -4505,7 +4616,7 @@
                     result += escapeHtml(text.slice(pos, m.start));
                 }
                 const cleanValue = m.value.trim();
-                result += `<span class="key-info key-info-${m.type}" data-value="${escapeHtml(cleanValue)}" onclick="copyKeyInfo(this)" title="點擊複製">${escapeHtml(m.fullMatch)}</span>`;
+                result += `<span class="key-info key-info-${m.type}" data-value="${escapeHtml(cleanValue)}" onclick="copyKeyInfo(this)" title="${t('clickToCopy')}">${escapeHtml(m.fullMatch)}</span>`;
                 pos = m.end;
             }
             if (pos < text.length) {
@@ -4594,7 +4705,7 @@
             // Show loading state (desktop + mobile)
             if (btn) { btn.classList.add('loading'); btn.disabled = true; }
             if (btnM) { btnM.classList.add('loading'); btnM.disabled = true; }
-            panel.innerHTML = '<div style="color:var(--text-secondary);font-size:13px;padding:8px;">思考中...</div>';
+            panel.innerHTML = '<div style="color:var(--text-secondary);font-size:13px;padding:8px;">' + t('thinking') + '</div>';
             panel.style.display = 'flex';
 
             // Abort previous request
@@ -4661,7 +4772,7 @@
                 return processStream();
             }).catch(err => {
                 if (err.name === 'AbortError') return;
-                panel.innerHTML = '<div style="color:var(--accent-red);font-size:13px;padding:8px;">建議生成失敗</div>';
+                panel.innerHTML = '<div style="color:var(--accent-red);font-size:13px;padding:8px;">' + t('suggestFailed') + '</div>';
                 if (btn) { btn.classList.remove('loading'); btn.disabled = false; }
                 if (btnM) { btnM.classList.remove('loading'); btnM.disabled = false; }
             });
@@ -4673,7 +4784,7 @@
             card.innerHTML = `
                 <div class="suggestion-card-en">${escapeHtml(s.english)}</div>
                 <div class="suggestion-card-zh">${escapeHtml(s.chinese)}</div>
-                <div class="suggestion-card-use">用這個 →</div>
+                <div class="suggestion-card-use">${t('useThis')}</div>
             `;
             card.onclick = () => {
                 showTeleprompterOverlay(s.english, s.chinese);
@@ -5073,7 +5184,7 @@
                     // 音訊開始收錄 - 這時用戶可以開始說話
                     webSpeech.onAudioStart = () => {
                         log('Audio capture ready - you can speak now!', 'success');
-                        updateStatus('connected', '翻譯中');
+                        updateStatus('connected', t('statusTranslating'));
                         // 🔧 修復：只在非 PTT 模式時才重設為「對方說話」
                         // PTT 模式下 indicator 已經由 pttStart/pttEnd 控制
                         if (!isPTTActive) {
@@ -5108,9 +5219,9 @@
                 previewEl.innerHTML = `
                     <div class="preview-label preview-toggle" onclick="toggleRealtimePreview()">
                         <span class="toggle-icon">▼</span>
-                        <span>英文原文</span>
+                        <span>${t('previewLabel')}</span>
                     </div>
-                    <div class="preview-text" id="previewText"><span class="preview-text-inner">等待語音...</span></div>
+                    <div class="preview-text" id="previewText"><span class="preview-text-inner">${t('waitingAudio')}</span></div>
                 `;
                 container.appendChild(previewEl);
             }
@@ -5122,7 +5233,7 @@
 
             const textEl = document.getElementById('previewText');
             if (textEl) {
-                const displayText = fullText || '等待語音...';
+                const displayText = fullText || t('waitingAudio');
 
                 // Karaoke 效果：已確認文字較暗，正在說的文字高亮發光
                 if (interim) {
@@ -5215,7 +5326,7 @@
             // ====== 問題 4 修復結束 ======
 
             try {
-                updateStatus('connecting', '連線中...');
+                updateStatus('connecting', t('statusConnecting'));
                 document.getElementById('btnStartListening').disabled = true;
 
                 // Step 1: Capture microphone
@@ -5322,7 +5433,7 @@
                 log(`ICE state: ${peerConnection.iceConnectionState}`, 'event');
                 if (peerConnection.iceConnectionState === 'connected') {
                     // 連線成功，但還要等 Web Speech 準備好才能開始說話
-                    updateStatus('connecting', '準備中...');
+                    updateStatus('connecting', t('statusPreparing'));
                 } else if (peerConnection.iceConnectionState === 'failed') {
                     stopTest();
                 }
@@ -5857,7 +5968,7 @@ FORMAT:
             isPaused = false;  // 重置暫停狀態
             currentSpeaker = 'them';  // 重置說話者
             resetUI();
-            updateStatus('disconnected', '已停止');
+            updateStatus('disconnected', t('statusStopped'));
             hideSpeakerIndicator();  // 隱藏說話者指示器
             switchToPreparationMode();
             log('Stopped', 'success');
@@ -5874,7 +5985,7 @@ FORMAT:
                 // 更新標籤文字
                 const labelEl = previewEl.querySelector('.preview-label span:last-child');
                 if (labelEl) {
-                    labelEl.textContent = '英文原文（已停止）';
+                    labelEl.textContent = t('previewLabelStopped');
                 }
             }
         }
