@@ -1,5 +1,22 @@
 # Changelog
 
+## [v2.2] - 2026-02-17
+
+### 翻譯品質提升
+
+- **書面語風格**：翻譯 prompt 加入書面語（書面語）指示，明確禁止口語化表達（「呢個係」「搞掂咗」），要求使用「這是」「已經」「需要」等正式用語
+- **上下文連貫翻譯**：新增 `previous_context` 欄位，每段翻譯時自動帶入上一段英文作為語境參考，模型只翻譯新段落但可根據前文產生更連貫的翻譯
+- **更自然的斷句**：SmartSegmenter 預設從 `fast`（500ms/14字）改為 `stable`（750ms/18字），暫停閾值和字數限制提高，減少句子中間被截斷
+
+### Technical Changes
+
+- `TranslateRequest` model 新增 `previous_context: Optional[str]` 欄位
+- `/api/translate/stream` 端點支援帶上下文的 user message 格式
+- `/api/translate` 端點同步加入書面語指示
+- 前端 `translateViaBackend()` 追蹤 `previousSegmentEnglish` 並傳入請求
+
+---
+
 ## [v2.1] - 2026-02-17
 
 ### i18n 全面修復
