@@ -3,8 +3,23 @@
 即時英文對話助手 — 讓英文電話不再焦慮的即時輔助工具。
 
 ---
+
+### v2.1 — What's New
+
+> 通話中不知道怎麼回？按一下，AI 幫你想好怎麼說。
+
+- **Smart Suggestions** — 通話中按「幫我回應」，AI 即時生成 2-3 個建議回應（英+中），選中即顯示在提詞器
+- **Key Info Auto-highlight** — 電話號碼、金額、日期、參考編號自動標亮，點擊一鍵複製
+- **Mobile-First UI** — 手機版全新三層漸進式介面，核心操作一手掌握
+- **Full i18n** — 繁體中文 / 簡體中文 / English 完整切換，所有按鈕、提示、錯誤訊息同步翻譯
+
+---
+
+| Desktop | Mobile |
+|---------|--------|
+| ![ECA UI Desktop](/spec/eca_ui_2.png) | ![ECA UI Mobile](/spec/eca_ui_3_mobile.png) |
+
 ![ECA UI 1](/spec/eca_ui_1.png)
-![ECA UI 2](/spec/eca_ui_2.png)
 
 🚀 **[點擊這裡試用 Demo](https://english-conversation-assistant-686112121757.europe-west2.run.app/)**
 
