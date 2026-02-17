@@ -3599,7 +3599,7 @@
             }
         };
 
-        let currentPreset = 'fast';
+        let currentPreset = 'stable';
 
         function applyPreset(presetKey) {
             const preset = SEGMENTER_PRESETS[presetKey];
@@ -5663,6 +5663,7 @@ FORMAT:
         // ============================================
 
         let segmentCounter = 0;
+        let previousSegmentEnglish = null;  // 上一段英文，用作翻譯上下文
 
         /**
          * 透過串流 API 翻譯英文段落
@@ -5709,17 +5710,21 @@ FORMAT:
             log(`[翻譯] 使用 API Key: ${apiKey.substring(0, 8)}...`, 'info');
 
             try {
-                // 使用串流 API（帶場景詞庫支援 + 用戶 API Key）
+                // 使用串流 API（帶場景詞庫支援 + 用戶 API Key + 上下文）
+                const requestBody = {
+                    text: englishText.trim(),
+                    scenario: selectedScenario  // 傳遞場景以啟用詞庫
+                };
+                if (previousSegmentEnglish) {
+                    requestBody.previous_context = previousSegmentEnglish;
+                }
                 const response = await fetch('/api/translate/stream', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                         'X-API-Key': apiKey  // 用戶提供的 API Key
                     },
-                    body: JSON.stringify({
-                        text: englishText.trim(),
-                        scenario: selectedScenario  // 傳遞場景以啟用詞庫
-                    })
+                    body: JSON.stringify(requestBody)
                 });
 
                 if (!response.ok) {
@@ -5814,6 +5819,9 @@ FORMAT:
                     renderSegment(segment);
                     updateStats();
                 }
+
+                // 記錄當前段落英文，供下一段翻譯作上下文
+                previousSegmentEnglish = englishText.trim();
 
             } catch (error) {
                 // 錯誤處理

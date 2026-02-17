@@ -242,6 +242,10 @@ class TranslateRequest(BaseModel):
         default=None,
         description="Domain scenario for glossary hints: bank, nhs, utilities, insurance"
     )
+    previous_context: Optional[str] = Field(
+        default=None,
+        description="Previous segment English text for translation continuity"
+    )
 
 
 class TranslateResponse(BaseModel):

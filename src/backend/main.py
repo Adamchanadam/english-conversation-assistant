@@ -366,6 +366,7 @@ RULES:
 - Output ONLY the Chinese translation, nothing else.
 - No greetings, no explanations, no "好的", no "我明白".
 - Use Traditional Chinese (說話 not 说话).
+- Use formal written Chinese (書面語), NOT colloquial spoken Chinese (口語).
 - Proper nouns: 中文 (English), e.g., "愛潑斯坦 (Epstein)"
 
 CRITICAL - Keep ALL numbers in Arabic numerals:
@@ -456,6 +457,12 @@ async def translate_text_stream(request: TranslateRequest, req: Request):
     base_prompt = """You are a translation machine. Translate English to Traditional Chinese (Hong Kong style, 繁體中文).
 Output ONLY the Chinese translation. No greetings, no explanations. Use Traditional Chinese (說話 not 说话).
 
+STYLE - Use formal written Chinese (書面語), NOT colloquial spoken Chinese (口語):
+- ✅ 書面語: 「這是」「因為」「可以」「已經」「需要」「如果」
+- ❌ 口語: 「呢個係」「因為呢」「得唔得」「搞掂咗」「要唔要」「如果嘅話」
+- Write complete, grammatically correct sentences
+- Avoid Cantonese colloquialisms and filler words
+
 PROPER NOUNS - Keep these UNTRANSLATED:
 - Brand names: Google, Microsoft, Apple, OpenAI, ChatGPT, Claude, etc.
 - Product/App names: Keep CamelCase words as-is (e.g., "YouTube", "WhatsApp", "TikTok")
@@ -482,6 +489,12 @@ NUMBERS - Keep ALL in Arabic numerals, NEVER convert to Chinese:
     else:
         system_prompt = base_prompt
 
+    # Build user message with optional previous context for continuity
+    if request.previous_context:
+        user_message = f"[Context - DO NOT translate, for reference only]\nPrevious: \"{request.previous_context}\"\n\n[Translate ONLY the following]\n{request.text}"
+    else:
+        user_message = request.text
+
     async def generate():
         import json as json_module
         logger.info(f"[Translate] Starting stream translation for: {request.text[:50]}...")
@@ -501,7 +514,7 @@ NUMBERS - Keep ALL in Arabic numerals, NEVER convert to Chinese:
                         "model": TRANSLATION_MODEL,
                         "messages": [
                             {"role": "system", "content": system_prompt},
-                            {"role": "user", "content": request.text}
+                            {"role": "user", "content": user_message}
                         ],
                         "max_tokens": 500,
                         "temperature": 0.3,
